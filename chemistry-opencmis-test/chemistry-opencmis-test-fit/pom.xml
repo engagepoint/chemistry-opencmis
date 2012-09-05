@@ -26,6 +26,8 @@
 
 	<properties>
 		<parentBasedir>../../</parentBasedir>
+		<modeshape.version>2.8.2.Final</modeshape.version>
+		<chemistry.version>0.8.0-SNAPSHOT</chemistry.version>
 	</properties>
 
 
@@ -45,8 +47,8 @@
 						<overlay>
 						</overlay>
 						<overlay>
-							<groupId>${project.groupId}</groupId>
-							<artifactId>chemistry-opencmis-server-inmemory</artifactId>
+                            <groupId>org.apache.chemistry.opencmis</groupId>
+                            <artifactId>chemistry-opencmis-server-jcr-patch</artifactId>
 						</overlay>
 					</overlays>
 				</configuration>
@@ -124,12 +126,25 @@
 			<artifactId>chemistry-opencmis-test-tck</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>chemistry-opencmis-server-inmemory</artifactId>
-			<version>${project.version}</version>
-			<type>war</type>
-		</dependency>
+		
+        <dependency>
+            <groupId>org.modeshape</groupId>
+            <artifactId>modeshape-jcr</artifactId>
+            <version>${modeshape.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.modeshape</groupId>
+            <artifactId>modeshape-connector-webdav</artifactId>
+            <version>${modeshape.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.modeshape</groupId>
+            <artifactId>modeshape-connector-filesystem</artifactId>
+            <version>${modeshape.version}</version>
+        </dependency>
+
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>chemistry-opencmis-test-util</artifactId>
@@ -137,5 +152,26 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
+		
+        <dependency>
+            <groupId>org.apache.chemistry.opencmis</groupId>
+            <artifactId>chemistry-opencmis-server-jcr-patch</artifactId>
+            <version>${chemistry.version}</version>
+            <type>war</type>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.chemistry.opencmis</groupId>
+            <artifactId>chemistry-opencmis-server-bindings</artifactId>
+            <version>${chemistry.version}</version>
+            <classifier>classes</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.chemistry.opencmis</groupId>
+            <artifactId>chemistry-opencmis-server-jcr-patch</artifactId>
+            <version>${chemistry.version}</version>
+            <classifier>classes</classifier>
+        </dependency>		
 	</dependencies>
 </project>
