@@ -26,6 +26,8 @@
 
 	<properties>
 		<parentBasedir>../../</parentBasedir>
+		<modeshape.version>2.8.2.Final</modeshape.version>
+		<chemistry.version>0.8.0-SNAPSHOT</chemistry.version>
 	</properties>
 
 
@@ -43,12 +45,20 @@
 				<configuration>
 					<overlays>
 						<overlay>
-						</overlay>
-						<overlay>
-							<groupId>${project.groupId}</groupId>
-							<artifactId>chemistry-opencmis-server-inmemory</artifactId>
+                            <groupId>${overlay.groupId}</groupId>
+                            <artifactId>${overlay.artifactId}</artifactId>
 						</overlay>
 					</overlays>
+				   <webResources>
+				        <resource>
+				                <directory>${basedir}/src/main/webapp/WEB-INF</directory>
+				                <filtering>true</filtering>
+				                <targetPath>WEB-INF</targetPath>
+				                <includes>
+				                        <include>**/*.properties</include>
+				                </includes>
+				        </resource>
+				    </webResources>					
 				</configuration>
 			</plugin>
 			<plugin>
@@ -115,6 +125,13 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<configuration>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>			
 		</plugins>
 	</build>
 
@@ -124,12 +141,7 @@
 			<artifactId>chemistry-opencmis-test-tck</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>chemistry-opencmis-server-inmemory</artifactId>
-			<version>${project.version}</version>
-			<type>war</type>
-		</dependency>
+
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>chemistry-opencmis-test-util</artifactId>
@@ -137,5 +149,72 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
+
 	</dependencies>
+	
+	<profiles>
+        <profile>
+            <id>jcr-modeshape-inmemory</id>
+            <properties>
+            	<overlay.groupId>org.apache.chemistry.opencmis</overlay.groupId>
+            	<overlay.artifactId>chemistry-opencmis-server-jcr</overlay.artifactId>
+            	<jcr.factory.class>org.apache.chemistry.opencmis.jcr.JcrServiceFactory</jcr.factory.class>
+            </properties>
+	        <dependencies>
+		        <dependency>
+		            <groupId>org.modeshape</groupId>
+		            <artifactId>modeshape-jcr</artifactId>
+		            <version>${modeshape.version}</version>
+		        </dependency>
+<!-- 	        
+		        <dependency>
+		            <groupId>org.modeshape</groupId>
+		            <artifactId>modeshape-connector-webdav</artifactId>
+		            <version>${modeshape.version}</version>
+		        </dependency>
+		        <dependency>
+		            <groupId>org.modeshape</groupId>
+		            <artifactId>modeshape-connector-filesystem</artifactId>
+		            <version>${modeshape.version}</version>
+		        </dependency>
+-->
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-jcr</artifactId>
+		            <version>${chemistry.version}</version>
+		            <type>war</type>
+		        </dependency>
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-bindings</artifactId>
+		            <version>${chemistry.version}</version>
+		            <classifier>classes</classifier>
+		        </dependency>
+		
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-jcr</artifactId>
+		            <version>${chemistry.version}</version>
+		            <classifier>classes</classifier>
+		        </dependency>				        
+	        </dependencies>
+        </profile>
+        <profile>
+            <id>jcr-jackrabbit-inmemory</id>
+            <properties>
+            	<overlay.groupId>${project.groupId}</overlay.groupId>
+            	<overlay.artifactId>chemistry-opencmis-server-inmemory</overlay.artifactId>
+            	<jcr.factory.class>org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceFactoryImpl</jcr.factory.class>
+            	<jcr.repository>test</jcr.repository>
+            </properties>
+	        <dependencies>
+	        	<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>chemistry-opencmis-server-inmemory</artifactId>
+					<version>${project.version}</version>
+					<type>war</type>
+				</dependency>
+	        </dependencies>
+	    </profile>
+    </profiles>
 </project>

@@ -43,5 +43,5 @@ public class AtomPubTckIT extends AbstractTckIT {
     public BindingType getBindingType() {
         return BindingType.ATOMPUB;
     }
-
+    
 }
