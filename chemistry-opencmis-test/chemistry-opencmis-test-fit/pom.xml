@@ -201,6 +201,9 @@
         </profile>
         <profile>
             <id>jcr-jackrabbit-inmemory</id>
+             <activation>
+            	<activeByDefault>true</activeByDefault>
+            </activation> 
             <properties>
             	<overlay.groupId>${project.groupId}</overlay.groupId>
             	<overlay.artifactId>chemistry-opencmis-server-inmemory</overlay.artifactId>
