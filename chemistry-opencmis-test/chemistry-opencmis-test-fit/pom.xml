@@ -51,13 +51,13 @@
 					</overlays>
 				   <webResources>
 				        <resource>
-				                <directory>${basedir}/src/main/webapp/WEB-INF</directory>
-				                <filtering>true</filtering>
-				                <targetPath>WEB-INF</targetPath>
-				                <includes>
-				                        <include>**/*.properties</include>
-				                </includes>
-				        </resource>
+			                <directory>${basedir}/src/main/webapp/WEB-INF</directory>
+			                <filtering>true</filtering>
+			                <targetPath>WEB-INF</targetPath>
+			                <includes>
+			                        <include>**/*.*</include>
+			                </includes>
+				        </resource>			        
 				    </webResources>					
 				</configuration>
 			</plugin>
@@ -67,7 +67,8 @@
 				<version>2.7.2</version>
 				<configuration>
 					<encoding>UTF-8</encoding>
-					<forkMode>once</forkMode>
+					<!-- System properties of the jetty-plugin do not work in 'once' fork mode -->
+					<forkMode>never</forkMode>
 					<forkedProcessTimeoutInSeconds>1800</forkedProcessTimeoutInSeconds>
 					<argLine>-Xmx256m</argLine>
 				</configuration>
@@ -100,6 +101,20 @@
 							<host>0.0.0.0</host>
 						</connector>
 					</connectors>
+					<systemProperties>
+                        <systemProperty>
+			              <name>org.apache.chemistry.opencmis.session.repository.id</name>
+			              <value>${jcr.repository}</value>
+			            </systemProperty>
+			            <systemProperty>
+			              <name>org.apache.chemistry.opencmis.user</name>
+			              <value>${jcr.username}</value>
+			            </systemProperty>
+			            <systemProperty>
+			              <name>org.apache.chemistry.opencmis.password</name>
+			              <value>${jcr.password}</value>
+			            </systemProperty>
+		            </systemProperties>					
 					<webAppConfig>
 						<contextPath>/opencmis</contextPath>
 					</webAppConfig>
@@ -159,6 +174,9 @@
             	<overlay.groupId>org.apache.chemistry.opencmis</overlay.groupId>
             	<overlay.artifactId>chemistry-opencmis-server-jcr</overlay.artifactId>
             	<jcr.factory.class>org.apache.chemistry.opencmis.jcr.JcrServiceFactory</jcr.factory.class>
+            	<!-- Uses in ServiceLoader to look up impl. -->
+            	<jcr.service.factory.class>org.modeshape.jcr.JcrRepositoryFactory</jcr.service.factory.class>
+            	<jcr.repository>test</jcr.repository>
             </properties>
 	        <dependencies>
 		        <dependency>
@@ -200,7 +218,7 @@
 	        </dependencies>
         </profile>
         <profile>
-            <id>jcr-jackrabbit-inmemory</id>
+            <id>jcr-chemistry-inmemory</id>
              <activation>
             	<activeByDefault>true</activeByDefault>
             </activation> 
@@ -208,6 +226,8 @@
             	<overlay.groupId>${project.groupId}</overlay.groupId>
             	<overlay.artifactId>chemistry-opencmis-server-inmemory</overlay.artifactId>
             	<jcr.factory.class>org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceFactoryImpl</jcr.factory.class>
+            	<!-- Uses in ServiceLoader to look up impl. -->
+            	<jcr.service.factory.class>${jcr.factory.class}</jcr.service.factory.class>
             	<jcr.repository>test</jcr.repository>
             </properties>
 	        <dependencies>
@@ -219,5 +239,60 @@
 				</dependency>
 	        </dependencies>
 	    </profile>
+        <profile>
+            <id>jcr-jackrabbit-filesystem</id>
+            <properties>
+            	<overlay.groupId>${project.groupId}</overlay.groupId>
+            	<overlay.artifactId>chemistry-opencmis-server-bindings</overlay.artifactId>
+            	<jcr.factory.class>org.apache.chemistry.opencmis.jcr.JcrServiceFactory</jcr.factory.class>
+            	<!-- Uses in ServiceLoader to look up impl. -->
+            	<jcr.service.factory.class>org.apache.jackrabbit.core.RepositoryFactoryImpl</jcr.service.factory.class>
+            	<jcr.repository>default</jcr.repository>  
+            	<jcr.username>admin</jcr.username>
+            	<jcr.password>admin</jcr.password>
+            </properties>
+	        <dependencies>
+              <dependency>
+                    <groupId>javax.jcr</groupId>
+                    <artifactId>jcr</artifactId>
+                    <version>2.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.jackrabbit</groupId>
+                    <artifactId>jackrabbit-core</artifactId>
+                    <version>2.5.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                    <version>1.6.4</version>
+                </dependency>
+                <dependency>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                    <version>1.2.16</version>
+                </dependency>
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-jcr</artifactId>
+		            <version>${chemistry.version}</version>
+		            <type>war</type>
+		        </dependency>
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-bindings</artifactId>
+		            <version>${chemistry.version}</version>
+		            <classifier>classes</classifier>
+		        </dependency>
+		
+		        <dependency>
+		            <groupId>org.apache.chemistry.opencmis</groupId>
+		            <artifactId>chemistry-opencmis-server-jcr</artifactId>
+		            <version>${chemistry.version}</version>
+		            <classifier>classes</classifier>
+		        </dependency>		            
+		        
+	        </dependencies>
+	    </profile>	    
     </profiles>
 </project>
