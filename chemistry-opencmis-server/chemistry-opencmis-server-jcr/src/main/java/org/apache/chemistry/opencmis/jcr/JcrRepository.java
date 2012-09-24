@@ -21,6 +21,7 @@ package org.apache.chemistry.opencmis.jcr;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -36,13 +37,19 @@ import javax.jcr.PathNotFoundException;
 import javax.jcr.Repository;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.UnsupportedRepositoryOperationException;
+import javax.jcr.Workspace;
+import javax.jcr.observation.Event;
+import javax.jcr.observation.EventJournal;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryManager;
 import javax.jcr.query.QueryResult;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
+import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectInFolderContainer;
@@ -69,6 +76,8 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundExcept
 import org.apache.chemistry.opencmis.commons.exceptions.CmisPermissionDeniedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.ChangeEventInfoDataImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectInFolderContainerImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectInFolderDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectInFolderListImpl;
@@ -85,6 +94,8 @@ import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.apache.chemistry.opencmis.jcr.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import sun.security.action.GetLongAction;
 
 /**
  * JCR back-end for CMIS server.
@@ -955,13 +966,13 @@ public class JcrRepository {
         capabilities.setIsPwcSearchable(false);
         capabilities.setIsPwcUpdatable(true);
         capabilities.setCapabilityQuery(CapabilityQuery.BOTHCOMBINED);
-        capabilities.setCapabilityChanges(CapabilityChanges.NONE);
+        capabilities.setCapabilityChanges(CapabilityChanges.PROPERTIES);
         capabilities.setCapabilityContentStreamUpdates(CapabilityContentStreamUpdates.ANYTIME);
         capabilities.setSupportsGetDescendants(true);
         capabilities.setSupportsGetFolderTree(true);
         capabilities.setCapabilityRendition(CapabilityRenditions.NONE);
         fRepositoryInfo.setCapabilities(capabilities);
-
+        
         return fRepositoryInfo;
     }
 
@@ -1114,7 +1125,74 @@ public class JcrRepository {
 
         return result;
     }
+    
+    /**
+     * 
+     * @param session
+     * @param changeLogToken the string is represented as a millisecond value of the latest event in the list retrieved in previous call that is an offset from the Epoch, January 1, 1970 00:00:00.000 GMT (Gregorian).
+     * @param includeProperties
+     * @param filter
+     * @param includePolicyIds
+     * @param includeAcl
+     * @param maxItems
+     * @param extension
+     * @return
+     */
+    public ObjectList getContentChanges(Session session, String changeLogToken, Boolean includeProperties,
+    		String filter, Boolean includePolicyIds, Boolean includeAcl,
+    		BigInteger maxItems, ExtensionsData extension) {
+    	ObjectList result = null;
+    	
+    	try {
+    		Workspace workspace = session.getWorkspace();
+			EventJournal journal = workspace.getObservationManager().getEventJournal();
+			
+			if (null == journal) {
+				return null;
+			}
+			
+			//Ensure that it is first page of the event list.
+			if (null != changeLogToken){
+				long timestampToken = 0L;
+				try {
+					//try to parse 'changeLogToken' as long with assumption that one is a time stamp 
+					timestampToken =  Long.parseLong(changeLogToken);
+				}catch(NumberFormatException e){
+					log.debug(e.getMessage(), e);
+	                throw new CmisRuntimeException("Cannot parse the 'changeLogToken' argument as a signed decimal long.", e);
+				}
+				
+				journal.skipTo(timestampToken);
+			}
+			
+			result = new ObjectListImpl();
+			Event event;
+			ObjectDataImpl objData;
+			while (journal.hasNext()) {
+				event = journal.nextEvent();
+				objData = new ObjectDataImpl();
+				ChangeEventInfoDataImpl eventInfo = new ChangeEventInfoDataImpl();
+				GregorianCalendar eventTime = new GregorianCalendar();
 
+				eventTime.setTimeInMillis(event.getDate());
+				eventInfo.setChangeTime(eventTime);
+				eventInfo.setChangeType(Util.convertToChangeType(event.getType()));
+				objData.setChangeEventInfo(eventInfo);
+				JcrNode jcrNode = getJcrNode(session, event.getIdentifier());
+				jcrNode.compileObjectType(splitFilter(filter), false, objectInfos, requiresObjectInfo)
+				objData.setProperties(properties)
+			}
+				
+			
+		} catch (UnsupportedRepositoryOperationException e) {
+			log.debug(e.getMessage(), e);
+            throw new CmisRuntimeException(e.getMessage(), e);
+		} catch (RepositoryException e) {
+			log.debug(e.getMessage(), e);
+            throw new CmisRuntimeException(e.getMessage(), e);
+		}
+    	return result;
+    }
 
     public Repository getRepository() {
         return repository;

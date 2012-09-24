@@ -57,8 +57,8 @@ public abstract class AbstractTckIT extends AbstractRunner {
         parameters.put(SessionParameter.USER, USER);
         parameters.put(SessionParameter.PASSWORD, PASSWORD);
 
-        parameters.put(TestParameters.DEFAULT_DOCUMENT_TYPE, "VersionableType");
-        parameters.put(TestParameters.DEFAULT_FOLDER_TYPE, "cmis:folder");
+        parameters.put(TestParameters.DEFAULT_DOCUMENT_TYPE, TestParameters.DEFAULT_DOCUMENT_TYPE_VALUE);
+        parameters.put(TestParameters.DEFAULT_FOLDER_TYPE, TestParameters.DEFAULT_FOLDER_TYPE_VALUE);
 
         return parameters;
     }

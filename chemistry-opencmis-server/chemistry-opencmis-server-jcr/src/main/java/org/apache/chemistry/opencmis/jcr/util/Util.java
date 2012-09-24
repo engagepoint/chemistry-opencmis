@@ -21,6 +21,10 @@ package org.apache.chemistry.opencmis.jcr.util;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 
+import javax.jcr.observation.Event;
+
+import org.apache.chemistry.opencmis.commons.enums.ChangeType;
+
 /**
  * Miscellaneous utility functions
  */
@@ -89,6 +93,23 @@ public final class Util {
      */
     public static String escape(String path) {
         return replace(path, " ", "_x0020_"); // fixme do more thorough escaping of path
+    }
+    
+    public static ChangeType convertToChangeType(int eventTypeConst){
+    	switch (eventTypeConst) {
+    		case Event.PROPERTY_ADDED: 
+    		case Event.NODE_ADDED : 
+    			return ChangeType.CREATED;
+    		case Event.PROPERTY_CHANGED:
+    		case Event.NODE_MOVED : 
+    			return ChangeType.UPDATED;
+    		case Event.PROPERTY_REMOVED:
+    		case Event.NODE_REMOVED : 
+    			return ChangeType.DELETED;
+    		default: 
+    			return null;
+    	}
+    	
     }
 
 }

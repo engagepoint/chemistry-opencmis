@@ -552,14 +552,22 @@ public class ObjectFactoryImpl implements ObjectFactory, Serializable {
         if (objectList == null) {
             return null;
         }
-
+        Long latestEventTimestamp = null;
         List<ChangeEvent> events = new ArrayList<ChangeEvent>();
         if (objectList.getObjects() != null) {
             for (ObjectData objectData : objectList.getObjects()) {
                 if (objectData == null) {
                     continue;
                 }
-
+                
+                //To define the 'latestChangeLogToken' value
+                if (objectData.getChangeEventInfo() != null) {
+                	long eventTimestamp = objectData.getChangeEventInfo().getChangeTime().getTimeInMillis();
+                	if (eventTimestamp > latestEventTimestamp) {
+                		latestEventTimestamp = Long.valueOf(eventTimestamp);
+                	}
+                }
+                
                 events.add(convertChangeEvent(objectData));
             }
         }
@@ -567,7 +575,7 @@ public class ObjectFactoryImpl implements ObjectFactory, Serializable {
         boolean hasMoreItems = (objectList.hasMoreItems() == null ? false : objectList.hasMoreItems().booleanValue());
         long totalNumItems = (objectList.getNumItems() == null ? -1 : objectList.getNumItems().longValue());
 
-        return new ChangeEventsImpl(changeLogToken, events, hasMoreItems, totalNumItems);
+        return new ChangeEventsImpl(String.valueOf(latestEventTimestamp), events, hasMoreItems, totalNumItems);
     }
 
     private void throwWrongTypeError(Object obj, String type, Class<?> clazz, String id) {
