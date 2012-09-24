@@ -1185,8 +1185,9 @@ public class JcrRepository {
 				eventInfo.setChangeType(Util.convertToChangeType(event.getType()));
 				objData.setChangeEventInfo(eventInfo);
 				JcrNode jcrNode = getJcrNode(session, event.getIdentifier());
-				jcrNode.compileObjectType(splitFilter(filter), false, objectInfos, requiresObjectInfo)
-				objData.setProperties(properties)
+				//TODO
+//				jcrNode.compileObjectType(splitFilter(filter), false, objectInfos, requiresObjectInfo)
+//				objData.setProperties(properties);
 			}
 				
 			
