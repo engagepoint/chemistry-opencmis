@@ -47,7 +47,6 @@ import javax.jcr.query.QueryResult;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
-import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -94,8 +93,6 @@ import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.apache.chemistry.opencmis.jcr.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import sun.security.action.GetLongAction;
 
 /**
  * JCR back-end for CMIS server.
@@ -1147,14 +1144,19 @@ public class JcrRepository {
     public ObjectList getContentChanges(Session session, String changeLogToken, Boolean includeProperties,
     		String filter, Boolean includePolicyIds, Boolean includeAcl,
     		BigInteger maxItems, ExtensionsData extension) {
-    	ObjectList result = null;
     	
     	try {
     		Workspace workspace = session.getWorkspace();
 			EventJournal journal = workspace.getObservationManager().getEventJournal();
 			
-			if (null == journal) {
+			if (null == journal || hasCapability(session, CapabilityChanges.NONE)) {
 				return null;
+			}
+			
+			ObjectListImpl result = new ObjectListImpl();
+			if (!journal.hasNext()) {
+				result.setObjects(Collections.<ObjectData> emptyList());
+				return result;
 			}
 			
 			//Ensure that it is first page of the event list.
@@ -1170,26 +1172,36 @@ public class JcrRepository {
 				
 				journal.skipTo(timestampToken);
 			}
-			
-			result = new ObjectListImpl();
+			List<ObjectData> objDataList = new ArrayList<ObjectData>(); 
 			Event event;
-			ObjectDataImpl objData;
-			while (journal.hasNext()) {
+			ChangeEventInfoDataImpl eventInfo;
+			BigInteger itemsCounter = new BigInteger("0");
+			do {
 				event = journal.nextEvent();
-				objData = new ObjectDataImpl();
-				ChangeEventInfoDataImpl eventInfo = new ChangeEventInfoDataImpl();
-				GregorianCalendar eventTime = new GregorianCalendar();
 
+				GregorianCalendar eventTime = new GregorianCalendar();
 				eventTime.setTimeInMillis(event.getDate());
+
+				eventInfo = new ChangeEventInfoDataImpl();
 				eventInfo.setChangeTime(eventTime);
 				eventInfo.setChangeType(Util.convertToChangeType(event.getType()));
-				objData.setChangeEventInfo(eventInfo);
-				JcrNode jcrNode = getJcrNode(session, event.getIdentifier());
-				//TODO
-//				jcrNode.compileObjectType(splitFilter(filter), false, objectInfos, requiresObjectInfo)
-//				objData.setProperties(properties);
-			}
 				
+				ObjectData objData = getObject(session, event.getIdentifier(), filter, false, null, false);
+				
+				if (hasCapability(session, CapabilityChanges.OBJECTIDSONLY)) {
+					objData = getJcrNode(session, event.getIdentifier())
+							.compileBaseObjectType(splitFilter(filter), false,null, false);
+				}
+				
+				((ObjectDataImpl)objData).setChangeEventInfo(eventInfo);
+				objDataList.add(objData);
+				
+				//increment counter
+				itemsCounter.add(BigInteger.ONE);
+			} while (journal.hasNext() && !itemsCounter.equals(maxItems));
+
+			result.setObjects(objDataList);
+			return result;
 			
 		} catch (UnsupportedRepositoryOperationException e) {
 			log.debug(e.getMessage(), e);
@@ -1198,8 +1210,11 @@ public class JcrRepository {
 			log.debug(e.getMessage(), e);
             throw new CmisRuntimeException(e.getMessage(), e);
 		}
-    	return result;
     }
+
+	private boolean hasCapability(Session session, CapabilityChanges capability) {
+		return getRepositoryInfo(session).getCapabilities().getChangesCapability() == capability;
+	}
 
     public Repository getRepository() {
         return repository;

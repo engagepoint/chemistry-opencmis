@@ -95,6 +95,12 @@ public final class Util {
         return replace(path, " ", "_x0020_"); // fixme do more thorough escaping of path
     }
     
+    /**
+     * The method converts constants of the <code>javax.jcr.observation.Event</code> type to 
+     * <code>org.apache.chemistry.opencmis.commons.enums.ChangeType</code>
+     * @param eventTypeConst event type
+     * @return enum type of change event. 
+     */
     public static ChangeType convertToChangeType(int eventTypeConst){
     	switch (eventTypeConst) {
     		case Event.PROPERTY_ADDED: 

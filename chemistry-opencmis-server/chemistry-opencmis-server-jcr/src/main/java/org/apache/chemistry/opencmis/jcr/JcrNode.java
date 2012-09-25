@@ -281,6 +281,46 @@ public abstract class JcrNode {
             throw new CmisRuntimeException(e.getMessage(), e);
         }
     }
+    
+    /**
+     * Compile the <code>ObjectData</code> for this node, which contains <code>PropertyIds.OBJECT_ID</code>, 
+     * <code>PropertyIds.NAME</code>,  <code>PropertyIds.BASE_TYPE_ID</code> and
+     * <code>PropertyIds.OBJECT_TYPE_ID</code> are properties. 
+     */
+    public ObjectData compileBaseObjectType(Set<String> filter, Boolean includeAllowableActions,
+            ObjectInfoHandler objectInfos, boolean requiresObjectInfo)  {
+		try {
+			 ObjectDataImpl result = new ObjectDataImpl();
+			 ObjectInfoImpl objectInfo = new ObjectInfoImpl();
+			 
+			 PropertiesImpl properties = new PropertiesImpl();
+			 filter = filter == null ? null : new HashSet<String>(filter);
+			 String typeId = getTypeIdInternal();
+			 BaseTypeId baseTypeId = getBaseTypeId();
+			 
+			 compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId);     
+		     result.setProperties(properties);
+		     
+	         if (filter != null && !filter.isEmpty()) {
+                log.debug("Unknown filter properties: " + filter.toString());
+             }
+	         
+		     if (Boolean.TRUE.equals(includeAllowableActions)) {
+		         result.setAllowableActions(getAllowableActions());
+		     }
+		
+		     if (requiresObjectInfo) {
+		         objectInfo.setObject(result);
+		         objectInfos.addObjectInfo(objectInfo);
+		     }
+		
+		     return result;
+		}
+		catch (RepositoryException e) {
+		     log.debug(e.getMessage(), e);
+		     throw new CmisRuntimeException(e.getMessage(), e);
+		}
+    }
 
     /**
      * See CMIS 1.0 section 2.2.4.6 getAllowableActions
@@ -483,19 +523,7 @@ public abstract class JcrNode {
         objectInfo.setSupportsPolicies(false);
         objectInfo.setSupportsRelationships(false);
 
-        // id
-        String objectId = getObjectId();
-        addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_ID, objectId);
-        objectInfo.setId(objectId);
-
-        // name
-        String name = getNodeName();
-        addPropertyString(properties, typeId, filter, PropertyIds.NAME, name);
-        objectInfo.setName(name);
-
-        // base type and type name
-        addPropertyId(properties, typeId, filter, PropertyIds.BASE_TYPE_ID, baseTypeId.value());
-        addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_TYPE_ID, typeId);
+        compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId);
 
         // created and modified by
         String createdBy = getCreatedBy();
@@ -515,6 +543,24 @@ public abstract class JcrNode {
 
         addPropertyString(properties, typeId, filter, PropertyIds.CHANGE_TOKEN, getChangeToken());
     }
+
+	protected void compileBaseProperties(PropertiesImpl properties,
+			Set<String> filter, ObjectInfoImpl objectInfo, String typeId,
+			BaseTypeId baseTypeId) throws RepositoryException {
+		// id
+        String objectId = getObjectId();
+        addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_ID, objectId);
+        objectInfo.setId(objectId);
+
+        // name
+        String name = getNodeName();
+        addPropertyString(properties, typeId, filter, PropertyIds.NAME, name);
+        objectInfo.setName(name);
+
+        // base type and type name
+        addPropertyId(properties, typeId, filter, PropertyIds.BASE_TYPE_ID, baseTypeId.value());
+        addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_TYPE_ID, typeId);
+	}
 
     /**
      * Compile the allowed actions on the CMIS object represented by this instance
