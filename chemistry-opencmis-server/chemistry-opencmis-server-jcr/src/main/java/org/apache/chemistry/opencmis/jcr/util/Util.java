@@ -21,10 +21,6 @@ package org.apache.chemistry.opencmis.jcr.util;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 
-import javax.jcr.observation.Event;
-
-import org.apache.chemistry.opencmis.commons.enums.ChangeType;
-
 /**
  * Miscellaneous utility functions
  */
