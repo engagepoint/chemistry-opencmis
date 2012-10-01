@@ -137,23 +137,6 @@
 	  		<version>2.5.1</version>
 	  		<scope>test</scope>
         </dependency>
-        <dependency>
-        	<groupId>org.slf4j</groupId>
-        	<artifactId>slf4j-api</artifactId>
-        	<scope>provided</scope>
-        </dependency>
- 		<dependency>
-	  		<groupId>ch.qos.logback</groupId>
-	  		<artifactId>logback-classic</artifactId>
-	  		<version>1.0.7</version>
-	  		<scope>test</scope>
-  		</dependency>
- 		<dependency>
- 			<groupId>org.slf4j</groupId>
- 			<artifactId>jcl-over-slf4j</artifactId>
- 			<version>1.7.0</version>
- 			<scope>test</scope>
- 		</dependency>
     </dependencies>
 
     <profiles>
@@ -192,13 +175,4 @@
         </profile>
     </profiles>
 
-    <dependencyManagement>
-    	<dependencies>
-    		<dependency>
-    			<groupId>org.slf4j</groupId>
-    			<artifactId>slf4j-api</artifactId>
-    			<version>1.7.0</version>
-    		</dependency>
-    	</dependencies>
-    </dependencyManagement>
 </project>
