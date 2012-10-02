@@ -25,6 +25,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,9 +47,11 @@ import org.apache.chemistry.opencmis.commons.data.ObjectInFolderList;
 import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
+import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.Action;
+import org.apache.chemistry.opencmis.commons.enums.ContentStreamAllowed;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
@@ -61,15 +67,17 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIntegerDef
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringDefinitionImpl;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.inmemory.storedobj.impl.ContentStreamDataImpl;
+import org.apache.chemistry.opencmis.inmemory.storedobj.impl.DocumentImpl;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryDocumentTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryFolderTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
 import org.apache.chemistry.opencmis.util.repository.ObjectGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.omg.CORBA_2_3.portable.OutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Jens
@@ -86,6 +94,8 @@ public class ObjectServiceTest extends AbstractServiceTest {
     public static final String TEST_DOCUMENT_STRING_PROP_ID = "MyDocumentStringProp";
     private static final String TEST_CUSTOM_DOCUMENT_TYPE_ID = "MyCustomDocumentType";
     private static final String TEST_INHERITED_CUSTOM_DOCUMENT_TYPE_ID = "MyCustomInheritedDocType";
+    private static final String TEST_CUSTOM_NO_CONTENT_TYPE_ID = "NoContentType";
+    private static final String TEST_CUSTOM_MUST_CONTENT_TYPE_ID = "MustHaveContentType";
     private static final String TEST_DOCUMENT_MY_STRING_PROP_ID = "MyCustomDocumentStringProp";
     private static final String TEST_DOCUMENT_MY_MULTI_STRING_PROP_ID = "MyCustomDocumentMultiStringProp";
     private static final String TEST_DOCUMENT_MY_INT_PROP_ID = "MyCustomDocumentIntProp";
@@ -95,7 +105,6 @@ public class ObjectServiceTest extends AbstractServiceTest {
     private static final String TEST_FOLDER_MY_INT_PROP_ID_MANDATORY_DEFAULT = "MyCustomDocumentIntPropMandatoryDefault";
     private static final String TEST_DOCUMENT_MY_SUB_STRING_PROP_ID = "MyInheritedStringProp";
     private static final String TEST_DOCUMENT_MY_SUB_INT_PROP_ID = "MyInheritedIntProp";
-
     private static final String DOCUMENT_TYPE_ID = InMemoryDocumentTypeDefinition.getRootDocumentType().getId();
     private static final String DOCUMENT_ID = "Document_1";
     private static final String FOLDER_TYPE_ID = InMemoryFolderTypeDefinition.getRootFolderType().getId();
@@ -910,6 +919,142 @@ public class ObjectServiceTest extends AbstractServiceTest {
                 fail("getObject() failed with exception: " + e);
             }
     }
+    
+    @Test
+    public void testNoContentAllowed() {
+        log.info("starting testNoContentAllowed() ...");
+        String id = createDocument("NoContentAllowedDoc1", fRootFolderId, TEST_CUSTOM_NO_CONTENT_TYPE_ID, false);
+        assertNotNull (id);
+
+        try {
+            id = createDocumentNoCatch("NoContentAllowedDoc2", fRootFolderId, TEST_CUSTOM_NO_CONTENT_TYPE_ID, VersioningState.NONE, true);
+            fail("Creating  document with content and type allows no content should fail.");
+        } catch (Exception e) {
+            assertTrue(e instanceof CmisConstraintException);
+            log.info("Creating  document with content for no-content type failed as expected.");
+        }
+        log.info("... testNoContentAllowed finished.");
+    }
+
+    @Test
+    public void testMustHaveContent() {
+        log.info("starting testMustHaveContent() ...");
+        String id = createDocument("MustHaveContentAllowedDoc1", fRootFolderId, TEST_CUSTOM_MUST_CONTENT_TYPE_ID, true);
+        assertNotNull (id);
+
+        try {
+            id = createDocumentNoCatch("MustHaveContentAllowedDoc2", fRootFolderId, TEST_CUSTOM_MUST_CONTENT_TYPE_ID, VersioningState.NONE, false);
+            fail("Creating document without content and type requires content should fail.");
+        } catch (Exception e) {
+            assertTrue(e instanceof CmisConstraintException);
+            log.info("Creating document with content for must-have-content type failed as expected.");
+        }
+        log.info("... testMustHaveContent finished.");
+    }
+    
+    @Test
+    public void testMaxContentSize() {
+        log.info("starting testMaxContentSize() ...");
+        try {
+            createContent(MAX_SIZE + 1, MAX_SIZE);
+            fail("createContent with exceeded content size should fail.");
+        } catch (CmisInvalidArgumentException e) {
+            log.debug("createDocument with exceeded failed as excpected.");
+        } catch (Exception e1) {
+            log.debug("createDocument with exceeded failed with wrong exception (expected CmisInvalidArgumentException, got "
+                    + e1.getClass().getName() + ").");
+        }
+
+        try {
+            ContentStream contentStream = createContent(MAX_SIZE + 1);
+            Properties props = createDocumentProperties("TestMaxContentSize", DOCUMENT_TYPE_ID);
+            fObjSvc.createDocument(fRepositoryId, props, fRootFolderId, contentStream, VersioningState.NONE, null,
+                    null, null, null);
+            fail("createDocument with exceeded content size should fail.");
+        } catch (CmisInvalidArgumentException e) {
+            log.debug("createDocument with exceeded failed as excpected.");
+        } catch (Exception e1) {
+            log.debug("createDocument with exceeded failed with wrong exception (expected CmisInvalidArgumentException, got "
+                    + e1.getClass().getName() + ").");
+        }
+    }
+
+    @Test
+    public void testRendition() {
+        // upload an image as JPEG picture
+        log.info("starting testRendition() ...");
+        final String JPEG = "image/jpeg";
+        
+        try {
+            InputStream imageStream = this.getClass().getResourceAsStream("/image.jpg");
+            assertNotNull("Test setup failure no 'image.jpg' in test resources, getResourceAsStream failed", imageStream);
+            String id = createDocumentFromStream("TestJpegImage", fRootFolderId, DOCUMENT_TYPE_ID, imageStream,
+                    JPEG);            
+
+            assertNotNull (id);
+            String renditionFilter = "*";
+            List<RenditionData> renditions = fObjSvc.getRenditions(fRepositoryId, id, renditionFilter, null, null, null);
+            assertNotNull(renditions);
+            assertEquals(1, renditions.size());
+            RenditionData rd = renditions.get(0);
+            assertEquals(JPEG, rd.getMimeType());
+            assertEquals("cmis:thumbnail", rd.getKind());
+            assertEquals(id, rd.getRenditionDocumentId());
+            assertNotNull(rd.getBigHeight());
+            assertNotNull(rd.getBigWidth());
+            assertEquals(DocumentImpl.IMG_HEIGHT, rd.getBigHeight().longValue());
+            assertEquals(DocumentImpl.IMG_WIDTH, rd.getBigWidth().longValue());
+            assertNotNull(rd.getStreamId());
+            ContentStream renditionContent = fObjSvc.getContentStream(fRepositoryId, id, rd.getStreamId(), null, null, null);
+            assertEquals(rd.getMimeType(), renditionContent.getMimeType());
+            readThumbnailStream(renditionContent.getStream());
+        } catch (Exception e) {
+            log.error("testRendition failed with exception ", e);
+            fail("testRendition failed with exceetion " + e);
+        }
+        log.info("... testRendition finished.");
+   
+    }
+
+    protected String createDocumentFromStream(String name, String folderId, String typeId, InputStream is,
+            String contentType) throws IOException {
+
+        Properties props = createDocumentProperties(name, typeId);
+
+        ContentStreamDataImpl content = new ContentStreamDataImpl(0);
+        content.setFileName(name);
+        content.setMimeType(contentType);
+
+        ByteArrayOutputStream ba = new ByteArrayOutputStream();
+        byte[] buffer = new byte [65536];
+        int noBytesRead = 0;
+
+        while ((noBytesRead = is.read(buffer)) >=0 ) {
+            ba.write(buffer, 0, noBytesRead);
+        }
+        
+        content.setContent(new ByteArrayInputStream(ba.toByteArray()));
+
+        String id = fObjSvc.createDocument(fRepositoryId, props, folderId, content, VersioningState.NONE, null,
+                null, null, null);
+        return id;
+    }
+
+    private void readThumbnailStream(InputStream stream) {
+        
+        byte[] buffer = new byte [65536];
+        int noBytesRead = 0;
+        int count = 0;
+        try {
+            while ((noBytesRead = stream.read(buffer)) >=0 ) {
+                count += noBytesRead;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("Reading rendition stream failed with exception " + e);
+        }
+        assertTrue(count > 0);
+    }
 
     private static void verifyAllowableActionsDocument(Set<Action> actions, boolean isVersioned, boolean hasContent) {
         assertTrue(actions.contains(Action.CAN_DELETE_OBJECT));
@@ -1167,10 +1312,15 @@ public class ObjectServiceTest extends AbstractServiceTest {
             cmisFolderType.addCustomPropertyDefinitions(propertyDefinitions);
 
             InMemoryDocumentTypeDefinition customDocType = createCustomTypeWithStringIntProperty();
+            InMemoryDocumentTypeDefinition noContentType = createCustomTypeNoContent();
+            InMemoryDocumentTypeDefinition mustHaveContentType = createCustomTypeMustHaveContent();
+
             // add type to types collection
             typesList.add(cmisDocumentType);
             typesList.add(cmisFolderType);
             typesList.add(customDocType);
+            typesList.add(noContentType);
+            typesList.add(mustHaveContentType);
             typesList.add(createCustomInheritedType(customDocType));
             typesList.add(createDocumentTypeWithDefault());
             typesList.add(createFolderTypeWithDefault());
@@ -1246,6 +1396,24 @@ public class ObjectServiceTest extends AbstractServiceTest {
             return cmisDocumentType;
         }
 
+        private static InMemoryDocumentTypeDefinition createCustomTypeNoContent() {
+            InMemoryDocumentTypeDefinition cmisDocumentType = new InMemoryDocumentTypeDefinition(
+                    TEST_CUSTOM_NO_CONTENT_TYPE_ID, "No Content Document Type", InMemoryDocumentTypeDefinition
+                            .getRootDocumentType());
+            Map<String, PropertyDefinition<?>> propertyDefinitions = new HashMap<String, PropertyDefinition<?>>();
+            cmisDocumentType.addCustomPropertyDefinitions(propertyDefinitions);
+            cmisDocumentType.setContentStreamAllowed(ContentStreamAllowed.NOTALLOWED);
+            return cmisDocumentType;
+        }
+        
+        private static InMemoryDocumentTypeDefinition createCustomTypeMustHaveContent() {
+            InMemoryDocumentTypeDefinition cmisDocumentType = new InMemoryDocumentTypeDefinition(
+                    TEST_CUSTOM_MUST_CONTENT_TYPE_ID, "Must Have Content Document Type", InMemoryDocumentTypeDefinition
+                            .getRootDocumentType());
+            cmisDocumentType.setContentStreamAllowed(ContentStreamAllowed.REQUIRED);
+            return cmisDocumentType;
+        }
+        
         private static InMemoryFolderTypeDefinition createFolderTypeWithDefault() {
             InMemoryFolderTypeDefinition cmisFolderType = new InMemoryFolderTypeDefinition(
                     TEST_FOLDER_TYPE_WITH_DEFAULTS_ID, "Folder Type With default values", InMemoryFolderTypeDefinition.
@@ -1275,33 +1443,6 @@ public class ObjectServiceTest extends AbstractServiceTest {
             cmisFolderType.addCustomPropertyDefinitions(propertyDefinitions);
 
             return cmisFolderType;
-        }
-    }
-
-    @Test
-    public void testMaxContentSize() {
-        log.info("starting testMaxContentSize() ...");
-        try {
-            createContent(MAX_SIZE + 1, MAX_SIZE);
-            fail("createContent with exceeded content size should fail.");
-        } catch (CmisInvalidArgumentException e) {
-            log.debug("createDocument with exceeded failed as excpected.");
-        } catch (Exception e1) {
-            log.debug("createDocument with exceeded failed with wrong exception (expected CmisInvalidArgumentException, got "
-                    + e1.getClass().getName() + ").");
-        }
-
-        try {
-            ContentStream contentStream = createContent(MAX_SIZE + 1);
-            Properties props = createDocumentProperties("TestMaxContentSize", DOCUMENT_TYPE_ID);
-            fObjSvc.createDocument(fRepositoryId, props, fRootFolderId, contentStream, VersioningState.NONE, null,
-                    null, null, null);
-            fail("createDocument with exceeded content size should fail.");
-        } catch (CmisInvalidArgumentException e) {
-            log.debug("createDocument with exceeded failed as excpected.");
-        } catch (Exception e1) {
-            log.debug("createDocument with exceeded failed with wrong exception (expected CmisInvalidArgumentException, got "
-                    + e1.getClass().getName() + ").");
         }
     }
 

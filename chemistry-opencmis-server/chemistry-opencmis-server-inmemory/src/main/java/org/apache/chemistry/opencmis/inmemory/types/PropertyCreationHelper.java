@@ -35,6 +35,7 @@ import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
+import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.definitions.Choice;
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
@@ -344,6 +345,10 @@ public class PropertyCreationHelper {
             od.setAllowableActions(allowableActions);
         }
 
+        List<RenditionData> renditions = so.getRenditions(renditionFilter, 0, 0);
+        if (null != renditions && renditions.size() > 0)
+            od.setRenditions(renditions);
+
         if (null != includeACL && includeACL) {
             Acl acl = so instanceof DocumentVersion ? ((DocumentVersion) so).getParentDocument().getAcl() : so.getAcl();
             od.setAcl(acl);
@@ -356,10 +361,6 @@ public class PropertyCreationHelper {
 
         if (null != includeRelationships && includeRelationships != IncludeRelationships.NONE) {
             od.setRelationships(DataObjectCreator.fillRelationships(includeRelationships, so, user));
-        }
-
-        if (renditionFilter != null && renditionFilter.length() > 0) {
-            od.setRenditions(DataObjectCreator.fillRenditions(so));
         }
 
         od.setProperties(props);
@@ -392,9 +393,9 @@ public class PropertyCreationHelper {
             od.setRelationships(DataObjectCreator.fillRelationships(includeRelationships, so, user));
         }
 
-        if (renditionFilter != null && renditionFilter.length() > 0) {
-            od.setRenditions(DataObjectCreator.fillRenditions(so));
-        }
+        List<RenditionData> renditions = so.getRenditions(renditionFilter, 0, 0);
+        if (null != renditions && renditions.size() > 0)
+            od.setRenditions(renditions);
 
         od.setProperties(props);
 
