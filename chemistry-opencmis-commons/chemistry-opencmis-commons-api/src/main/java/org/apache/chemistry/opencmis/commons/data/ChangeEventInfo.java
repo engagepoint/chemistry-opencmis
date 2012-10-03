@@ -19,8 +19,6 @@
 package org.apache.chemistry.opencmis.commons.data;
 
 import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.chemistry.opencmis.commons.enums.ChangeType;
 
@@ -29,12 +27,4 @@ public interface ChangeEventInfo extends ExtensionsData {
     ChangeType getChangeType();
 
     GregorianCalendar getChangeTime();
-    
-    String getObjectId();
-    
-    Map<String, List<?>> getProperties();
-    
-    List<String> getPolicyIds();
-    
-    Acl getAcl();
 }
