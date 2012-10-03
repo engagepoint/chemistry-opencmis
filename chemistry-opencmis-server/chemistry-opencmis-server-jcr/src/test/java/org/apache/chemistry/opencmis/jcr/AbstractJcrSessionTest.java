@@ -33,7 +33,7 @@ public abstract class AbstractJcrSessionTest {
 	@Before
 	public void setUp() throws Exception {
 		transientRepository = new TransientRepository();
-		session = transientRepository.login();
+		session = transientRepository.login(new SimpleCredentials("adminId", "admin".toCharArray()));
 		typeManager = new JcrTypeManager();
 		PathManager pathManger = new PathManager(MOUNT_PATH);
         JcrTypeHandlerManager typeHandlerManager = createTypeHandlerManager(pathManger, typeManager);
