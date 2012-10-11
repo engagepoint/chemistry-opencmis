@@ -1202,7 +1202,7 @@ public class JcrRepository {
 				
 				objData.setProperties(props);
 				
-				inclusePolicyIds(includePolicyIds, objData);
+				includePolicyIds(includePolicyIds, objData);
 				includeAcl(includeAcl, objData);
 				
 				objDataList.add(objData);
@@ -1243,7 +1243,7 @@ public class JcrRepository {
 		//TODO Add ACL after JCR bridge will support it
 	}
 
-	private void inclusePolicyIds(Boolean includePolicyIds,
+	private void includePolicyIds(Boolean includePolicyIds,
 			ObjectDataImpl objData) {
 		if (!includePolicyIds)
 			return;
