@@ -21,7 +21,7 @@ import org.junit.Test;
  */
 public class JcrObservationJournalTest extends AbstractJcrSessionTest {
 	
-	private static final BigInteger PAGE_SIZE = new BigInteger("10");
+	private static final BigInteger PAGE_SIZE = new BigInteger("4");
 	
 	@Before
 	public void setUp() throws Exception {
@@ -36,7 +36,7 @@ public class JcrObservationJournalTest extends AbstractJcrSessionTest {
 	
 	@Test
 	public void testObservationJournal() throws Exception {
-		((JackrabbitSession)getSession()).getUserManager();
+		
 		ObjectList objList = getJcrRepository().getContentChanges(getSession(),
 				null, false, null, false, false, PAGE_SIZE, null);
 		//The repository supports journaled observation 

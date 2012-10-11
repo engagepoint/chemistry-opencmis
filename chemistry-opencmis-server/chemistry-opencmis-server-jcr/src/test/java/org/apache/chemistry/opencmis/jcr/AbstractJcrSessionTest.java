@@ -1,14 +1,18 @@
 package org.apache.chemistry.opencmis.jcr;
 
+import javax.jcr.AccessDeniedException;
 import javax.jcr.Repository;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.SimpleCredentials;
+import javax.jcr.UnsupportedRepositoryOperationException;
 
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.jcr.impl.DefaultDocumentTypeHandler;
 import org.apache.chemistry.opencmis.jcr.impl.DefaultFolderTypeHandler;
 import org.apache.chemistry.opencmis.jcr.impl.DefaultUnversionedDocumentTypeHandler;
 import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
+import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.core.TransientRepository;
 import org.junit.After;
 import org.junit.Before;
@@ -54,6 +58,12 @@ public abstract class AbstractJcrSessionTest {
 	}
 
 	protected Session getSession() {
+		try {
+			//initialization of the UserManager
+			((JackrabbitSession) session).getUserManager();
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage());
+		} 
 		return session;
 	}
 
