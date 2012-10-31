@@ -27,7 +27,7 @@
 	<properties>
 		<parentBasedir>../../</parentBasedir>
 		<modeshape.version>2.8.2.Final</modeshape.version>
-		<chemistry.version>0.8.0-SNAPSHOT</chemistry.version>
+		<chemistry.version>0.9.0-SNAPSHOT</chemistry.version>
 		<forkMode>once</forkMode>
 	</properties>
 
