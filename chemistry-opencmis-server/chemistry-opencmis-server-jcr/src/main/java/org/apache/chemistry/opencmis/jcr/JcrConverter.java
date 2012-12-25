@@ -25,12 +25,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.jcr.Node;
 import javax.jcr.Property;
+import javax.jcr.PropertyIterator;
 import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
 import javax.jcr.Value;
@@ -288,14 +290,24 @@ public final class JcrConverter {
         else {
             name = toJcrName(propertyData.getId());
         }
-
-        if (values.length == 1) {
+        
+        if (values.length == 1 && hasSingleValue(node, name)) {
             node.setProperty(name, values[0]);
         }
         else {
             node.setProperty(name, values, propertyType);
         }
     }
+
+	private static boolean hasSingleValue(Node node, String name) 
+			throws RepositoryException {
+		PropertyIterator it = node.getProperties(name);
+		if (it.hasNext()) {
+		    Property prop = it.nextProperty();
+		    return prop.isMultiple();
+		}
+		return true;
+	}
 
     /**
      * Remove a property from a JCR node
