@@ -290,7 +290,7 @@ public final class JcrConverter {
             name = toJcrName(propertyData.getId());
         }
         
-        if (values.length == 1 && hasSingleValue(node, name)) {
+        if (values.length == 1 && !hasMultiValue(node, name)) {
             node.setProperty(name, values[0]);
         }
         else {
@@ -298,14 +298,14 @@ public final class JcrConverter {
         }
     }
 
-	private static boolean hasSingleValue(Node node, String name) 
+	private static boolean hasMultiValue(Node node, String name) 
 			throws RepositoryException {
 		PropertyIterator it = node.getProperties(name);
 		if (it.hasNext()) {
 		    Property prop = it.nextProperty();
 		    return prop.isMultiple();
 		}
-		return true;
+		return false;
 	}
 
     /**
