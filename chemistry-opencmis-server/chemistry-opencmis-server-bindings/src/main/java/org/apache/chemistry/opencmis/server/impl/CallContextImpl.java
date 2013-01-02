@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 
 /**
@@ -52,6 +53,10 @@ public class CallContextImpl implements CallContext {
         return parameter.get(key);
     }
 
+    public CmisVersion getCmisVersion() {
+        return (CmisVersion) get(CMIS_VERSION);
+    }
+
     public String getRepositoryId() {
         return (String) get(REPOSITORY_ID);
     }
@@ -78,6 +83,10 @@ public class CallContextImpl implements CallContext {
 
     public File getTempDirectory() {
         return (File) get(TEMP_DIR);
+    }
+
+    public boolean encryptTempFiles() {
+        return Boolean.TRUE.equals(get(ENCRYPT_TEMP_FILE));
     }
 
     public int getMemoryThreshold() {

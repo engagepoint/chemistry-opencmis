@@ -21,9 +21,11 @@ package org.apache.chemistry.opencmis.commons.impl.dataobjects;
 import java.util.List;
 
 import org.apache.chemistry.opencmis.commons.data.AclCapabilities;
+import org.apache.chemistry.opencmis.commons.data.ExtensionFeature;
 import org.apache.chemistry.opencmis.commons.data.RepositoryCapabilities;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 
 /**
  * Repository info data implementation.
@@ -48,6 +50,7 @@ public class RepositoryInfoImpl extends AbstractExtensionData implements Reposit
     private String vendorName;
     private String productName;
     private String productVersion;
+    private List<ExtensionFeature> extensionFeatures;
 
     /**
      * Constructor.
@@ -72,6 +75,7 @@ public class RepositoryInfoImpl extends AbstractExtensionData implements Reposit
         vendorName = data.getVendorName();
         productName = data.getProductName();
         productVersion = data.getProductVersion();
+        extensionFeatures = data.getExtensionFeatures();
         setExtensions(data.getExtensions());
     }
 
@@ -105,6 +109,26 @@ public class RepositoryInfoImpl extends AbstractExtensionData implements Reposit
 
     public void setCmisVersionSupported(String versionSupported) {
         this.versionSupported = versionSupported;
+    }
+
+    public CmisVersion getCmisVersion() {
+        if (versionSupported == null) {
+            return CmisVersion.CMIS_1_0;
+        }
+
+        try {
+            return CmisVersion.fromValue(versionSupported);
+        } catch (IllegalArgumentException e) {
+            return CmisVersion.CMIS_1_0;
+        }
+    }
+
+    public void setCmisVersion(CmisVersion cmisVersion) {
+        if (cmisVersion == null) {
+            versionSupported = null;
+        } else {
+            versionSupported = cmisVersion.value();
+        }
     }
 
     public RepositoryCapabilities getCapabilities() {
@@ -203,6 +227,14 @@ public class RepositoryInfoImpl extends AbstractExtensionData implements Reposit
         this.productVersion = productVersion;
     }
 
+    public List<ExtensionFeature> getExtensionFeatures() {
+        return extensionFeatures;
+    }
+
+    public void setExtensionFeature(List<ExtensionFeature> extensionFeatures) {
+        this.extensionFeatures = extensionFeatures;
+    }
+
     @Override
     public String toString() {
         return "Repository Info [id=" + id + ", name=" + name + ", description=" + description + ", capabilities="
@@ -211,7 +243,8 @@ public class RepositoryInfoImpl extends AbstractExtensionData implements Reposit
                 + ", principal anonymous=" + principalAnonymous + ", principal anyone=" + principalAnyone
                 + ", vendor name=" + vendorName + ", product name=" + productName + ", product version="
                 + productVersion + ", root folder id=" + rootFolderId + ", thin client URI=" + thinClientUri
-                + ", version supported=" + versionSupported + "]" + super.toString();
+                + ", version supported=" + versionSupported + ", extension features=" + extensionFeatures + "]"
+                + super.toString();
     }
 
 }

@@ -53,6 +53,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisContentAlreadyExistsException;
@@ -96,6 +97,7 @@ public class CmisAtomPubServlet extends HttpServlet {
     private File tempDir;
     private int memoryThreshold;
     private long maxContentSize;
+    private boolean encrypt;
 
     private Dispatcher dispatcher;
     private CallContextHandler callContextHandler;
@@ -119,9 +121,14 @@ public class CmisAtomPubServlet extends HttpServlet {
         CmisServiceFactory factory = (CmisServiceFactory) config.getServletContext().getAttribute(
                 CmisRepositoryContextListener.SERVICES_FACTORY);
 
+        if (factory == null) {
+            throw new CmisRuntimeException("Service factory not available! Configuration problem?");
+        }
+
         tempDir = factory.getTempDirectory();
         memoryThreshold = factory.getMemoryThreshold();
         maxContentSize = factory.getMaxContentSize();
+        encrypt = factory.encryptTempFiles();
 
         // initialize the dispatcher
         dispatcher = new Dispatcher();
@@ -181,7 +188,7 @@ public class CmisAtomPubServlet extends HttpServlet {
         CallContext context = null;
         try {
             context = HttpUtils.createContext(qsRequest, response, getServletContext(), CallContext.BINDING_ATOMPUB,
-                    callContextHandler, tempDir, memoryThreshold, maxContentSize);
+                    CmisVersion.CMIS_1_0, callContextHandler, tempDir, memoryThreshold, maxContentSize, encrypt);
             dispatch(context, qsRequest, response);
         } catch (Exception e) {
             if (e instanceof CmisPermissionDeniedException) {

@@ -53,6 +53,7 @@ import org.apache.chemistry.opencmis.client.runtime.util.TreeImpl;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectList;
@@ -62,6 +63,7 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
@@ -544,6 +546,32 @@ public class SessionImpl implements Session {
         return result;
     }
 
+    public ObjectType createType(ObjectType type) {
+        if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
+        }
+
+        return objectFactory.convertTypeDefinition(getBinding().getRepositoryService().createType(getRepositoryId(),
+                type, null));
+    }
+
+    public ObjectType updateType(ObjectType type) {
+        if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
+        }
+
+        return objectFactory.convertTypeDefinition(getBinding().getRepositoryService().updateType(getRepositoryId(),
+                type, null));
+    }
+
+    public void deleteType(String typeId) {
+        if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
+        }
+
+        getBinding().getRepositoryService().deleteType(getRepositoryId(), typeId, null);
+    }
+
     public ItemIterable<QueryResult> query(final String statement, final boolean searchAllVersions) {
         return query(statement, searchAllVersions, getDefaultContext());
     }
@@ -813,6 +841,24 @@ public class SessionImpl implements Session {
         return createObjectId(newId);
     }
 
+    public ObjectId createItem(Map<String, ?> properties, ObjectId folderId, List<Policy> policies, List<Ace> addAces,
+            List<Ace> removeAces) {
+        if ((properties == null) || (properties.isEmpty())) {
+            throw new IllegalArgumentException("Properties must not be empty!");
+        }
+
+        String newId = getBinding().getObjectService().createItem(getRepositoryId(),
+                objectFactory.convertProperties(properties, null, CREATE_UPDATABILITY),
+                (folderId == null ? null : folderId.getId()), objectFactory.convertPolicies(policies),
+                objectFactory.convertAces(addAces), objectFactory.convertAces(removeAces), null);
+
+        if (newId == null) {
+            return null;
+        }
+
+        return createObjectId(newId);
+    }
+
     public ObjectId createRelationship(Map<String, ?> properties, List<Policy> policies, List<Ace> addAces,
             List<Ace> removeAces) {
         if ((properties == null) || (properties.isEmpty())) {
@@ -847,6 +893,10 @@ public class SessionImpl implements Session {
 
     public ObjectId createPolicy(Map<String, ?> properties, ObjectId folderId) {
         return this.createPolicy(properties, folderId, null, null, null);
+    }
+
+    public ObjectId createItem(Map<String, ?> properties, ObjectId folderId) {
+        return this.createItem(properties, folderId, null, null, null);
     }
 
     // --- relationships ---
@@ -896,6 +946,18 @@ public class SessionImpl implements Session {
                 return new AbstractPageFetcher.Page<Relationship>(page, relList.getNumItems(), relList.hasMoreItems());
             }
         });
+    }
+
+    // --- bulk update ---
+
+    public BulkUpdateObjectIdAndChangeToken bulkUpdateProperties(
+            BulkUpdateObjectIdAndChangeToken objectIdsAndChangeToken, Map<String, ?> properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds) {
+        if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
+        }
+
+        throw new CmisNotSupportedException("Not implemented, yet");
     }
 
     // --- delete ---

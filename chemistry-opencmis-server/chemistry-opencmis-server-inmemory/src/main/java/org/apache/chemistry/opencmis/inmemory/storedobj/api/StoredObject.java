@@ -92,7 +92,28 @@ public interface StoredObject {
      *            id of the type this object gets assigned.
      */
     void setTypeId(String type);
+    
+    /**
+     * CMIS 1.1 get ids of all secondary types
+     * @return
+     *      list of type ids
+     */
+    List<String> getSecondaryTypeIds();
 
+    /**
+     * CMIS 1.1: set description of an object
+     * @param description
+     *      description of this object
+     */
+    void setDescription(String description);
+    
+    /**
+     * CMIS 1.1: get description of an object
+     * @return
+     *      description of this object
+     */
+    String getDescription();
+    
     /**
      * Retrieve the user who created the document
      * 

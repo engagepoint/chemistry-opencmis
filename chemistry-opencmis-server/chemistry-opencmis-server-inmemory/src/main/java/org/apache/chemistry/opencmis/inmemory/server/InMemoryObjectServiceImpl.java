@@ -22,12 +22,15 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
@@ -43,6 +46,7 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.Cardinality;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
@@ -53,6 +57,7 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentExcep
 import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateObjectIdAndChangeTokenImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.CmisExtensionElementImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ContentStreamImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.FailedToDeleteDataImpl;
@@ -75,6 +80,7 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryDocumentTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryFolderTypeDefinition;
+import org.apache.chemistry.opencmis.inmemory.types.InMemoryItemTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryPolicyTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryRelationshipTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
@@ -175,6 +181,13 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         return so == null ? null : so.getId();
     }
 
+    // CMIS 1.1
+    public String createItem(CallContext context, String repositoryId, Properties properties, String folderId, List<String> policies,
+            Acl addAces, Acl removeAces, ExtensionsData extension) {
+        StoredObject so = createItemIntern(context, repositoryId, properties, folderId, policies, addAces, removeAces, extension);
+        return so.getId();
+    }
+
     @SuppressWarnings("unchecked")
     public String create(CallContext context, String repositoryId, Properties properties, String folderId,
             ContentStream contentStream, VersioningState versioningState, List<String> policies,
@@ -209,6 +222,8 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
             so = createPolicyIntern(context, repositoryId, properties, folderId, null, null, null, null);
         } else if (typeBaseId.equals(InMemoryRelationshipTypeDefinition.getRootRelationshipType().getBaseTypeId())) {
             so = createRelationshipIntern(context, repositoryId, properties, null, null, null, null);
+        } else if (typeBaseId.equals(InMemoryItemTypeDefinition.getRootItemType().getBaseTypeId())) {
+            so = createItemIntern(context, repositoryId, properties, folderId, null, null, null, null);
         } else {
             LOG.error("The type contains an unknown base object id, object can't be created");
         }
@@ -342,7 +357,7 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
             throw new CmisObjectNotFoundException("Unknown object id: " + objectId);
         }
 
-        if (!(so instanceof Content)) {
+        if (!(so instanceof Content) && objectId.endsWith("-rendition")) {
             throw new CmisConstraintException("Id" + objectId
                     + " does not refer to a document or version, but only those can have content");
         }
@@ -545,8 +560,10 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
 
         StoredObject so = validator.setContentStream(context, repositoryId, objectId, overwriteFlag, extension);
 
-        if ( so.getChangeToken() != null && ( changeToken == null || !so.getChangeToken().equals( changeToken.getValue() ) ) )
-            throw new CmisUpdateConflictException( "setContentStream failed, ChangeToken does not match." );
+        if (changeToken != null && changeToken.getValue() != null
+                && Long.valueOf(so.getChangeToken()) > Long.valueOf(changeToken.getValue())) {
+            throw new CmisUpdateConflictException("updateProperties failed: changeToken does not match");
+        }
              
         if (!(so instanceof Document || so instanceof VersionedDocument || so instanceof DocumentVersion)) {
             throw new CmisObjectNotFoundException("Id" + objectId
@@ -596,7 +613,8 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         Map<String, PropertyData<?>> oldProperties = so.getProperties();
 
         // check properties for validity
-        TypeValidator.validateProperties(typeDef, properties, false);
+        boolean cmis11 = context.getCmisVersion() != CmisVersion.CMIS_1_0;
+        validateProperties(repositoryId, so, properties, false, cmis11);
 
         if (changeToken != null && changeToken.getValue() != null
                 && Long.valueOf(so.getChangeToken()) > Long.valueOf(changeToken.getValue())) {
@@ -604,18 +622,43 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         }
 
         // update properties
-        boolean hasUpdatedName = false;
-        boolean hasUpdatedOtherProps = false;
+        boolean hasUpdatedProp = false;
 
+        // Find secondary type definitions to consider for update
+        List<String> existingSecondaryTypeIds = so.getSecondaryTypeIds();
+        @SuppressWarnings("unchecked")
+        PropertyData<String> pdSec = (PropertyData<String>) properties.getProperties().get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS);
+        List<String> newSecondaryTypeIds = pdSec == null ? null : pdSec.getValues();
+        Set<String> secondaryTypeIds = new HashSet<String>();
+        if (null != existingSecondaryTypeIds)
+            secondaryTypeIds.addAll(existingSecondaryTypeIds);
+        if (null != newSecondaryTypeIds)
+            secondaryTypeIds.addAll(newSecondaryTypeIds);
+
+        // Find secondary type definitions to delete (null means not set --> do not change, empty --> remove all secondary types)
+        if (null != newSecondaryTypeIds) {
+            List<String> propertiesIdToDelete = getListOfPropertiesToDeleteFromRemovedSecondaryTypes(repositoryId, so, newSecondaryTypeIds);
+            for (String propIdToRemove : propertiesIdToDelete) {
+                so.getProperties().remove(propIdToRemove);
+            }
+        }
+
+        // update properties:
         if(properties != null) {
         	for (String key : properties.getProperties().keySet()) {
-        		if (key.equals(PropertyIds.NAME))
-        		{
+        		if (key.equals(PropertyIds.NAME)) {
         			continue; // ignore here
         		}
 
         		PropertyData<?> value = properties.getProperties().get(key);
-        		PropertyDefinition<?> propDef = typeDef.getPropertyDefinitions().get(key);
+                PropertyDefinition<?> propDef = typeDef.getPropertyDefinitions().get(key);
+        		if (null == propDef && cmis11) {
+        		    TypeDefinition typeDefSecondary= getSecondaryTypeDefinition(repositoryId, secondaryTypeIds, key);
+        		    if (null == typeDefSecondary)
+        		        throw new CmisInvalidArgumentException("Cannot update property " + key + ": not contained in type");
+        		    propDef = typeDefSecondary.getPropertyDefinitions().get(key);
+        		}
+
         		if (value.getValues() == null || value.getFirstValue() == null) {
         			// delete property
         			// check if a required a property
@@ -625,7 +668,7 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         								+ key);
         			}
         			oldProperties.remove(key);
-        			hasUpdatedOtherProps = true;
+        			hasUpdatedProp = true;
         		} else {
         			if (propDef.getUpdatability().equals(Updatability.WHENCHECKEDOUT)) {
         				if (!isCheckedOut)
@@ -638,7 +681,7 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         								+ key);
         			}
         			oldProperties.put(key, value);
-        			hasUpdatedOtherProps = true;
+        			hasUpdatedProp = true;
         		}
         	}
 
@@ -656,11 +699,11 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         		}
 
         		so.rename((String) pd.getFirstValue()); // note: this does persist
-        		hasUpdatedName = true;
+        		hasUpdatedProp = true;
         	}
         }
 
-        if (hasUpdatedOtherProps) {
+        if (hasUpdatedProp) {
             // set user, creation date, etc.
             if (user == null) {
                 user = "unknown";
@@ -670,7 +713,7 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
             so.persist();
         }
 
-        if (hasUpdatedName || hasUpdatedOtherProps) {
+        if (hasUpdatedProp) {
             objectId.setValue(so.getId()); // might have a new id
             if (null != changeToken) {
                 String changeTokenVal = so.getChangeToken();
@@ -702,6 +745,64 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         LOG.debug("stop updateProperties()");
     }
 
+    // CMIS 1.1
+    public void appendContentStream(CallContext context, String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, ExtensionsData extension) {
+
+        Content content;
+        
+        LOG.debug("start appendContentStream()");
+        StoredObject so = validator.appendContentStream(context, repositoryId, objectId, extension);
+
+        if (changeToken != null && changeToken.getValue() != null
+                && Long.valueOf(so.getChangeToken()) > Long.valueOf(changeToken.getValue())) {
+            throw new CmisUpdateConflictException("updateProperties failed: changeToken does not match");
+        }
+             
+        if (!(so instanceof Document || so instanceof VersionedDocument || so instanceof DocumentVersion)) {
+            throw new CmisObjectNotFoundException("Id" + objectId
+                    + " does not refer to a document, but only documents can have content");
+        }
+
+        // validate content allowed
+        TypeDefinition typeDef = getTypeDefinition(repositoryId, so);
+        if (!(typeDef instanceof DocumentTypeDefinition))
+            throw new CmisInvalidArgumentException("Object does not refer to a document, can't set content");
+        TypeValidator.validateContentAllowed((DocumentTypeDefinition) typeDef , null != contentStream);
+
+        if (so instanceof Document) {
+            content = ((Document) so);
+        } else if (so instanceof DocumentVersion) {
+            // something that is versionable check the proper status of the
+            // object
+            String user = context.getUsername();
+            testHasProperCheckedOutStatus(so, user);
+            content = (DocumentVersion) so;
+        } else {
+            throw new IllegalArgumentException("Content cannot be set on this object (must be document or version)");
+        }
+
+        content.appendContent(contentStream);
+    }
+    
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(CallContext context, String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
+
+        List<BulkUpdateObjectIdAndChangeToken> result = new ArrayList<BulkUpdateObjectIdAndChangeToken>();
+        for ( BulkUpdateObjectIdAndChangeToken obj: objectIdAndChangeToken) {
+            Holder<String> objId = new Holder<String>(obj.getId());
+            Holder<String> changeToken = new Holder<String>(obj.getChangeToken());
+            try {
+                updateProperties(context, repositoryId, objId, changeToken, properties, null, null, null);
+                result.add(new BulkUpdateObjectIdAndChangeTokenImpl(obj.getId(), changeToken.getValue()));
+            } catch (Exception e) {
+                LOG.error("updating properties in bulk uapdate failed for object" + obj.getId() + ": ", e);
+            }
+        }
+        return result;
+    }
+    
     // ///////////////////////////////////////////////////////
     // private helper methods
 
@@ -770,7 +871,8 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
             propMap = propMapNew;
         }
 
-        TypeValidator.validateProperties(typeDef, properties, true);
+        boolean cmis11 = context.getCmisVersion() != CmisVersion.CMIS_1_0;
+        validateProperties(repositoryId, null, properties, false, cmis11);
 
         // set user, creation date, etc.
         if (user == null) {
@@ -826,7 +928,6 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         String user = context.getUsername();
 
         ObjectStore fs = fStoreManager.getObjectStore(repositoryId);
-        StoredObject so = null;
         Folder parent = null;
 
         // get required properties
@@ -855,11 +956,13 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
             properties = new PropertiesImpl(propMapNew.values());
         }
 
-        TypeValidator.validateProperties(typeDef, properties, true);
+        boolean cmis11 = context.getCmisVersion() != CmisVersion.CMIS_1_0;
+        validateProperties(repositoryId, null, properties, false, cmis11);
 
         // validate ACL
         TypeValidator.validateAcl(typeDef, addACEs, removeACEs);
 
+        StoredObject so = null;
         // create folder
         try {
             LOG.debug("get folder for id: " + folderId);
@@ -934,7 +1037,8 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
            properties = new PropertiesImpl(propMapNew.values());
        }
 
-       TypeValidator.validateProperties(typeDef, properties, true);
+       boolean cmis11 = context.getCmisVersion() != CmisVersion.CMIS_1_0;
+       validateProperties(repositoryId, null, properties, false, cmis11);
 
        // validate ACL
        TypeValidator.validateAcl(typeDef, addACEs, removeACEs);
@@ -951,6 +1055,84 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         return storedObject;
     }
 
+    private StoredObject createItemIntern(CallContext context, String repositoryId, Properties properties, String folderId,
+            List<String> policies, Acl addACEs, Acl removeACEs,  ExtensionsData extension) {
+
+        validator.createItem(context, repositoryId, properties, folderId, policies, addACEs, removeACEs, extension);
+        
+        addACEs  = org.apache.chemistry.opencmis.inmemory.TypeValidator.expandAclMakros(context.getUsername(), addACEs);
+        removeACEs  = org.apache.chemistry.opencmis.inmemory.TypeValidator.expandAclMakros(context.getUsername(), removeACEs);
+
+        validator.createDocument(context, repositoryId, folderId, extension);
+
+        // Validation stuff
+        TypeValidator.validateRequiredSystemProperties(properties);
+
+        String user = context.getUsername();
+        TypeDefinition typeDef = getTypeDefinition(repositoryId, properties);
+
+        ObjectStore objectStore = fStoreManager.getObjectStore(repositoryId);
+        Map<String, PropertyData<?>> propMap = properties.getProperties();
+        // get name from properties
+        PropertyData<?> pd = propMap.get(PropertyIds.NAME);
+        String name = (String) pd.getFirstValue();
+
+
+        // validate ACL
+        TypeValidator.validateAcl(typeDef, addACEs, removeACEs);
+        
+        Folder folder = null;
+        if (null != folderId) {
+            StoredObject so = objectStore.getObjectById(folderId);
+
+            if (null == so) {
+                throw new CmisInvalidArgumentException(" Cannot create item, folderId: " + folderId + " is invalid");
+            }
+
+            if (so instanceof Folder) {
+                folder = (Folder) so;
+            } else {
+                throw new CmisInvalidArgumentException("Can't create item, folderId does not refer to a folder: "
+                        + folderId);
+            }
+
+            TypeValidator.validateAllowedChildObjectTypes(typeDef, folder.getAllowedChildObjectTypeIds());
+        }
+
+        // check if the given type is an item type
+        if (!typeDef.getBaseTypeId().equals(BaseTypeId.CMIS_ITEM)) {
+            throw new CmisInvalidArgumentException("Cannot create an item, with a non-item type: " + typeDef.getId());
+        }
+
+        // check name syntax
+        if (!NameValidator.isValidName(name)) {
+            throw new CmisInvalidArgumentException(NameValidator.ERROR_ILLEGAL_NAME + " Name is: " + name);
+        }
+
+        // set properties that are not set but have a default:
+        Map<String, PropertyData<?>> propMapNew = setDefaultProperties(typeDef, propMap);
+        if (propMapNew != propMap) {
+            properties = new PropertiesImpl(propMapNew.values());
+            propMap = propMapNew;
+        }
+
+        boolean cmis11 = context.getCmisVersion() != CmisVersion.CMIS_1_0;
+        validateProperties(repositoryId, null, properties, false, cmis11);
+
+        // set user, creation date, etc.
+        if (user == null) {
+            user = "unknown";
+        }
+
+        StoredObject so = null;
+
+        // Now we are sure to have document type definition:
+        so = objectStore.createItem(name, propMap, user, folder, addACEs, removeACEs);
+        so.persist();
+        
+        return so;
+
+    }
 
     private static boolean hasDescendant(Folder sourceFolder, Folder targetFolder) {
         String sourceId = sourceFolder.getId();
@@ -1050,4 +1232,76 @@ public class InMemoryObjectServiceImpl extends InMemoryAbstractServiceImpl {
         }
         return properties;
     }
+    
+    private void validateProperties(String repositoryId, StoredObject so, Properties properties, boolean checkMandatory, boolean cmis11) {
+        TypeDefinition typeDef;
+        
+        if (null != so)
+            typeDef = getTypeDefinition(repositoryId, so);
+        else
+            typeDef = getTypeDefinition(repositoryId, properties);
+            
+        // check properties for validity
+        TypeValidator.validateProperties(typeDef, properties, cmis11, checkMandatory, cmis11);
+        
+        if (!cmis11)
+            return;
+        
+        // CMIS 1.1 secondary types
+        PropertyData<?> pd = properties.getProperties().get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS);
+        
+        @SuppressWarnings("unchecked")
+        List<String> secondaryTypeIds = (List<String>) (pd == null ? null : pd.getValues());
+        if (null != so && (null == secondaryTypeIds || secondaryTypeIds.size() == 0)) {
+            secondaryTypeIds = so.getSecondaryTypeIds();
+        }
+        
+        if (null != secondaryTypeIds && secondaryTypeIds.size() != 0) {
+            // check if they are all valid
+            for (String typeId : secondaryTypeIds) {
+                TypeDefinitionContainer typeDefC = fStoreManager.getTypeById(repositoryId, typeId);
+                typeDef =  typeDefC == null ? null : typeDefC.getTypeDefinition();
+                if (null == typeDef) {
+                    throw new CmisInvalidArgumentException("Cannot set secondary type, a type with id " + typeId + " is unknown");                    
+                }
+                TypeValidator.validateProperties(typeDef, properties, true, checkMandatory, true);
+            }
+        }
+    }
+    
+    private TypeDefinition getSecondaryTypeDefinition(String repositoryId, Set<String> secondaryTypeIds, String propertyId) {
+        if (null == secondaryTypeIds || secondaryTypeIds.isEmpty())
+            return null;
+        
+        for (String typeId : secondaryTypeIds) {
+            TypeDefinitionContainer typeDefC = fStoreManager.getTypeById(repositoryId, typeId);
+            TypeDefinition typeDef = typeDefC.getTypeDefinition();
+
+            if (TypeValidator.typeContainsProperty(typeDef, propertyId)) {
+                return typeDef;
+            }
+        }
+
+        return null;
+    }
+
+    private List<String> getListOfPropertiesToDeleteFromRemovedSecondaryTypes(String repositoryId, StoredObject so,
+            List<String> newSecondaryTypeIds) {
+        
+        List<String> propertiesToDelete = new ArrayList<String>(); // properties id to be removed
+        
+        // calculate delta to be removed
+        List<String> existingSecondaryTypeIds = so.getSecondaryTypeIds();
+        List<String> delta = new ArrayList<String>(existingSecondaryTypeIds);
+        delta.removeAll(newSecondaryTypeIds);
+        for (String typeDefId : delta) {
+            TypeDefinitionContainer typeDefC = fStoreManager.getTypeById(repositoryId, typeDefId);
+            TypeDefinition typeDef = typeDefC.getTypeDefinition();
+            propertiesToDelete.addAll(typeDef.getPropertyDefinitions().keySet());
+        }
+
+        // TODO: the list may contain too many properties, if the same property is also in a type not to be removed
+        return propertiesToDelete;
+    }
+
 }

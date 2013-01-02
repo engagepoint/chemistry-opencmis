@@ -18,12 +18,15 @@
  */
 package org.apache.chemistry.opencmis.server.impl.browser;
 
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CONTROL_TYPE;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CONTROL_TYPE_ID;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_DEPTH;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_MAX_ITEMS;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_PROPERTY_DEFINITIONS;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_SKIP_COUNT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_TOKEN;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_TYPE_ID;
+import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.writeEmpty;
 import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getBigIntegerParameter;
 import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getBooleanParameter;
 import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getStringParameter;
@@ -31,6 +34,7 @@ import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getStringPar
 import java.math.BigInteger;
 import java.net.URLDecoder;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -46,6 +50,7 @@ import org.apache.chemistry.opencmis.commons.impl.JSONConverter;
 import org.apache.chemistry.opencmis.commons.impl.json.JSONArray;
 import org.apache.chemistry.opencmis.commons.impl.json.JSONObject;
 import org.apache.chemistry.opencmis.commons.impl.json.JSONValue;
+import org.apache.chemistry.opencmis.commons.impl.json.parser.JSONParser;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 
@@ -176,6 +181,9 @@ public final class RepositoryService {
         BrowserBindingUtils.writeJSON(jsonTypeTree, request, response);
     }
 
+    /**
+     * getTypeDefinition.
+     */
     public static void getTypeDefinition(CallContext context, CmisService service, String repositoryId,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         // get parameters
@@ -187,5 +195,77 @@ public final class RepositoryService {
 
         response.setStatus(HttpServletResponse.SC_OK);
         BrowserBindingUtils.writeJSON(jsonType, request, response);
+    }
+
+    /**
+     * createType.
+     */
+    public static void createType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // get parameters
+        String typeStr = getStringParameter(request, CONTROL_TYPE);
+        if (typeStr == null) {
+            throw new CmisInvalidArgumentException("Type definition missing!");
+        }
+
+        // convert type definition
+        JSONParser parser = new JSONParser();
+        Object typeJson = parser.parse(typeStr);
+        if (!(typeJson instanceof Map)) {
+            throw new CmisInvalidArgumentException("Invalid type definition!");
+        }
+
+        @SuppressWarnings("unchecked")
+        TypeDefinition typeIn = JSONConverter.convertTypeDefinition((Map<String, Object>) typeJson);
+
+        // execute
+        TypeDefinition typeOut = service.createType(repositoryId, typeIn, null);
+        JSONObject jsonType = JSONConverter.convert(typeOut);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        BrowserBindingUtils.writeJSON(jsonType, request, response);
+    }
+
+    /**
+     * updateType.
+     */
+    public static void updateType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // get parameters
+        String typeStr = getStringParameter(request, CONTROL_TYPE);
+        if (typeStr == null) {
+            throw new CmisInvalidArgumentException("Type definition missing!");
+        }
+
+        // convert type definition
+        JSONParser parser = new JSONParser();
+        Object typeJson = parser.parse(typeStr);
+        if (!(typeJson instanceof Map)) {
+            throw new CmisInvalidArgumentException("Invalid type definition!");
+        }
+
+        @SuppressWarnings("unchecked")
+        TypeDefinition typeIn = JSONConverter.convertTypeDefinition((Map<String, Object>) typeJson);
+
+        // execute
+        TypeDefinition typeOut = service.updateType(repositoryId, typeIn, null);
+        JSONObject jsonType = JSONConverter.convert(typeOut);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        BrowserBindingUtils.writeJSON(jsonType, request, response);
+    }
+
+    /**
+     * deleteType.
+     */
+    public static void deleteType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // get parameters
+        String typeId = getStringParameter(request, CONTROL_TYPE_ID);
+
+        service.deleteType(repositoryId, typeId, null);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        writeEmpty(request, response);
     }
 }

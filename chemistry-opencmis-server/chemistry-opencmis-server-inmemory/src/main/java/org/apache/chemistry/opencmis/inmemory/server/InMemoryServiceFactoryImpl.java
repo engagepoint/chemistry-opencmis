@@ -40,6 +40,7 @@ import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.impl.Converter;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractTypeDefinition;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.BindingsObjectFactoryImpl;
@@ -73,7 +74,6 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
     private static CallContext OVERRIDE_CTX;
 
     private Map<String, String> inMemoryServiceParameters;
-    private ThreadLocal<CmisServiceWrapper<InMemoryService>> threadLocalService = new ThreadLocal<CmisServiceWrapper<InMemoryService>>();
     private boolean fUseOverrideCtx = false;
     private StoreManager storeManager; // singleton root of everything
     private CleanManager cleanManager = null;
@@ -81,6 +81,7 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
     private File tempDir;
     private int memoryThreshold;
     private long maxContentSize;
+    private boolean encrypt;
 
     @Override
     public void init(Map<String, String> parameters) {
@@ -115,6 +116,9 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
         String maxContentSizeStr = parameters.get(ConfigConstants.MAX_CONTENT_SIZE);
         maxContentSize = (maxContentSizeStr == null ? super.getMaxContentSize() : Long.parseLong(maxContentSizeStr));
 
+        String encryptTempFilesStr = parameters.get(ConfigConstants.ENCRYPT_TEMP_FILES);
+        encrypt = (encryptTempFilesStr == null ? super.encryptTempFiles() : Boolean.parseBoolean(encryptTempFilesStr));
+        
         Date deploymentTime = new Date();
         String strDate = new SimpleDateFormat("EEE MMM dd hh:mm:ss a z yyyy", Locale.US).format(deploymentTime);
 
@@ -149,23 +153,29 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
             context = OVERRIDE_CTX;
         }
 
-        CmisServiceWrapper<InMemoryService> wrapperService = threadLocalService.get();
-        if (wrapperService == null) {
-            wrapperService = new CmisServiceWrapper<InMemoryService>(new InMemoryService(inMemoryServiceParameters,
-                    storeManager), DEFAULT_MAX_ITEMS_TYPES, DEFAULT_DEPTH_TYPES, DEFAULT_MAX_ITEMS_OBJECTS,
-                    DEFAULT_DEPTH_OBJECTS);
-            threadLocalService.set(wrapperService);
+        InMemoryService inMemoryService = InMemoryServiceContext.getCmisService();
+        if (inMemoryService == null) {
+            CmisServiceWrapper<InMemoryService> wrapperService;
+            inMemoryService = new InMemoryService(inMemoryServiceParameters, storeManager);
+            wrapperService = new CmisServiceWrapper<InMemoryService>(inMemoryService, DEFAULT_MAX_ITEMS_TYPES,
+                    DEFAULT_DEPTH_TYPES, DEFAULT_MAX_ITEMS_OBJECTS, DEFAULT_DEPTH_OBJECTS);
+            InMemoryServiceContext.setWrapperService(wrapperService);
         }
 
-        wrapperService.getWrappedService().setCallContext(context);
+        inMemoryService.setCallContext(context);
 
         LOG.debug("stop getService()");
-        return wrapperService.getWrappedService(); // wrapperService;
+        return inMemoryService; // wrapperService;
     }
 
     @Override
     public File getTempDirectory() {
         return tempDir;
+    }
+
+    @Override
+    public boolean encryptTempFiles() {
+        return encrypt;
     }
 
     @Override
@@ -183,7 +193,7 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
         if (null != cleanManager) {
             cleanManager.stopCleanRepositoryJob();
         }
-        threadLocalService = null;
+        InMemoryServiceContext.setWrapperService(null);
     }
 
     public StoreManager getStoreManger() {
@@ -295,6 +305,10 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
                 return false;
             }
 
+            public CmisVersion getCmisVersion() {
+                return CmisVersion.CMIS_1_1;
+            }
+
             public String getRepositoryId() {
                 return null;
             }
@@ -324,6 +338,10 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
                 return tempDir;
             }
 
+            public boolean encryptTempFiles() {
+                return encrypt;
+            }
+
             public int getMemoryThreshold() {
                 return memoryThreshold;
             }
@@ -340,10 +358,7 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
         String contentKindStr = parameters.get(ConfigConstants.CONTENT_KIND);
         boolean doFillRepository = doFillRepositoryStr == null ? false : Boolean.parseBoolean(doFillRepositoryStr);
 
-        if (doFillRepository /*
-                              * &&
-                              * !allAvailableRepositories.contains(repositoryId)
-                              */) {
+        if (doFillRepository) {
 
             // create an initial temporary service instance to fill the
             // repository
@@ -434,10 +449,10 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
 
             // Simulate a runtime context with configuration parameters
             // Attach the CallContext to a thread local context that can be
-            // accessed
-            // from everywhere
+            // accessed from everywhere
             DummyCallContext ctx = new DummyCallContext();
-            svc.setCallContext(ctx);
+            // create thread local storage and attach call context
+            getService(ctx);
 
             // Build the tree
             RepositoryInfo rep = svc.getRepositoryInfo(repositoryId, null);
@@ -451,6 +466,7 @@ public class InMemoryServiceFactoryImpl extends AbstractServiceFactory {
                 LOG.error("Could not create folder hierarchy with documents. " + e);
                 e.printStackTrace();
             }
+            destroy();
         } // if
 
     } // fillRepositoryIfConfigured

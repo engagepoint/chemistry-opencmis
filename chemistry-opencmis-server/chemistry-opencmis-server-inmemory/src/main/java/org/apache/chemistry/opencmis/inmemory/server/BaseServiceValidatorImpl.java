@@ -18,8 +18,11 @@
  */
 package org.apache.chemistry.opencmis.inmemory.server;
 
+import java.util.List;
+
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
+import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
@@ -253,6 +256,12 @@ public class BaseServiceValidatorImpl implements CmisServiceValidator {
     	 return checkStandardParameters(repositoryId, folderId);
     }
 
+    // CMIS 1.1
+    public StoredObject createItem(CallContext context, String repositoryId, Properties properties, String folderId,
+            List<String> policies, Acl addAces, Acl removeAces, ExtensionsData extension) {
+        return checkStandardParametersAllowNull(repositoryId, folderId);
+   }
+
     public StoredObject getAllowableActions(CallContext context, String repositoryId, String objectId,
             ExtensionsData extension) {
         //
@@ -261,7 +270,6 @@ public class BaseServiceValidatorImpl implements CmisServiceValidator {
 
     public StoredObject getObject(CallContext context, String repositoryId, String objectId, ExtensionsData extension) {
 
-        String principalId = context.getUsername();
         StoredObject so = checkStandardParameters(repositoryId, objectId);
         return so;
     }
@@ -319,6 +327,11 @@ public class BaseServiceValidatorImpl implements CmisServiceValidator {
     public StoredObject setContentStream(CallContext context, String repositoryId, Holder<String> objectId,
             Boolean overwriteFlag, ExtensionsData extension) {
 
+        return checkStandardParameters(repositoryId, objectId.getValue());
+    }
+
+    public StoredObject appendContentStream(CallContext context, String repositoryId, Holder<String> objectId,
+            ExtensionsData extension) {
         return checkStandardParameters(repositoryId, objectId.getValue());
     }
 

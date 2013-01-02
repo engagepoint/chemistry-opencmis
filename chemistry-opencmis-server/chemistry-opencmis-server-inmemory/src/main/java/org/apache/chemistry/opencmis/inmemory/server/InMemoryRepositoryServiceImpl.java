@@ -33,7 +33,6 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentExcep
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.TypeDefinitionListImpl;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
-import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.inmemory.TypeValidator;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoreManager;
@@ -72,8 +71,7 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
 
         boolean inclPropDefs = includePropertyDefinitions == null ? false : includePropertyDefinitions;
         getRepositoryInfoFromStoreManager(repositoryId); // just to check if
-        // repository
-        // exists
+        // repository exists
 
         int skip = skipCount == null ? 0 : skipCount.intValue();
         int max = maxItems == null ? -1 : maxItems.intValue();
@@ -145,7 +143,7 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
         return result;
     }
 
-    public void createTypeDefinition(String repositoryId, Holder<TypeDefinition> type, ExtensionsData extension) {
+    public TypeDefinition createType(String repositoryId, TypeDefinition type, ExtensionsData extension) {
 
         if (null == repositoryId)
             throw new CmisInvalidArgumentException("Repository id may not be null");
@@ -154,15 +152,15 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
         if (null == typeManager)
             throw new CmisInvalidArgumentException("Unknown repository " + repositoryId);
         
-        TypeDefinition td = type.getValue();
-        TypeValidator.checkType(typeManager, td);
-        TypeValidator.checkProperties(typeManager, td.getPropertyDefinitions().values());
+        TypeValidator.checkType(typeManager, type);
+        TypeValidator.checkProperties(typeManager, type.getPropertyDefinitions().values());
         
-        typeManager.addTypeDefinition(type.getValue());
+        typeManager.addTypeDefinition(type);
+        return type;
     }
 
-    public void updateTypeDefinition(String repositoryId, Holder<TypeDefinition> type, ExtensionsData extension) {
-        String typeId = type.getValue().getId();
+    public TypeDefinition updateType(String repositoryId, TypeDefinition type, ExtensionsData extension) {
+        String typeId = type.getId();
         TypeManagerCreatable typeManager = fStoreManager.getTypeManager(repositoryId);
         if (null == typeManager)
             throw new CmisInvalidArgumentException("Unknown repository " + repositoryId);
@@ -171,10 +169,11 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
         if (null == typeDefC)
             throw new CmisInvalidArgumentException("Cannot update type unknown type id: " + typeId);
 
-        typeManager.updateTypeDefinition(type.getValue());
+        typeManager.updateTypeDefinition(type);
+        return type;
     }
 
-    public void deleteTypeDefinition(String repositoryId, String typeId, ExtensionsData extension) {
+    public void deleteType(String repositoryId, String typeId, ExtensionsData extension) {
         
         TypeManagerCreatable typeManager = fStoreManager.getTypeManager(repositoryId);
         if (null == typeManager)
@@ -183,12 +182,6 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
         TypeDefinitionContainer typeDefC = typeManager.getTypeById(typeId);
         if (null == typeDefC)
             throw new CmisInvalidArgumentException("Cannot delete type unknown type id: " + typeId);
-
-        TypeDefinition typeDef =  typeDefC.getTypeDefinition();
-        // TODO: re-enable when CMIS 1.1 is supported.
-//        if (!typeDef.getTypeMutability().supportsDelete()) {
-//            throw new CmisInvalidArgumentException("type definition " + typeId + " cannot be deleted, deletion is not supported for type id " + typeId);            
-//        }
 
         ObjectStore objectStore = fStoreManager.getObjectStore(repositoryId);
         if (objectStore.isTypeInUse(typeId)) {

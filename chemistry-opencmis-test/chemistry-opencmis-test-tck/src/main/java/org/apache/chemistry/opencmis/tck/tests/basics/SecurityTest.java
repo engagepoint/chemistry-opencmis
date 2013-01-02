@@ -29,6 +29,9 @@ import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.tck.CmisTestResult;
 import org.apache.chemistry.opencmis.tck.impl.AbstractSessionTest;
 
+/**
+ * Tests wether HTTPS is used or not.
+ */
 public class SecurityTest extends AbstractSessionTest {
 
     @Override
@@ -56,6 +59,11 @@ public class SecurityTest extends AbstractSessionTest {
             break;
         case WEBSERVICES:
             if (!isHttpsUrl(getParameters().get(SessionParameter.WEBSERVICES_REPOSITORY_SERVICE))) {
+                addResult(f);
+            }
+            break;
+        case BROWSER:
+            if (!isHttpsUrl(getParameters().get(SessionParameter.BROWSER_URL))) {
                 addResult(f);
             }
             break;

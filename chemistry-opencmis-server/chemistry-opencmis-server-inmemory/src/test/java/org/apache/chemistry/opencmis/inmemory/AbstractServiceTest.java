@@ -81,6 +81,8 @@ public class AbstractServiceTest {
     protected CallContext fTestCallContext;
     private String fTypeCreatorClassName;
 
+    private CmisBinding binding;
+
     public AbstractServiceTest() {
         // The in-memory server unit tests can either be run directly against
         // the
@@ -104,7 +106,6 @@ public class AbstractServiceTest {
     }
 
     protected void setUp() {
-        // super.setUp();
         LOG.debug("Initializing InMemory Test with type creator class: " + fTypeCreatorClassName);
         Map<String, String> parameters = new HashMap<String, String>();
 
@@ -112,8 +113,7 @@ public class AbstractServiceTest {
         parameters.put(ConfigConstants.TYPE_CREATOR_CLASS, fTypeCreatorClassName);
         parameters.put(ConfigConstants.REPOSITORY_ID, REPOSITORY_ID);
 
-        // give subclasses a chance to provide additional parameters for special
-        // tests
+        // give subclasses a chance to provide additional parameters for special tests
         addParameters(parameters);
 
         fTestCallContext = new DummyCallContext();
@@ -142,7 +142,7 @@ public class AbstractServiceTest {
     }
 
     protected void tearDown() {
-        // super.tearDown();
+        binding.close();
     }
 
     public void testDummy() {
@@ -236,13 +236,17 @@ public class AbstractServiceTest {
     }
 
     protected ContentStream createContent(int sizeInKB) {
-        return createContent(sizeInKB, 0);
+        return createContent(sizeInKB, 0, null);
     }
 
-    protected ContentStream createContent(int sizeInKB, long maxSizeInKB) {
+    protected ContentStream createContent(int sizeInKB, long maxSizeInKB, String mimeType) {
         ContentStreamDataImpl content = new ContentStreamDataImpl(maxSizeInKB);
         content.setFileName("data.txt");
-        content.setMimeType("text/plain");
+        
+        if (null == mimeType)
+            content.setMimeType("text/plain");
+        else
+            content.setMimeType(mimeType);
         int len = sizeInKB * 1024;
         byte[] b = { 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x0c, 0x0a,
                 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x0c, 0x0a }; // 32
@@ -282,9 +286,13 @@ public class AbstractServiceTest {
     }
 
     protected void verifyContentResult(ContentStream sd) {
+        verifyContentResult(sd, 32);
+    }
+    
+    protected void verifyContentResult(ContentStream sd, int sizeInK) {
         assertEquals("text/plain", sd.getMimeType());
         assertEquals("data.txt", sd.getFileName());
-        assertEquals(32 * 1024, sd.getBigLength().longValue());
+        assertEquals(sizeInK * 1024, sd.getBigLength().longValue());
         byte[] ba = new byte[32];
         InputStream is = sd.getStream();
         int counter = 0;
@@ -299,7 +307,7 @@ public class AbstractServiceTest {
         } catch (IOException e) {
             fail("reading from content stream failed");
         }
-        assertEquals(1024, counter);
+        assertEquals(sizeInK * 1024 / 32, counter);
     }
 
     protected String getByPath(String id, String path) {
@@ -396,7 +404,7 @@ public class AbstractServiceTest {
 
         // get factory and create binding
         CmisBindingFactory factory = CmisBindingFactory.newInstance();
-        CmisBinding binding = factory.createCmisLocalBinding(parameters);
+        binding = factory.createCmisLocalBinding(parameters);
         assertNotNull(binding);
         fFactory = binding.getObjectFactory();
         fRepSvc = binding.getRepositoryService();

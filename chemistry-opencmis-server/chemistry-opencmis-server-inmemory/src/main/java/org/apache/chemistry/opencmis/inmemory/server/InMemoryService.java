@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -55,7 +56,6 @@ public class InMemoryService extends AbstractCmisService {
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryService.class.getName());
 
     private final StoreManager storeManager; // singleton root of everything
-    private CallContext context;
 
     private final InMemoryRepositoryServiceImpl fRepSvc;
     private final InMemoryObjectServiceImpl fObjSvc;
@@ -81,14 +81,20 @@ public class InMemoryService extends AbstractCmisService {
     }
 
     public CallContext getCallContext() {
-        return context;
+        return InMemoryServiceContext.getCallContext();
     }
 
     public void setCallContext(CallContext context) {
-        this.context = context;
+        InMemoryServiceContext.setCallContext(context);
     }
 
     // --- repository service ---
+
+    @Override
+    public void close() {
+        super.close();
+        setCallContext(null);
+    }
 
     @Override
     public List<RepositoryInfo> getRepositoryInfos(ExtensionsData extension) {
@@ -110,6 +116,22 @@ public class InMemoryService extends AbstractCmisService {
     @Override
     public TypeDefinition getTypeDefinition(String repositoryId, String typeId, ExtensionsData extension) {
         return fRepSvc.getTypeDefinition(getCallContext(), repositoryId, typeId, extension);
+    }
+
+    
+    @Override
+    public TypeDefinition createType(String repositoryId, TypeDefinition type, ExtensionsData extension) {
+        return fRepSvc.createType(repositoryId, type, extension);
+    }
+
+    @Override
+    public TypeDefinition updateType(String repositoryId, TypeDefinition type, ExtensionsData extension) {
+        return fRepSvc.updateType(repositoryId, type, extension);
+    }
+
+    @Override
+    public void deleteType(String repositoryId, String typeId, ExtensionsData extension) {
+        fRepSvc.deleteType(repositoryId, typeId, extension);
     }
 
     @Override
@@ -215,6 +237,12 @@ public class InMemoryService extends AbstractCmisService {
     }
 
     @Override
+    public String createItem(String repositoryId, Properties properties, String folderId, List<String> policies,
+            Acl addAces, Acl removeAces, ExtensionsData extension) {
+        return fObjSvc.createItem(getCallContext(), repositoryId, properties, folderId, policies, addAces, removeAces, extension);
+    }
+
+    @Override
     public void deleteContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             ExtensionsData extension) {
         fObjSvc.deleteContentStream(getCallContext(), repositoryId, objectId, changeToken, extension);
@@ -295,6 +323,22 @@ public class InMemoryService extends AbstractCmisService {
             Properties properties, ExtensionsData extension) {
         fObjSvc.updateProperties(getCallContext(), repositoryId, objectId, changeToken, properties, null, extension,
                 this);
+    }
+
+    // CMIS 1.1
+    @Override
+    public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
+        fObjSvc.appendContentStream(getCallContext(), repositoryId, objectId, changeToken, contentStream, extension);
+    }
+
+    // CMIS 1.1
+    @Override
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
+        return fObjSvc.bulkUpdateProperties(getCallContext(), repositoryId, objectIdAndChangeToken, properties,
+                addSecondaryTypeIds, removeSecondaryTypeIds, extension);
     }
 
     // --- versioning service ---

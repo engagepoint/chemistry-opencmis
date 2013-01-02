@@ -35,10 +35,12 @@ import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomEle
 import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomEntry;
 import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomFeed;
 import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomLink;
-import org.apache.chemistry.opencmis.client.bindings.spi.http.HttpUtils;
+import org.apache.chemistry.opencmis.client.bindings.spi.http.Output;
+import org.apache.chemistry.opencmis.client.bindings.spi.http.Response;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -116,7 +118,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(object, contentStream);
 
         // post the new folder object
-        HttpUtils.Response resp = post(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -158,7 +160,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
 
         // post the new folder object
-        HttpUtils.Response resp = post(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -208,7 +210,53 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
 
         // post the new folder object
-        HttpUtils.Response resp = post(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+            public void write(OutputStream out) throws Exception {
+                entryWriter.write(out);
+            }
+        });
+
+        // parse the response
+        AtomEntry entry = parse(resp.getStream(), AtomEntry.class);
+
+        // handle ACL modifications
+        handleAclModifications(repositoryId, entry, addAces, removeAces);
+
+        return entry.getId();
+    }
+
+    public String createItem(String repositoryId, Properties properties, String folderId, List<String> policies,
+            Acl addAces, Acl removeAces, ExtensionsData extension) {
+        checkCreateProperties(properties);
+
+        // find the link
+        String link = null;
+
+        if (folderId == null) {
+            link = loadCollection(repositoryId, Constants.COLLECTION_UNFILED);
+
+            if (link == null) {
+                throw new CmisObjectNotFoundException("Unknown repository or unfiling not supported!");
+            }
+        } else {
+            link = loadLink(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
+
+            if (link == null) {
+                throwLinkException(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
+            }
+        }
+
+        UrlBuilder url = new UrlBuilder(link);
+
+        // set up object and writer
+        CmisObjectType object = new CmisObjectType();
+        object.setProperties(convert(properties));
+        object.setPolicyIds(convertPolicyIds(policies));
+
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+
+        // post the new folder object
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -255,7 +303,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
 
         // post the new folder object
-        HttpUtils.Response resp = post(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -296,7 +344,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
 
         // update
-        HttpUtils.Response resp = put(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = put(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -353,6 +401,12 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         }
     }
 
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
+        throw new CmisNotSupportedException("Not supported!");
+    }
+
     public void deleteObject(String repositoryId, String objectId, Boolean allVersions, ExtensionsData extension) {
 
         // find the link
@@ -402,7 +456,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         url.addParameter(Constants.PARAM_CONTINUE_ON_FAILURE, continueOnFailure);
 
         // make the call
-        HttpUtils.Response resp = HttpUtils.invokeDELETE(url, getSession());
+        Response resp = getHttpInvoker().invokeDELETE(url, getSession());
 
         // check response code
         if (resp.getResponseCode() == 200 || resp.getResponseCode() == 202 || resp.getResponseCode() == 204) {
@@ -461,7 +515,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         UrlBuilder url = new UrlBuilder(link);
 
         // read and parse
-        HttpUtils.Response resp = read(url);
+        Response resp = read(url);
         AtomAllowableActions allowableActions = parse(resp.getStream(), AtomAllowableActions.class);
 
         return convert(allowableActions.getAllowableActions());
@@ -494,7 +548,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         url.addParameter(Constants.PARAM_STREAM_ID, streamId);
 
         // get the content
-        HttpUtils.Response resp = HttpUtils.invokeGET(url, getSession(), offset, length);
+        Response resp = getHttpInvoker().invokeGET(url, getSession(), offset, length);
 
         // check response code
         if ((resp.getResponseCode() != 200) && (resp.getResponseCode() != 206)) {
@@ -571,7 +625,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId.getValue()));
 
         // post move request
-        HttpUtils.Response resp = post(url, Constants.MEDIATYPE_ENTRY, new HttpUtils.Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -621,7 +675,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         }
 
         // send content
-        HttpUtils.Response resp = put(url, contentStream.getMimeType(), headers, new HttpUtils.Output() {
+        Response resp = put(url, contentStream.getMimeType(), headers, new Output() {
             public void write(OutputStream out) throws Exception {
                 int b;
                 byte[] buffer = new byte[4096];
@@ -668,6 +722,11 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         if (changeToken != null) {
             changeToken.setValue(null);
         }
+    }
+
+    public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
+        throw new CmisNotSupportedException("Not supported!");
     }
 
     // ---- internal ----

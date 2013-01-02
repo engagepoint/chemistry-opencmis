@@ -43,7 +43,7 @@ import org.apache.chemistry.opencmis.commons.spi.Holder;
 /**
  * Versioning Service operations.
  */
-public class VersioningService {
+public final class VersioningService {
 
     private VersioningService() {
     }
@@ -55,7 +55,7 @@ public class VersioningService {
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         // get parameters
         AtomEntryParser parser = new AtomEntryParser(context.getTempDirectory(), context.getMemoryThreshold(),
-                context.getMaxContentSize());
+                context.getMaxContentSize(), context.encryptTempFiles());
         parser.setIgnoreAtomContentSrc(true); // needed for some clients
         parser.parse(request.getInputStream());
 

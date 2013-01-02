@@ -31,6 +31,7 @@ import java.util.List;
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -40,6 +41,7 @@ import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisException;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisExtensionType;
@@ -75,7 +77,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
             javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
 
-            port.createDocument(repositoryId, convert(properties), folderId, convert(contentStream),
+            port.createDocument(repositoryId, convert(properties), folderId, convert(contentStream, false),
                     convert(EnumVersioningState.class, versioningState), policies, convert(addACEs),
                     convert(removeACEs), portExtension, objectId);
 
@@ -162,6 +164,11 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
         }
     }
 
+    public String createItem(String repositoryId, Properties properties, String folderId, List<String> policies,
+            Acl addAces, Acl removeAces, ExtensionsData extension) {
+        throw new CmisNotSupportedException("Not supported!");
+    }
+
     public String createRelationship(String repositoryId, Properties properties, List<String> policies, Acl addACEs,
             Acl removeACEs, ExtensionsData extension) {
         ObjectServicePort port = portProvider.getObjectServicePort();
@@ -206,6 +213,12 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
         } finally {
             portProvider.endCall(port);
         }
+    }
+
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
+        throw new CmisNotSupportedException("Not supported!");
     }
 
     public void deleteObject(String repositoryId, String objectId, Boolean allVersions, ExtensionsData extension) {
@@ -380,8 +393,8 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
             javax.xml.ws.Holder<String> portChangeToken = convertHolder(changeToken);
             javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
 
-            port.setContentStream(repositoryId, portObjectId, overwriteFlag, portChangeToken, convert(contentStream),
-                    portExtension);
+            port.setContentStream(repositoryId, portObjectId, overwriteFlag, portChangeToken,
+                    convert(contentStream, false), portExtension);
 
             setHolderValue(portObjectId, objectId);
             setHolderValue(portChangeToken, changeToken);
@@ -416,5 +429,10 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
         } finally {
             portProvider.endCall(port);
         }
+    }
+
+    public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
+        throw new CmisNotSupportedException("Not supported!");
     }
 }

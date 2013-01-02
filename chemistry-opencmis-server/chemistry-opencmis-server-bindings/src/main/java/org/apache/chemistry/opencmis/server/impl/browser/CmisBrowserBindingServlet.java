@@ -19,25 +19,31 @@
 package org.apache.chemistry.opencmis.server.impl.browser;
 
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_ADD_OBJECT_TO_FOLDER;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_APPEND_CONTENT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_APPLY_ACL;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_APPLY_POLICY;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_BULK_UPDATE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CANCEL_CHECK_OUT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CHECK_IN;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CHECK_OUT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_DOCUMENT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_DOCUMENT_FROM_SOURCE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_FOLDER;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_ITEM;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_POLICY;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_RELATIONSHIP;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_CREATE_TYPE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_DELETE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_DELETE_CONTENT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_DELETE_TREE;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_DELETE_TYPE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_MOVE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_QUERY;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_REMOVE_OBJECT_FROM_FOLDER;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_REMOVE_POLICY;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_SET_CONTENT;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_UPDATE_PROPERTIES;
+import static org.apache.chemistry.opencmis.commons.impl.Constants.CMISACTION_UPDATE_TYPE;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.PARAM_OBJECT_ID;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.SELECTOR_ACL;
 import static org.apache.chemistry.opencmis.commons.impl.Constants.SELECTOR_ALLOWABLEACTIONS;
@@ -87,6 +93,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisContentAlreadyExistsException;
@@ -129,6 +136,7 @@ public class CmisBrowserBindingServlet extends HttpServlet {
     private File tempDir;
     private int memoryThreshold;
     private long maxContentSize;
+    private boolean encrypt;
 
     private Dispatcher repositoryDispatcher;
     private Dispatcher rootDispatcher;
@@ -153,9 +161,14 @@ public class CmisBrowserBindingServlet extends HttpServlet {
         CmisServiceFactory factory = (CmisServiceFactory) config.getServletContext().getAttribute(
                 CmisRepositoryContextListener.SERVICES_FACTORY);
 
+        if (factory == null) {
+            throw new CmisRuntimeException("Service factory not available! Configuration problem?");
+        }
+
         tempDir = factory.getTempDirectory();
         memoryThreshold = factory.getMemoryThreshold();
         maxContentSize = factory.getMaxContentSize();
+        encrypt = factory.encryptTempFiles();
 
         // initialize the dispatchers
         repositoryDispatcher = new Dispatcher(false);
@@ -172,12 +185,17 @@ public class CmisBrowserBindingServlet extends HttpServlet {
                     "getTypeDescendants");
             repositoryDispatcher.addResource(SELECTOR_TYPE_DEFINITION, METHOD_GET, RepositoryService.class,
                     "getTypeDefinition");
+            repositoryDispatcher
+                    .addResource(CMISACTION_CREATE_TYPE, METHOD_POST, RepositoryService.class, "createType");
+            repositoryDispatcher
+                    .addResource(CMISACTION_UPDATE_TYPE, METHOD_POST, RepositoryService.class, "updateType");
+            repositoryDispatcher
+                    .addResource(CMISACTION_DELETE_TYPE, METHOD_POST, RepositoryService.class, "deleteType");
             repositoryDispatcher.addResource(SELECTOR_QUERY, METHOD_GET, DiscoveryService.class, "query");
             repositoryDispatcher.addResource(SELECTOR_CHECKEDOUT, METHOD_GET, NavigationService.class,
                     "getCheckedOutDocs");
             repositoryDispatcher.addResource(SELECTOR_CONTENT_CHANGES, METHOD_GET, DiscoveryService.class,
                     "getContentChanges");
-
             repositoryDispatcher.addResource(CMISACTION_QUERY, METHOD_POST, DiscoveryService.class, "query");
             repositoryDispatcher.addResource(CMISACTION_CREATE_DOCUMENT, METHOD_POST, ObjectService.class,
                     "createDocument");
@@ -185,8 +203,11 @@ public class CmisBrowserBindingServlet extends HttpServlet {
                     "createDocumentFromSource");
             repositoryDispatcher
                     .addResource(CMISACTION_CREATE_POLICY, METHOD_POST, ObjectService.class, "createPolicy");
+            repositoryDispatcher.addResource(CMISACTION_CREATE_ITEM, METHOD_POST, ObjectService.class, "createItem");
             repositoryDispatcher.addResource(CMISACTION_CREATE_RELATIONSHIP, METHOD_POST, ObjectService.class,
                     "createRelationship");
+            repositoryDispatcher.addResource(CMISACTION_BULK_UPDATE, METHOD_POST, ObjectService.class,
+                    "bulkUpdateProperties");
 
             rootDispatcher.addResource(SELECTOR_OBJECT, METHOD_GET, ObjectService.class, "getObject");
             rootDispatcher.addResource(SELECTOR_PROPERTIES, METHOD_GET, ObjectService.class, "getProperties");
@@ -211,9 +232,12 @@ public class CmisBrowserBindingServlet extends HttpServlet {
                     "createDocumentFromSource");
             rootDispatcher.addResource(CMISACTION_CREATE_FOLDER, METHOD_POST, ObjectService.class, "createFolder");
             rootDispatcher.addResource(CMISACTION_CREATE_POLICY, METHOD_POST, ObjectService.class, "createPolicy");
+            rootDispatcher.addResource(CMISACTION_CREATE_ITEM, METHOD_POST, ObjectService.class, "createItem");
             rootDispatcher.addResource(CMISACTION_UPDATE_PROPERTIES, METHOD_POST, ObjectService.class,
                     "updateProperties");
             rootDispatcher.addResource(CMISACTION_SET_CONTENT, METHOD_POST, ObjectService.class, "setContentStream");
+            rootDispatcher.addResource(CMISACTION_APPEND_CONTENT, METHOD_POST, ObjectService.class,
+                    "appendContentStream");
             rootDispatcher.addResource(CMISACTION_DELETE_CONTENT, METHOD_POST, ObjectService.class,
                     "deleteContentStream");
             rootDispatcher.addResource(CMISACTION_DELETE, METHOD_POST, ObjectService.class, "deleteObject");
@@ -252,7 +276,7 @@ public class CmisBrowserBindingServlet extends HttpServlet {
             if (METHOD_GET.equals(method)) {
                 request = new QueryStringHttpServletRequestWrapper(request);
             } else if (METHOD_POST.equals(method)) {
-                request = new POSTHttpServletRequestWrapper(request, tempDir, memoryThreshold, maxContentSize);
+                request = new POSTHttpServletRequestWrapper(request, tempDir, memoryThreshold, maxContentSize, encrypt);
             } else {
                 throw new CmisNotSupportedException("Unsupported method");
             }
@@ -264,7 +288,7 @@ public class CmisBrowserBindingServlet extends HttpServlet {
             }
 
             context = HttpUtils.createContext(request, response, getServletContext(), CallContext.BINDING_BROWSER,
-                    callContextHandler, tempDir, memoryThreshold, maxContentSize);
+                    CmisVersion.CMIS_1_1, callContextHandler, tempDir, memoryThreshold, maxContentSize, encrypt);
             dispatch(context, request, response);
         } catch (Exception e) {
             if (e instanceof CmisPermissionDeniedException) {

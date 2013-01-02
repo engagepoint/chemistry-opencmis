@@ -119,14 +119,20 @@ public final class Constants {
     public static final String SELECTOR_CONTENT_CHANGES = "contentChanges";
 
     // browser binding actions
+    public static final String CMISACTION_CREATE_TYPE = "createType";
+    public static final String CMISACTION_UPDATE_TYPE = "updateType";
+    public static final String CMISACTION_DELETE_TYPE = "deleteType";
     public static final String CMISACTION_CREATE_DOCUMENT = "createDocument";
     public static final String CMISACTION_CREATE_DOCUMENT_FROM_SOURCE = "createDocumentFromSource";
     public static final String CMISACTION_CREATE_FOLDER = "createFolder";
     public static final String CMISACTION_CREATE_RELATIONSHIP = "createRelationship";
     public static final String CMISACTION_CREATE_POLICY = "createPolicy";
+    public static final String CMISACTION_CREATE_ITEM = "createItem";
     public static final String CMISACTION_UPDATE_PROPERTIES = "update";
+    public static final String CMISACTION_BULK_UPDATE = "bulkUpdate";
     public static final String CMISACTION_DELETE_CONTENT = "deleteContent";
     public static final String CMISACTION_SET_CONTENT = "setContent";
+    public static final String CMISACTION_APPEND_CONTENT = "appendContent";
     public static final String CMISACTION_DELETE = "delete";
     public static final String CMISACTION_DELETE_TREE = "deleteTree";
     public static final String CMISACTION_MOVE = "move";
@@ -154,6 +160,12 @@ public final class Constants {
     public static final String CONTROL_REMOVE_ACE_PERMISSION = "removeACEPermission";
     public static final String CONTROL_CONTENT_TYPE = "contenttype";
     public static final String CONTROL_FILENAME = "filename";
+    public static final String CONTROL_IS_LAST_CHUNK = "isLastChunk";
+    public static final String CONTROL_TYPE = "type";
+    public static final String CONTROL_TYPE_ID = "typeId";
+    public static final String CONTROL_CHANGE_TOKEN = "changeToken";
+    public static final String CONTROL_ADD_SECONDARY_TYPE = "addSecondaryTypeId";
+    public static final String CONTROL_REMOVE_SECONDARY_TYPE = "removeSecondaryTypeId";
 
     // parameter
     public static final String PARAM_ACL = "includeACL";

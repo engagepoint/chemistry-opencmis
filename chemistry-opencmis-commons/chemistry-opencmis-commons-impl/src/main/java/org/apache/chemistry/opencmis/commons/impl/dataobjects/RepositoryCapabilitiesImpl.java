@@ -18,11 +18,14 @@
  */
 package org.apache.chemistry.opencmis.commons.impl.dataobjects;
 
+import org.apache.chemistry.opencmis.commons.data.CreatablePropertyTypes;
+import org.apache.chemistry.opencmis.commons.data.NewTypeSettableAttributes;
 import org.apache.chemistry.opencmis.commons.data.RepositoryCapabilities;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityAcl;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdates;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityJoin;
+import org.apache.chemistry.opencmis.commons.enums.CapabilityOrderBy;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityQuery;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityRenditions;
 
@@ -31,7 +34,7 @@ import org.apache.chemistry.opencmis.commons.enums.CapabilityRenditions;
  */
 public class RepositoryCapabilitiesImpl extends AbstractExtensionData implements RepositoryCapabilities {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private Boolean allVersionsSearchable;
     private CapabilityAcl capabilityAcl;
@@ -44,9 +47,12 @@ public class RepositoryCapabilitiesImpl extends AbstractExtensionData implements
     private Boolean isPwcUpdatable;
     private Boolean supportsGetDescendants;
     private Boolean supportsGetFolderTree;
+    private CapabilityOrderBy capabilityOrderBy;
     private Boolean supportsMultifiling;
     private Boolean supportsUnfiling;
     private Boolean supportsVersionSpecificFiling;
+    private CreatablePropertyTypes creatablePropertyTypes;
+    private NewTypeSettableAttributes newTypeSettableAttributes;
 
     /**
      * Constructor.
@@ -142,6 +148,14 @@ public class RepositoryCapabilitiesImpl extends AbstractExtensionData implements
         this.supportsGetFolderTree = supportsGetFolderTree;
     }
 
+    public CapabilityOrderBy getOrderByCapability() {
+        return capabilityOrderBy;
+    }
+
+    public void setOrderByCapability(CapabilityOrderBy capabilityOrderBy) {
+        this.capabilityOrderBy = capabilityOrderBy;
+    }
+
     public Boolean isMultifilingSupported() {
         return supportsMultifiling;
     }
@@ -166,6 +180,22 @@ public class RepositoryCapabilitiesImpl extends AbstractExtensionData implements
         this.supportsVersionSpecificFiling = supportsVersionSpecificFiling;
     }
 
+    public CreatablePropertyTypes getCreatablePropertyTypes() {
+        return creatablePropertyTypes;
+    }
+
+    public void setCreatablePropertyTypes(CreatablePropertyTypes creatablePropertyTypes) {
+        this.creatablePropertyTypes = creatablePropertyTypes;
+    }
+
+    public NewTypeSettableAttributes getNewTypeSettableAttributes() {
+        return newTypeSettableAttributes;
+    }
+
+    public void setNewTypeSettableAttributes(NewTypeSettableAttributes newTypeSettableAttributes) {
+        this.newTypeSettableAttributes = newTypeSettableAttributes;
+    }
+
     @Override
     public String toString() {
         return "Repository Capabilities [all versions searchable=" + allVersionsSearchable + ", capability ACL="
@@ -175,6 +205,9 @@ public class RepositoryCapabilitiesImpl extends AbstractExtensionData implements
                 + isPwcSearchable + ", is PWC updatable=" + isPwcUpdatable + ", supports GetDescendants="
                 + supportsGetDescendants + ", supports GetFolderTree=" + supportsGetFolderTree
                 + ", supports multifiling=" + supportsMultifiling + ", supports unfiling=" + supportsUnfiling
-                + ", supports version specific filing=" + supportsVersionSpecificFiling + "]" + super.toString();
+                + ", supports version specific filing=" + supportsVersionSpecificFiling + ", creatable property types="
+                + creatablePropertyTypes + ", newTypeSettableAttributes=" + newTypeSettableAttributes + "]"
+                + super.toString();
     }
+
 }

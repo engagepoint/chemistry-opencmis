@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -208,6 +209,36 @@ public interface ObjectService {
             Acl addAces, Acl removeAces, ExtensionsData extension);
 
     /**
+     * Creates an item object of the specified type (given by the
+     * cmis:objectTypeId property).
+     * 
+     * @param repositoryId
+     *            the identifier for the repository
+     * @param properties
+     *            the property values that must be applied to the newly created
+     *            policy object
+     * @param folderId
+     *            <em>(optional)</em> if specified, the identifier for the
+     *            folder that must be the parent folder for the newly created
+     *            policy object
+     * @param policies
+     *            <em>(optional)</em> a list of policy IDs that must be applied
+     *            to the newly created policy object
+     * @param addAces
+     *            <em>(optional)</em> a list of ACEs that must be added to the
+     *            newly created policy object, either using the ACL from
+     *            <code>folderId</code> if specified, or being applied if no
+     *            <code>folderId</code> is specified
+     * @param removeAces
+     *            <em>(optional)</em> a list of ACEs that must be removed from
+     *            the newly created policy object, either using the ACL from
+     *            <code>folderId</code> if specified, or being ignored if no
+     *            <code>folderId</code> is specified
+     */
+    String createItem(String repositoryId, Properties properties, String folderId, List<String> policies, Acl addAces,
+            Acl removeAces, ExtensionsData extension);
+
+    /**
      * Gets the list of allowable actions for an object.
      * 
      * @param repositoryId
@@ -358,6 +389,24 @@ public interface ObjectService {
             Properties properties, ExtensionsData extension);
 
     /**
+     * Updates properties and secondary types of one or more objects.
+     * 
+     * @param repositoryId
+     *            the identifier for the repository
+     * @param objectIdAndChangeToken
+     *            the ids and change tokens of the objects to update
+     * @param properties
+     *            the properties to set
+     * @param addSecondaryTypeIds
+     *            the secondary types to apply
+     * @param removeSecondaryTypeIds
+     *            the secondary types to remove
+     */
+    List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension);
+
+    /**
      * Moves the specified file-able object from one folder to another.
      * 
      * @param repositoryId
@@ -455,4 +504,24 @@ public interface ObjectService {
      */
     void deleteContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             ExtensionsData extension);
+
+    /**
+     * Appends the content stream to the content of the document.
+     * 
+     * @param repositoryId
+     *            the identifier for the repository
+     * @param objectId
+     *            the identifier for the object. The repository might return a
+     *            different/new object id
+     * @param changeToken
+     *            <em>(optional)</em> the last change token of this object that
+     *            the client received. The repository might return a new change
+     *            token (default is <code>null</code>)
+     * @param contentStream
+     *            the content stream to append
+     * @param isLastChunk
+     *            indicates if this content stream is the last chunk
+     */
+    void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, boolean isLastChunk, ExtensionsData extension);
 }

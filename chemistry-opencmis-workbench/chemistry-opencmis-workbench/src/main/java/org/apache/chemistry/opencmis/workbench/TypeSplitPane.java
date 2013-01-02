@@ -53,6 +53,7 @@ public class TypeSplitPane extends JSplitPane {
     private final ClientModel model;
 
     private TypeInfoPanel typePanel;
+
     private PropertyDefinitionTable propertyDefinitionTable;
 
     public TypeSplitPane(ClientModel model) {
@@ -69,7 +70,10 @@ public class TypeSplitPane extends JSplitPane {
 
     private void createGUI() {
         typePanel = new TypeInfoPanel(model);
+
         propertyDefinitionTable = new PropertyDefinitionTable();
+
+        add(typePanel);
 
         setLeftComponent(new JScrollPane(typePanel));
         setRightComponent(new JScrollPane(propertyDefinitionTable));
@@ -104,6 +108,7 @@ public class TypeSplitPane extends JSplitPane {
         private JTextField contentStreamAllowedField;
         private JTextField allowedSourceTypesField;
         private JTextField allowedTargetTypesField;
+        private JTextField typeMutabilityField;
 
         public TypeInfoPanel(ClientModel model) {
             super(model);
@@ -127,13 +132,39 @@ public class TypeSplitPane extends JSplitPane {
                 aclLabel.setValue(is(type.isControllableAcl()));
                 policyLabel.setValue(is(type.isControllablePolicy()));
 
+                if (type.getTypeMutability() != null) {
+                    StringBuilder sb = new StringBuilder();
+
+                    if (Boolean.TRUE.equals(type.getTypeMutability().canCreate())) {
+                        sb.append("create");
+                    }
+
+                    if (Boolean.TRUE.equals(type.getTypeMutability().canUpdate())) {
+                        if (sb.length() > 0) {
+                            sb.append(", ");
+                        }
+                        sb.append("update");
+                    }
+
+                    if (Boolean.TRUE.equals(type.getTypeMutability().canDelete())) {
+                        if (sb.length() > 0) {
+                            sb.append(", ");
+                        }
+                        sb.append("delete");
+                    }
+
+                    typeMutabilityField.setText(sb.toString());
+                } else {
+                    typeMutabilityField.setText("");
+                }
+
                 if (type instanceof DocumentTypeDefinition) {
                     DocumentTypeDefinition docType = (DocumentTypeDefinition) type;
                     versionableLabel.setVisible(true);
                     versionableLabel.setValue(is(docType.isVersionable()));
                     contentStreamAllowedField.setVisible(true);
                     contentStreamAllowedField.setText(docType.getContentStreamAllowed() == null ? "???" : docType
-                            .getContentStreamAllowed().toString());
+                            .getContentStreamAllowed().value());
                 } else {
                     versionableLabel.setVisible(false);
                     contentStreamAllowedField.setVisible(false);
@@ -170,6 +201,7 @@ public class TypeSplitPane extends JSplitPane {
                 contentStreamAllowedField.setVisible(false);
                 allowedSourceTypesField.setVisible(false);
                 allowedTargetTypesField.setVisible(false);
+                typeMutabilityField.setText("");
             }
 
             revalidate();
@@ -192,6 +224,7 @@ public class TypeSplitPane extends JSplitPane {
             fulltextIndexedLabel = addYesNoLabel("Full text indexed:");
             aclLabel = addYesNoLabel("ACL controlable:");
             policyLabel = addYesNoLabel("Policy controlable:");
+            typeMutabilityField = addLine("Type mutability:");
             versionableLabel = addYesNoLabel("Versionable:");
             contentStreamAllowedField = addLine("Content stream allowed:");
             allowedSourceTypesField = addLine("Allowed source types:");

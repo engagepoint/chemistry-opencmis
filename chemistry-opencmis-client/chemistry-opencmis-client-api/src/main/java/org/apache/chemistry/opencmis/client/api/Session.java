@@ -27,6 +27,7 @@ import java.util.Set;
 
 import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
@@ -153,6 +154,21 @@ public interface Session extends Serializable {
      * Returns the type descendants of the given type id.
      */
     List<Tree<ObjectType>> getTypeDescendants(String typeId, int depth, boolean includePropertyDefinitions);
+
+    /**
+     * Creates a new type.
+     */
+    ObjectType createType(ObjectType type);
+
+    /**
+     * Updates an existing type.
+     */
+    ObjectType updateType(ObjectType type);
+
+    /**
+     * Deletes a type.
+     */
+    void deleteType(String typeId);
 
     // navigation
 
@@ -444,6 +460,25 @@ public interface Session extends Serializable {
     ObjectId createPolicy(Map<String, ?> properties, ObjectId folderId);
 
     /**
+     * Creates a new item.
+     * 
+     * @return the object id of the new policy
+     * 
+     * @see Folder#createItem(Map, List, List, List, OperationContext)
+     */
+    ObjectId createItem(Map<String, ?> properties, ObjectId folderId, List<Policy> policies, List<Ace> addAces,
+            List<Ace> removeAces);
+
+    /**
+     * Creates a new item.
+     * 
+     * @return the object id of the new item
+     * 
+     * @see Folder#createItem(Map, List, List, List, OperationContext)
+     */
+    ObjectId createItem(Map<String, ?> properties, ObjectId folderId);
+
+    /**
      * Creates a new relationship.
      * 
      * @return the object id of the new relationship
@@ -463,6 +498,12 @@ public interface Session extends Serializable {
      */
     ItemIterable<Relationship> getRelationships(ObjectId objectId, boolean includeSubRelationshipTypes,
             RelationshipDirection relationshipDirection, ObjectType type, OperationContext context);
+
+    /**
+     * Updates multiple objects in one request.
+     */
+    BulkUpdateObjectIdAndChangeToken bulkUpdateProperties(BulkUpdateObjectIdAndChangeToken objectIdsAndChangeToken,
+            Map<String, ?> properties, List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds);
 
     /**
      * Deletes an object and, if it is a document, all versions in the version

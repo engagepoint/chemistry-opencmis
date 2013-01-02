@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
+import org.apache.chemistry.opencmis.commons.definitions.TypeMutability;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 
 /**
@@ -30,7 +31,7 @@ import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
  */
 public abstract class AbstractTypeDefinition extends AbstractExtensionData implements TypeDefinition, Cloneable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private String id;
     private String localName;
@@ -47,7 +48,8 @@ public abstract class AbstractTypeDefinition extends AbstractExtensionData imple
     private Boolean isFulltextIndexed;
     private Boolean isControllableACL;
     private Boolean isControllablePolicy;
-    private Map<String, PropertyDefinition<?>> propertyDefinitions;
+    private LinkedHashMap<String, PropertyDefinition<?>> propertyDefinitions;
+    private TypeMutability typeMutability;
 
     public void initialize(TypeDefinition typeDefinition) {
         setId(typeDefinition.getId());
@@ -66,6 +68,7 @@ public abstract class AbstractTypeDefinition extends AbstractExtensionData imple
         setIsControllableAcl(typeDefinition.isControllableAcl());
         setIsControllablePolicy(typeDefinition.isControllablePolicy());
         setPropertyDefinitions(typeDefinition.getPropertyDefinitions());
+        setTypeMutability(typeDefinition.getTypeMutability());
     }
 
     public String getId() {
@@ -197,7 +200,13 @@ public abstract class AbstractTypeDefinition extends AbstractExtensionData imple
     }
 
     public void setPropertyDefinitions(Map<String, PropertyDefinition<?>> propertyDefinitions) {
-        this.propertyDefinitions = propertyDefinitions;
+        if (propertyDefinitions == null) {
+            this.propertyDefinitions = null;
+        } else if (propertyDefinitions instanceof LinkedHashMap) {
+            this.propertyDefinitions = (LinkedHashMap<String, PropertyDefinition<?>>) propertyDefinitions;
+        } else {
+            this.propertyDefinitions = new LinkedHashMap<String, PropertyDefinition<?>>(propertyDefinitions);
+        }
     }
 
     /**
@@ -218,6 +227,14 @@ public abstract class AbstractTypeDefinition extends AbstractExtensionData imple
         this.propertyDefinitions.put(propertyDefinition.getId(), propertyDefinition);
     }
 
+    public TypeMutability getTypeMutability() {
+        return typeMutability;
+    }
+
+    public void setTypeMutability(TypeMutability typeMutability) {
+        this.typeMutability = typeMutability;
+    }
+
     public AbstractTypeDefinition clone() {
         try {
             return (AbstractTypeDefinition) super.clone();
@@ -235,6 +252,7 @@ public abstract class AbstractTypeDefinition extends AbstractExtensionData imple
                 + ", is controllable policy=" + isControllablePolicy + ", is creatable=" + isCreatable
                 + ", is fileable=" + isFileable + ", is fulltext indexed=" + isFulltextIndexed
                 + ", is included in supertype query=" + isIncludedInSupertypeQuery + ", is queryable=" + isQueryable
-                + ", property definitions=" + propertyDefinitions + "]" + super.toString();
+                + ", property definitions=" + propertyDefinitions + ", typeMutability=" + typeMutability + "]"
+                + super.toString();
     }
 }

@@ -29,6 +29,9 @@ import org.apache.chemistry.opencmis.client.api.Session;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.tck.CmisTestResult;
 
+/**
+ * Query LIKE test. 
+ */
 public class QueryLikeTest extends AbstractQueryTest {
 
     @Override
@@ -40,7 +43,7 @@ public class QueryLikeTest extends AbstractQueryTest {
 
     @Override
     public void run(Session session) {
-        if (supportsQuery(session)) {
+        if (supportsQuery(session) && !isFulltextOnly(session)) {
 
             OperationContext context = session.createOperationContext();
             context.setFilterString("cmis:name,cmis:creationDate");
@@ -86,7 +89,7 @@ public class QueryLikeTest extends AbstractQueryTest {
             }
 
         } else {
-            addResult(createResult(SKIPPED, "Query not supported. Test Skipped!"));
+            addResult(createResult(SKIPPED, "Metadata query not supported. Test Skipped!"));
         }
     }
 }

@@ -45,11 +45,16 @@ public class QueryRootFolderTest extends AbstractQueryTest {
 
     @Override
     public void run(Session session) {
-        if (supportsQuery(session)) {
-            queryById(session);
-            queryByDate(session);
+        if (supportsQuery(session) && !isFulltextOnly(session)) {
+            if (Boolean.TRUE.equals(session.getRootFolder().getType().isQueryable())) {
+                queryById(session);
+                queryByDate(session);
+            } else {
+                addResult(createResult(SKIPPED, "Root folder type (" + session.getRootFolder().getType().getId()
+                        + ") is not queryable. Test Skipped!"));
+            }
         } else {
-            addResult(createResult(SKIPPED, "Query not supported. Test Skipped!"));
+            addResult(createResult(SKIPPED, "Metadata query not supported. Test Skipped!"));
         }
     }
 

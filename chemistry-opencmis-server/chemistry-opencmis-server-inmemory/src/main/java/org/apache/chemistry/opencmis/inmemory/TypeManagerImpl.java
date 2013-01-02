@@ -20,6 +20,7 @@ package org.apache.chemistry.opencmis.inmemory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,6 @@ import java.util.Map.Entry;
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
-import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.commons.impl.Converter;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractPropertyDefinition;
@@ -38,8 +38,10 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.TypeManagerCreatable
 import org.apache.chemistry.opencmis.inmemory.types.DocumentTypeCreationHelper;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryDocumentTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryFolderTypeDefinition;
+import org.apache.chemistry.opencmis.inmemory.types.InMemoryItemTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryPolicyTypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.types.InMemoryRelationshipTypeDefinition;
+import org.apache.chemistry.opencmis.inmemory.types.InMemorySecondaryTypeDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,17 +82,8 @@ public class TypeManagerImpl implements TypeManagerCreatable {
     /* (non-Javadoc)
      * @see org.apache.chemistry.opencmis.inmemory.TypeManager#getTypeDefinitionList()
      */
-    public synchronized Collection<TypeDefinitionContainer> getTypeDefinitionList() {
-
-        List<TypeDefinitionContainer> typeRoots = new ArrayList<TypeDefinitionContainer>();
-        // iterate types map and return a list collecting the root types:
-        for (TypeDefinitionContainer typeDef : fTypesMap.values()) {
-            if (typeDef.getTypeDefinition().getParentTypeId() == null) {
-                typeRoots.add(typeDef);
-            }
-        }
-
-        return typeRoots;
+    public Collection<TypeDefinitionContainer> getTypeDefinitionList() {
+        return Collections.unmodifiableCollection(fTypesMap.values());
     }
 
     /* (non-Javadoc)
@@ -237,7 +230,10 @@ public class TypeManagerImpl implements TypeManagerCreatable {
         if (c.getTypeDefinition().equals(InMemoryFolderTypeDefinition.getRootFolderType())
                 || c.getTypeDefinition().equals(InMemoryDocumentTypeDefinition.getRootDocumentType())
                 || c.getTypeDefinition().equals(InMemoryRelationshipTypeDefinition.getRootRelationshipType())
-                || c.getTypeDefinition().equals(InMemoryPolicyTypeDefinition.getRootPolicyType())) {
+                || c.getTypeDefinition().equals(InMemoryPolicyTypeDefinition.getRootPolicyType())
+                || c.getTypeDefinition().equals(InMemoryItemTypeDefinition.getRootItemType()) // CMIS 1.1
+                || c.getTypeDefinition().equals(InMemorySecondaryTypeDefinition.getRootSecondaryType()) // CMIS 1.1
+                ) {
             return true;
         } else {
             return false;
@@ -250,19 +246,5 @@ public class TypeManagerImpl implements TypeManagerCreatable {
         PropertyDefinition<?> clone = Converter.convert(tmp);
         return clone;
     }
-
-    // private static PropertyDefinition<?>
-    // clonePropertyDefinition2(PropertyDefinition<?> src)
-    // throws IOException, ClassNotFoundException {
-    // ByteArrayOutputStream bout = new ByteArrayOutputStream();
-    // ObjectOutputStream oout = new ObjectOutputStream(bout);
-    // oout.writeObject(src);
-    // byte[] bytes = bout.toByteArray();
-    //
-    // ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-    // ObjectInputStream oin = new ObjectInputStream(bin);
-    // PropertyDefinition<?> clone = (PropertyDefinition<?>) oin.readObject();
-    // return clone;
-    // }
 
 }

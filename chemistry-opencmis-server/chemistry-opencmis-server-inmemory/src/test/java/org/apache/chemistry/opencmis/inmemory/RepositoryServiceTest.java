@@ -40,11 +40,11 @@ import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
 import org.apache.chemistry.opencmis.inmemory.types.DocumentTypeCreationHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Jens
@@ -54,9 +54,6 @@ public class RepositoryServiceTest extends AbstractServiceTest {
     // private CmisProvider fProvider;
 
     private static final Logger log = LoggerFactory.getLogger(RepositoryServiceTest.class);
-    private static final String REPOSITORY_ID = "UnitTestRepository";
-    private static final String TYPE_ID_MUTABILITY = "BookTypeAddedLater";
-
 
     @Override
     @Before
@@ -114,10 +111,7 @@ public class RepositoryServiceTest extends AbstractServiceTest {
         String repositoryId = getRepositoryId();
 
         // get types
-        List<TypeDefinitionContainer> types = fRepSvc.getTypeDescendants(repositoryId, null/*
-                                                                                            * all
-                                                                                            * types
-                                                                                            */, BigInteger.valueOf(-1),
+        List<TypeDefinitionContainer> types = fRepSvc.getTypeDescendants(repositoryId, null, BigInteger.valueOf(-1),
                 Boolean.TRUE, null);
         assertNotNull(types);
 
@@ -127,7 +121,7 @@ public class RepositoryServiceTest extends AbstractServiceTest {
         int totalSize = getRecursiveSize(types);
 
         assertEquals(expectedSize, totalSize);
-        assertEquals(2, types.size());
+        assertEquals(4, types.size());
 
         for (TypeDefinitionContainer type : types) {
             assertNotNull(type);
@@ -467,15 +461,17 @@ public class RepositoryServiceTest extends AbstractServiceTest {
         Map<String, PropertyDefinition<?>> propDefs = typeDef.getPropertyDefinitions();
         String baseTypeId = typeDef.getBaseTypeId().value();
 
-        assertTrue(propDefs.containsKey(PropertyIds.NAME));
-        assertTrue(propDefs.containsKey(PropertyIds.OBJECT_ID));
-        assertTrue(propDefs.containsKey(PropertyIds.OBJECT_TYPE_ID));
-        assertTrue(propDefs.containsKey(PropertyIds.BASE_TYPE_ID));
-        assertTrue(propDefs.containsKey(PropertyIds.CREATED_BY));
-        assertTrue(propDefs.containsKey(PropertyIds.CREATION_DATE));
-        assertTrue(propDefs.containsKey(PropertyIds.LAST_MODIFIED_BY));
-        assertTrue(propDefs.containsKey(PropertyIds.LAST_MODIFICATION_DATE));
-        assertTrue(propDefs.containsKey(PropertyIds.CHANGE_TOKEN));
+        if (!typeDef.getId().equals(BaseTypeId.CMIS_SECONDARY.value())) {
+            assertTrue(propDefs.containsKey(PropertyIds.NAME));
+            assertTrue(propDefs.containsKey(PropertyIds.OBJECT_ID));
+            assertTrue(propDefs.containsKey(PropertyIds.OBJECT_TYPE_ID));
+            assertTrue(propDefs.containsKey(PropertyIds.BASE_TYPE_ID));
+            assertTrue(propDefs.containsKey(PropertyIds.CREATED_BY));
+            assertTrue(propDefs.containsKey(PropertyIds.CREATION_DATE));
+            assertTrue(propDefs.containsKey(PropertyIds.LAST_MODIFIED_BY));
+            assertTrue(propDefs.containsKey(PropertyIds.LAST_MODIFICATION_DATE));
+            assertTrue(propDefs.containsKey(PropertyIds.CHANGE_TOKEN));
+        }
 
         if (baseTypeId.equals(BaseTypeId.CMIS_DOCUMENT.value())) {
             assertTrue(propDefs.containsKey(PropertyIds.IS_IMMUTABLE));
@@ -502,6 +498,8 @@ public class RepositoryServiceTest extends AbstractServiceTest {
         } else if (baseTypeId.equals(BaseTypeId.CMIS_RELATIONSHIP.value())) {
             assertTrue(propDefs.containsKey(PropertyIds.SOURCE_ID));
             assertTrue(propDefs.containsKey(PropertyIds.TARGET_ID));
+        } else if (baseTypeId.equals(BaseTypeId.CMIS_ITEM.value())) {
+        } else if (baseTypeId.equals(BaseTypeId.CMIS_SECONDARY.value())) {
         } else {
             fail("Unknown base type id in type definition");
         }

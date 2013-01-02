@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
@@ -93,6 +94,17 @@ public class ObjectServiceImpl extends AbstractLocalService implements ObjectSer
 
         try {
             return service.createPolicy(repositoryId, properties, folderId, policies, addAces, removeAces, extension);
+        } finally {
+            service.close();
+        }
+    }
+
+    public String createItem(String repositoryId, Properties properties, String folderId, List<String> policies,
+            Acl addAces, Acl removeAces, ExtensionsData extension) {
+        CmisService service = getService(repositoryId);
+
+        try {
+            return service.createItem(repositoryId, properties, folderId, policies, addAces, removeAces, extension);
         } finally {
             service.close();
         }
@@ -231,6 +243,17 @@ public class ObjectServiceImpl extends AbstractLocalService implements ObjectSer
         }
     }
 
+    public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
+            ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
+        CmisService service = getService(repositoryId);
+
+        try {
+            service.appendContentStream(repositoryId, objectId, changeToken, contentStream, isLastChunk, extension);
+        } finally {
+            service.close();
+        }
+    }
+
     public void updateProperties(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             Properties properties, ExtensionsData extension) {
         CmisService service = getService(repositoryId);
@@ -241,4 +264,18 @@ public class ObjectServiceImpl extends AbstractLocalService implements ObjectSer
             service.close();
         }
     }
+
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
+            List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
+        CmisService service = getService(repositoryId);
+
+        try {
+            return service.bulkUpdateProperties(repositoryId, objectIdAndChangeToken, properties, addSecondaryTypeIds,
+                    removeSecondaryTypeIds, extension);
+        } finally {
+            service.close();
+        }
+    }
+
 }

@@ -33,6 +33,10 @@ import org.apache.chemistry.opencmis.commons.enums.VersioningState;
  */
 public interface Document extends FileableCmisObject, DocumentProperties {
 
+    /**
+     * @deprecated Support for transient objects will be removed in the future.
+     */
+    @Deprecated
     TransientDocument getTransientDocument();
 
     // object service
@@ -110,6 +114,29 @@ public interface Document extends FileableCmisObject, DocumentProperties {
      * @return the updated object id
      */
     ObjectId setContentStream(ContentStream contentStream, boolean overwrite, boolean refresh);
+
+    /**
+     * Appends a content stream to the content stream of the document and
+     * refreshes this object afterwards. If the repository created a new
+     * version, this new document is returned. Otherwise the current document is
+     * returned.
+     * 
+     * The stream in <code>contentStream</code> is consumed but not closed by
+     * this method.
+     * 
+     * @return the updated document
+     */
+    Document appendContentStream(ContentStream contentStream, boolean isLastChunk);
+
+    /**
+     * Appends a content stream to the content stream of the document.
+     * 
+     * The stream in <code>contentStream</code> is consumed but not closed by
+     * this method.
+     * 
+     * @return the updated object id
+     */
+    ObjectId appendContentStream(ContentStream contentStream, boolean isLastChunk, boolean refresh);
 
     /**
      * Removes the current content stream from the document and refreshes this

@@ -18,7 +18,13 @@
  */
 package org.apache.chemistry.opencmis.inmemory.storedobj.impl;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -35,10 +41,12 @@ import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.spi.BindingsObjectFactory;
 import org.apache.chemistry.opencmis.inmemory.DataObjectCreator;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
+import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 
 /**
@@ -48,6 +56,11 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
  * @author Jens
  */
 public class StoredObjectImpl implements StoredObject {
+
+    public static final String RENDITION_MIME_TYPE_JPEG = "image/jpeg";
+    public static final String RENDITION_MIME_TYPE_PNG = "image/png";
+    public static final String RENDITION_SUFFIX = "-rendition";
+    public static final int ICON_SIZE = 32;
 
     protected String fId;
     protected String fName;
@@ -60,6 +73,8 @@ public class StoredObjectImpl implements StoredObject {
     protected Map<String, PropertyData<?>> fProperties;
     protected final ObjectStoreImpl fObjStore;
     protected int fAclId;
+    protected String description; // CMIS 1.1
+    protected List<String> secondaryTypeIds; // CMIS 1.1
 
     StoredObjectImpl(ObjectStoreImpl objStore) { // visibility should be package
         GregorianCalendar now = getNow();
@@ -67,6 +82,7 @@ public class StoredObjectImpl implements StoredObject {
         fCreatedAt = now;
         fModifiedAt = now;
         fObjStore = objStore;
+        secondaryTypeIds = new ArrayList<String>();
     }
 
     public String getId() {
@@ -128,6 +144,20 @@ public class StoredObjectImpl implements StoredObject {
     public String getRepositoryId() {
         return fRepositoryId;
     }
+    
+    // CMIS 1.1:
+    public void setDescription(String descr) {
+        description = descr;
+    }
+    
+    // CMIS 1.1:
+    public String getDescription() {
+        return description;
+    }
+
+    public List<String> getSecondaryTypeIds() {
+        return Collections.unmodifiableList(secondaryTypeIds);
+    }
 
     public void setProperties(Map<String, PropertyData<?>> props) {
         fProperties = props;
@@ -157,6 +187,8 @@ public class StoredObjectImpl implements StoredObject {
 
     public void fillProperties(Map<String, PropertyData<?>> properties, BindingsObjectFactory objFactory,
             List<String> requestedIds) {
+        
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
 
         if (FilterParser.isContainedInFilter(PropertyIds.NAME, requestedIds)) {
             properties.put(PropertyIds.NAME, objFactory.createPropertyStringData(PropertyIds.NAME, getName()));
@@ -195,6 +227,11 @@ public class StoredObjectImpl implements StoredObject {
             properties.put(PropertyIds.CHANGE_TOKEN, objFactory.createPropertyStringData(PropertyIds.CHANGE_TOKEN,
                     token));
         }
+        
+        if (cmis11 && FilterParser.isContainedInFilter(PropertyIds.DESCRIPTION, requestedIds)) {
+            properties.put(PropertyIds.DESCRIPTION, objFactory.createPropertyStringData(PropertyIds.DESCRIPTION,
+                    description));
+        }
 
         // add custom properties of type definition to the collection
         if (null != fProperties) {
@@ -228,6 +265,7 @@ public class StoredObjectImpl implements StoredObject {
      * CMIS_LAST_MODIFICATION_DATE, CMIS_CHANGE_TOKEN system properties to the
      * list of properties with current values
      */
+    @SuppressWarnings("unchecked")
     private void addSystemBaseProperties(Map<String, PropertyData<?>> properties, String user, boolean isCreated) {
         if (user == null) {
             user = "unknown";
@@ -236,11 +274,20 @@ public class StoredObjectImpl implements StoredObject {
         // Note that initial creation and modification date is set in
         // constructor.
         setModifiedBy(user);
+        if (null != properties.get(PropertyIds.DESCRIPTION))
+            setDescription((String)properties.get(PropertyIds.DESCRIPTION).getFirstValue());
+        
+        if (null != properties.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS)) {
+            secondaryTypeIds.clear();
+            secondaryTypeIds.addAll((List<String>)properties.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS).getValues());
+        }
+        
         if (isCreated) {
             setCreatedBy(user);
             setName((String) properties.get(PropertyIds.NAME).getFirstValue());
             setTypeId((String) properties.get(PropertyIds.OBJECT_TYPE_ID).getFirstValue());
         } else {
+            setModifiedBy(user);
             setModifiedAtNow();
         }
     }
@@ -417,4 +464,43 @@ public class StoredObjectImpl implements StoredObject {
     public boolean hasRendition(String user) {
         return false;
     }
+    
+    protected  ContentStream getIconFromResourceDir(String name) throws IOException {
+        
+        InputStream imageStream = this.getClass().getResourceAsStream(name);
+        ContentStreamDataImpl content = new ContentStreamDataImpl(0);
+        content.setFileName(name);
+        content.setMimeType("image/png");
+
+        ByteArrayOutputStream ba = new ByteArrayOutputStream();
+        byte[] buffer = new byte [65536];
+        int noBytesRead = 0;
+
+        while ((noBytesRead = imageStream.read(buffer)) >=0 ) {
+            ba.write(buffer, 0, noBytesRead);
+        }
+        
+        content.setContent(new ByteArrayInputStream(ba.toByteArray()));
+        return content;
+    }
+    
+    protected boolean testRenditionFilterForImage(String[] formats) {
+        if (formats.length == 1 && null != formats[0] && formats[0].equals("cmis:none"))
+            return false;
+        else
+            return arrayContainsString(formats, "*")  || arrayContainsString(formats, "image/*") 
+                || arrayContainsString(formats, "image/jpeg") ;
+    }
+    
+    private boolean arrayContainsString(String[] formats, String val) {
+        for (String s : formats) {
+            if (val.equals(s))
+                return true;            
+        }
+        return false;
+    }
+
+
+
+
 }

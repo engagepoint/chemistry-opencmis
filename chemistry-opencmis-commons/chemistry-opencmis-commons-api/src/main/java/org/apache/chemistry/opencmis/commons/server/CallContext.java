@@ -21,32 +21,55 @@ package org.apache.chemistry.opencmis.commons.server;
 import java.io.File;
 import java.math.BigInteger;
 
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
+
 /**
  * An object implementing this interface holds context data of the current call.
  */
 public interface CallContext {
 
+    /** Binding: AtomPub */
     String BINDING_ATOMPUB = "atompub";
+    /** Binding: Web Services */
     String BINDING_WEBSERVICES = "webservices";
+    /** Binding: Browser */
     String BINDING_BROWSER = "browser";
+    /** Binding: Local */
     String BINDING_LOCAL = "local";
 
+    /** Key: CMIS version (value is a CmisVersion) */
+    String CMIS_VERSION = "cmisVersion";
+
+    /** Key: repository id */
     String REPOSITORY_ID = "repositoryId";
+    /** Key: username */
     String USERNAME = "username";
+    /** Key: password */
     String PASSWORD = "password";
+    /** Key: local */
     String LOCALE = "locale";
+    /** Key: offset (value is a BigInteger) */
     String OFFSET = "offset";
+    /** Key: length (value is a BigInteger) */
     String LENGTH = "length";
     String LOCALE_ISO639_LANGUAGE = "language";
     String LOCALE_ISO3166_COUNTRY = "country";
 
+    /** Key: servlet context (value is a ServletContext) */
     String SERVLET_CONTEXT = "servletContext";
+    /** Key: servlet request (value is a HttpServletRequest) */
     String HTTP_SERVLET_REQUEST = "httpServletRequest";
+    /** Key: servlet response (value is a HttpServletResponse) */
     String HTTP_SERVLET_RESPONSE = "httpServletResponse";
 
+    /** Key: temp directory */
     String TEMP_DIR = "tempDir";
+    /** Key: memory threshold (values is an Integer) */
     String MEMORY_THRESHOLD = "memoryThreshold";
+    /** Key: max content size (values is a Long) */
     String MAX_CONTENT_SIZE = "maxContentSize";
+    /** Key: encrypt temp files (values is a Boolean) */
+    String ENCRYPT_TEMP_FILE = "encryptTempFiles";
 
     /**
      * Returns the binding. Usually it returns
@@ -69,6 +92,11 @@ public interface CallContext {
      * @return the data if the key is valid, <code>null</code> otherwise
      */
     Object get(String key);
+
+    /**
+     * Returns the CMIS version.
+     */
+    CmisVersion getCmisVersion();
 
     /**
      * Returns the repository id.
@@ -104,6 +132,11 @@ public interface CallContext {
      * Returns the temp directory.
      */
     File getTempDirectory();
+
+    /**
+     * Returns if temp files should be encrypted.
+     */
+    boolean encryptTempFiles();
 
     /**
      * Returns the memory threshold.

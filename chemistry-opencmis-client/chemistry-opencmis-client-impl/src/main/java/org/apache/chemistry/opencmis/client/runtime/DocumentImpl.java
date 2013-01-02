@@ -35,12 +35,11 @@ import org.apache.chemistry.opencmis.client.api.ObjectType;
 import org.apache.chemistry.opencmis.client.api.OperationContext;
 import org.apache.chemistry.opencmis.client.api.Policy;
 import org.apache.chemistry.opencmis.client.api.Property;
-import org.apache.chemistry.opencmis.client.api.TransientCmisObject;
-import org.apache.chemistry.opencmis.client.api.TransientDocument;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
@@ -59,16 +58,24 @@ public class DocumentImpl extends AbstractFilableCmisObject implements Document 
         initialize(session, objectType, objectData, context);
     }
 
+    /**
+     * @deprecated Support for transient objects will be removed in the future.
+     */
+    @Deprecated
     @Override
-    protected TransientCmisObject createTransientCmisObject() {
+    protected org.apache.chemistry.opencmis.client.api.TransientCmisObject createTransientCmisObject() {
         TransientDocumentImpl td = new TransientDocumentImpl();
         td.initialize(getSession(), this);
 
         return td;
     }
 
-    public TransientDocument getTransientDocument() {
-        return (TransientDocument) getTransientObject();
+    /**
+     * @deprecated Support for transient objects will be removed in the future.
+     */
+    @Deprecated
+    public org.apache.chemistry.opencmis.client.api.TransientDocument getTransientDocument() {
+        return (org.apache.chemistry.opencmis.client.api.TransientDocument) getTransientObject();
     }
 
     // properties
@@ -107,6 +114,10 @@ public class DocumentImpl extends AbstractFilableCmisObject implements Document 
 
     public Boolean isMajorVersion() {
         return getPropertyValue(PropertyIds.IS_MAJOR_VERSION);
+    }
+
+    public Boolean isPrivateWorkingCopy() {
+        return getPropertyValue(PropertyIds.IS_PRIVATE_WORKING_COPY);
     }
 
     public Boolean isVersionSeriesCheckedOut() {
@@ -411,6 +422,50 @@ public class DocumentImpl extends AbstractFilableCmisObject implements Document 
 
             getBinding().getObjectService().setContentStream(getRepositoryId(), objectIdHolder, overwrite,
                     changeTokenHolder, getObjectFactory().convertContentStream(contentStream), null);
+
+            newObjectId = objectIdHolder.getValue();
+        } finally {
+            readUnlock();
+        }
+
+        if (refresh) {
+            refresh();
+        }
+
+        if (newObjectId == null) {
+            return null;
+        }
+
+        return getSession().createObjectId(newObjectId);
+    }
+
+    public Document appendContentStream(ContentStream contentStream, boolean isLastChunk) {
+        if (getSession().getRepositoryInfo().getCmisVersion() == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
+        }
+
+        ObjectId objectId = appendContentStream(contentStream, isLastChunk, true);
+        if (objectId == null) {
+            return null;
+        }
+
+        if (!getObjectId().equals(objectId.getId())) {
+            return (Document) getSession().getObject(objectId, getCreationContext());
+        }
+
+        return this;
+    }
+
+    public ObjectId appendContentStream(ContentStream contentStream, boolean isLastChunk, boolean refresh) {
+        String newObjectId = null;
+
+        readLock();
+        try {
+            Holder<String> objectIdHolder = new Holder<String>(getObjectId());
+            Holder<String> changeTokenHolder = new Holder<String>((String) getPropertyValue(PropertyIds.CHANGE_TOKEN));
+
+            getBinding().getObjectService().appendContentStream(getRepositoryId(), objectIdHolder, changeTokenHolder,
+                    getObjectFactory().convertContentStream(contentStream), isLastChunk, null);
 
             newObjectId = objectIdHolder.getValue();
         } finally {

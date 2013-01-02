@@ -22,15 +22,19 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisStorageException;
 import org.apache.chemistry.opencmis.commons.spi.BindingsObjectFactory;
 import org.apache.chemistry.opencmis.inmemory.ConfigConstants;
 import org.apache.chemistry.opencmis.inmemory.ConfigurationSettings;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
+import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
@@ -51,6 +55,7 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
     private String fComment; // checkin comment
     boolean fIsMajor;
     boolean fIsPwc; // true if this is the PWC
+    String label;
 
     public DocumentVersionImpl(String repositoryId, VersionedDocument container, ContentStream content,
             VersioningState verState, ObjectStoreImpl objStore) {
@@ -60,8 +65,16 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
         setContent(content, false);
         fIsMajor = verState == VersioningState.MAJOR || verState == null;
         fIsPwc = verState == VersioningState.CHECKEDOUT;
-        fProperties = new HashMap<String, PropertyData<?>>(); // ensure that we
-        // have a map
+        fProperties = new HashMap<String, PropertyData<?>>();
+        // copy user properties from latest version
+        DocumentVersionImpl src = (DocumentVersionImpl)container.getLatestVersion(false);
+        if (null != src && null != src.fProperties) {
+            for (Entry<String, PropertyData<?>> prop : src.fProperties.entrySet()) {
+                fProperties.put(prop.getKey(), prop.getValue());
+            }
+        }
+
+        label = createVersionLabel();
     }
 
     public void setContent(ContentStream content, boolean mustPersist) {
@@ -81,6 +94,21 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
         }
     }
 
+    public void appendContent(ContentStream content) {
+        if (null == content) {
+            return;
+        } if (null != fContent) {
+            setContent(content, true);
+        } else {
+            try {
+                fContent.appendContent(content.getStream());
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new CmisStorageException("Failed to append content: IO Exception", e);
+            }
+        }
+    }
+
     public void setCheckinComment(String comment) {
         fComment = comment;
     }
@@ -89,8 +117,8 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
         return fComment;
     }
 
-    public String getVersionLabel() {
-        int majorNo = 0;
+    private String createVersionLabel() {
+        int majorNo = 1;
         int minorNo = 0;
         List<DocumentVersion> allVersions = fContainer.getAllVersions();
         for (DocumentVersion ver : allVersions) {
@@ -241,6 +269,16 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
                         PropertyIds.CONTENT_STREAM_MIME_TYPE, fContent.getMimeType()));
             }
         }
+
+        // CMIS 1.1
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+
+        if (cmis11 && FilterParser.isContainedInFilter(PropertyIds.IS_PRIVATE_WORKING_COPY, requestedIds)) {
+            properties.put(PropertyIds.IS_PRIVATE_WORKING_COPY,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_PRIVATE_WORKING_COPY, isPwc()));
+        }
+        
+        
     }
 
     @Override
@@ -285,5 +323,10 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
     	super.rename(newName);
     	fContainer.setName(newName);
     }
+
+    public String getVersionLabel() {
+        return label;
+    }
+
 
 }

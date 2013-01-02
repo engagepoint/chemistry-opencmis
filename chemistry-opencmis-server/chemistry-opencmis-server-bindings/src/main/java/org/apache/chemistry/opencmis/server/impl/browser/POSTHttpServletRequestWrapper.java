@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -37,24 +38,25 @@ public class POSTHttpServletRequestWrapper extends QueryStringHttpServletRequest
     private InputStream stream;
 
     public POSTHttpServletRequestWrapper(HttpServletRequest request, File tempDir, int memoryThreshold,
-            long maxContentSize) throws Exception {
+            long maxContentSize, boolean encrypt) throws Exception {
         super(request);
 
         // check multipart
         isMultipart = MultipartParser.isMultipartContent(request);
 
         if (isMultipart) {
-            MultipartParser parser = new MultipartParser(request, tempDir, memoryThreshold, maxContentSize);
+            MultipartParser parser = new MultipartParser(request, tempDir, memoryThreshold, maxContentSize, encrypt);
+            parser.parse();
 
-            while (parser.readNext()) {
-                if (parser.isContent()) {
-                    filename = parser.getFilename();
-                    contentType = parser.getContentType();
-                    size = parser.getSize();
-                    stream = parser.getStream();
-                } else {
-                    addParameter(parser.getName(), parser.getValue());
-                }
+            if (parser.hasContent()) {
+                filename = parser.getFilename();
+                contentType = parser.getContentType();
+                size = parser.getSize();
+                stream = parser.getStream();
+            }
+
+            for (Map.Entry<String, String[]> e : parser.getFields().entrySet()) {
+                addParameter(e.getKey(), e.getValue());
             }
 
             String filenameControl = HttpUtils.getStringParameter(this, Constants.CONTROL_FILENAME);

@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,18 +37,22 @@ import org.apache.chemistry.opencmis.commons.definitions.PermissionDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
+import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityAcl;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdates;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityJoin;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityQuery;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityRenditions;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
+import org.apache.chemistry.opencmis.commons.enums.PropertyType;
 import org.apache.chemistry.opencmis.commons.enums.SupportedPermissions;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractTypeDefinition;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AclCapabilitiesDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.BindingsObjectFactoryImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.CreatablePropertyTypesImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PermissionDefinitionDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PermissionMappingDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryCapabilitiesImpl;
@@ -58,6 +63,7 @@ import org.apache.chemistry.opencmis.inmemory.RepositoryInfoCreator;
 import org.apache.chemistry.opencmis.inmemory.TypeCreator;
 import org.apache.chemistry.opencmis.inmemory.TypeManagerImpl;
 import org.apache.chemistry.opencmis.inmemory.query.InMemoryQueryProcessor;
+import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.CmisServiceValidator;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoreManager;
@@ -192,7 +198,7 @@ public class StoreManagerImpl implements StoreManager {
         if (null == typeManager) {
             throw new CmisInvalidArgumentException("Unknown repository " + repositoryId);
         }
-        Collection<TypeDefinitionContainer> typeColl = typeManager.getTypeDefinitionList();
+        Collection<TypeDefinitionContainer> typeColl = getRootTypes(repositoryId);
         if (includePropertyDefinitions) {
             result = typeColl;
         } else {
@@ -209,17 +215,30 @@ public class StoreManagerImpl implements StoreManager {
         return result;
     }
 
-    public Map<String, TypeDefinitionContainer> getTypeDefinitionMap(String repositoryId) {
-        return null;
-    }
-
     public List<TypeDefinitionContainer> getRootTypes(String repositoryId) {
         TypeManager typeManager = fMapRepositoryToTypeManager.get(repositoryId);
         if (null == typeManager) {
             throw new CmisInvalidArgumentException("Unknown repository " + repositoryId);
         }
         List<TypeDefinitionContainer> rootTypes = typeManager.getRootTypes();
-
+        
+        // remove cmis:item and cmis:secondary for CMIS 1.0
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+        if (!cmis11) {
+            rootTypes = new ArrayList<TypeDefinitionContainer>(rootTypes);
+            TypeDefinitionContainer tcItem = null, tcSecondary = null;
+            for(TypeDefinitionContainer tc : rootTypes) {
+                if (tc.getTypeDefinition().getId().equals(BaseTypeId.CMIS_ITEM.value()))
+                    tcItem = tc;
+                if (tc.getTypeDefinition().getId().equals(BaseTypeId.CMIS_SECONDARY.value()))
+                    tcSecondary = tc;
+            }
+            if (tcItem != null)
+                rootTypes.remove(tcItem);
+            if (tcSecondary != null)
+                rootTypes.remove(tcSecondary);
+        }
+        
         return rootTypes;
     }
 
@@ -324,6 +343,7 @@ public class StoreManagerImpl implements StoreManager {
         typeManager.initTypeSystem(typeDefs);
     }
 
+    @SuppressWarnings("serial")
     private RepositoryInfo createRepositoryInfo(String repositoryId) {
         ObjectStore objStore = getObjectStore(repositoryId);
         String rootFolderId = objStore.getRootFolder().getId();
@@ -333,7 +353,6 @@ public class StoreManagerImpl implements StoreManager {
         repoInfo.setId(repositoryId == null ? "inMem" : repositoryId);
         repoInfo.setName("Apache Chemistry OpenCMIS InMemory Repository");
         repoInfo.setDescription("Apache Chemistry OpenCMIS InMemory Repository (Version: " + OPENCMIS_VERSION + ")");
-        repoInfo.setCmisVersionSupported("1.0");
         repoInfo.setRootFolder(rootFolderId);
         repoInfo.setPrincipalAnonymous(InMemoryAce.getAnonymousUser());
         repoInfo.setPrincipalAnyone(InMemoryAce.getAnyoneUser());
@@ -342,7 +361,7 @@ public class StoreManagerImpl implements StoreManager {
         repoInfo.setChangesOnType(null);
         repoInfo.setLatestChangeLogToken(Long.valueOf(new Date(0).getTime()).toString());
         repoInfo.setVendorName("Apache Chemistry");
-        repoInfo.setProductName("OpenCMIS InMemory-Server");
+        repoInfo.setProductName(OPENCMIS_SERVER);
         repoInfo.setProductVersion(OPENCMIS_VERSION);
 
         // set capabilities
@@ -419,7 +438,39 @@ public class StoreManagerImpl implements StoreManager {
         for (PermissionMapping pm : list) {
             map.put(pm.getKey(), pm);
         }
-
+        
+        // CMIS 1.1 extensions
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+        if (cmis11) {
+            repoInfo.setCmisVersionSupported(CmisVersion.CMIS_1_1.value());
+            repoInfo.setCmisVersion(CmisVersion.CMIS_1_1);
+            repoInfo.setCmisVersion(CmisVersion.CMIS_1_1);
+            List<BaseTypeId> changesOnType = new ArrayList<BaseTypeId>() {{
+                add(BaseTypeId.CMIS_DOCUMENT);
+                add(BaseTypeId.CMIS_FOLDER);
+                add(BaseTypeId.CMIS_ITEM);
+                add(BaseTypeId.CMIS_SECONDARY);
+            }};
+            repoInfo.setChangesOnType(changesOnType);
+            
+            Set<PropertyType> propertyTypeSet = new HashSet<PropertyType>() {{
+                add(PropertyType.BOOLEAN);
+                add(PropertyType.DATETIME);
+                add(PropertyType.DECIMAL);
+                add(PropertyType.HTML);
+                add(PropertyType.ID);
+                add(PropertyType.INTEGER);
+                add(PropertyType.STRING);
+                add(PropertyType.URI);
+            }};
+            CreatablePropertyTypesImpl creatablePropertyTypes = new CreatablePropertyTypesImpl();
+            creatablePropertyTypes.setCanCreate(propertyTypeSet);
+            caps.setCreatablePropertyTypes(creatablePropertyTypes);
+        } else {
+            repoInfo.setCmisVersionSupported(CmisVersion.CMIS_1_0.value());
+            repoInfo.setCmisVersion(CmisVersion.CMIS_1_0);
+        }
+        
         aclCaps.setPermissionMappingData(map);
 
         repoInfo.setAclCapabilities(aclCaps);

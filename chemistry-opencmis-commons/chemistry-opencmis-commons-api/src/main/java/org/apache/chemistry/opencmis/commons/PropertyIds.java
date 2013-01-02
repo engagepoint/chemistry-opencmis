@@ -37,6 +37,10 @@ public final class PropertyIds {
     public static final String LAST_MODIFICATION_DATE = "cmis:lastModificationDate";
     public static final String CHANGE_TOKEN = "cmis:changeToken";
 
+    // CMIS 1.1
+    public static final String DESCRIPTION = "cmis:description";
+    public static final String SECONDARY_OBJECT_TYPE_IDS = "cmis:secondaryObjectTypeIds";
+
     // ---- document ----
     public static final String IS_IMMUTABLE = "cmis:isImmutable";
     public static final String IS_LATEST_VERSION = "cmis:isLatestVersion";
@@ -53,6 +57,9 @@ public final class PropertyIds {
     public static final String CONTENT_STREAM_FILE_NAME = "cmis:contentStreamFileName";
     public static final String CONTENT_STREAM_ID = "cmis:contentStreamId";
 
+    // CMIS 1.1
+    public static final String IS_PRIVATE_WORKING_COPY = "cmis:isPrivateWorkingCopy";
+
     // ---- folder ----
     public static final String PARENT_ID = "cmis:parentId";
     public static final String ALLOWED_CHILD_OBJECT_TYPE_IDS = "cmis:allowedChildObjectTypeIds";
@@ -64,4 +71,13 @@ public final class PropertyIds {
 
     // ---- policy ----
     public static final String POLICY_TEXT = "cmis:policyText";
+
+    // ---- retention ---
+    // CMIS 1.1
+    public static final String EXPIRATION_DATE = "cmis:rm_expirationDate";
+    public static final String START_OF_RETENTION = "cmis:rm_startOfRetention";
+    public static final String DESTRUCTION_DATE = "cmis:rm_destructionDate";
+
+    public static final String HOLD_IDS = "cmis:rm_holdIds";
+
 }

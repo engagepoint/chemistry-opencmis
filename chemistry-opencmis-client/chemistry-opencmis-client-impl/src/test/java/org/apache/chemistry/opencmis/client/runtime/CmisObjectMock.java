@@ -32,7 +32,7 @@ import org.apache.chemistry.opencmis.client.api.Policy;
 import org.apache.chemistry.opencmis.client.api.Property;
 import org.apache.chemistry.opencmis.client.api.Relationship;
 import org.apache.chemistry.opencmis.client.api.Rendition;
-import org.apache.chemistry.opencmis.client.api.TransientCmisObject;
+import org.apache.chemistry.opencmis.client.api.SecondaryType;
 import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
@@ -120,6 +120,10 @@ public class CmisObjectMock implements CmisObject, Serializable {
         return null;
     }
 
+    public String getDescription() {
+        return null;
+    }
+
     public List<Policy> getPolicies() {
         return null;
     }
@@ -154,6 +158,10 @@ public class CmisObjectMock implements CmisObject, Serializable {
     }
 
     public ObjectType getType() {
+        return null;
+    }
+
+    public List<SecondaryType> getSecondaryTypes() {
         return null;
     }
 
@@ -200,7 +208,8 @@ public class CmisObjectMock implements CmisObject, Serializable {
         return null;
     }
 
-    public TransientCmisObject getTransientObject() {
+    @SuppressWarnings("deprecation")
+    public org.apache.chemistry.opencmis.client.api.TransientCmisObject getTransientObject() {
         return null;
     }
 }

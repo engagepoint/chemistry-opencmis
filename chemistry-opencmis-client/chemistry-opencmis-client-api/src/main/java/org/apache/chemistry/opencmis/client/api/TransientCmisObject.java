@@ -26,11 +26,17 @@ import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.ExtensionLevel;
 
+/**
+ * @deprecated Support for transient objects will be removed in the future.
+ */
+@Deprecated
 public interface TransientCmisObject extends ObjectId, CmisObjectProperties {
 
     // properties
 
     void setName(String name);
+
+    void setDescription(String description);
 
     <T> void setPropertyValue(String id, Object value);
 
