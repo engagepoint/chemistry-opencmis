@@ -96,7 +96,7 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     }
 
     public boolean canHandle(Node node) throws RepositoryException {
-        return node.isNodeType(NodeType.NT_FILE) && node.isNodeType(NodeType.MIX_SIMPLE_VERSIONABLE);
+        return node.isNodeType(NodeType.NT_FILE) && node.isNodeType(NodeType.MIX_VERSIONABLE);
     }
 
     public JcrNode createDocument(JcrFolder parentFolder, String name, Properties properties,
@@ -166,7 +166,7 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     protected void addFileNodeMixins(Node fileNode, VersioningState versioningState)
             throws RepositoryException {
         if (versioningState != VersioningState.NONE) {
-            fileNode.addMixin(NodeType.MIX_SIMPLE_VERSIONABLE);
+            fileNode.addMixin(NodeType.MIX_VERSIONABLE);
         }
     }
 

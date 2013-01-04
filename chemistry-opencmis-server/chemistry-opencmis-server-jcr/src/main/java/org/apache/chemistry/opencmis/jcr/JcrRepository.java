@@ -1026,11 +1026,11 @@ public class JcrRepository {
             
             JcrVersionBase versionNode = jcrNode.asVersion();
             if (JcrPrivateWorkingCopy.denotesPwc(versionNode.getVersionLabel())) {
-                return versionNode.getPwc();
+                return typeHandlerManager.create(versionNode.getPwc().getNode());
             }
             else {
                JcrVersion version = versionNode.getVersion(((JcrVersion) versionNode).getVersionName());
-               return version;
+               return typeHandlerManager.create(version.getNode());
             }
 
         }
