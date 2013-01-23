@@ -194,6 +194,10 @@ public abstract class AbstractTransientCmisObject implements TransientCmisObject
         return object.getSecondaryTypes();
     }
 
+    public List<ObjectType> findObjectType(String id) {
+        return object.findObjectType(id);
+    }
+
     public String getChangeToken() {
         return getPropertyValue(PropertyIds.CHANGE_TOKEN);
     }
@@ -473,7 +477,8 @@ public abstract class AbstractTransientCmisObject implements TransientCmisObject
         }
 
         // convert properties
-        Properties result = getObjectFactory().convertProperties(properties, getType(), updatebility);
+        Properties result = getObjectFactory().convertProperties(properties, getType(), getSecondaryTypes(),
+                updatebility);
 
         // extensions
         List<CmisExtensionElement> extensions = ouputExtensions.get(ExtensionLevel.PROPERTIES);

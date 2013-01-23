@@ -30,6 +30,7 @@ import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
+import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
@@ -158,12 +159,12 @@ public interface Session extends Serializable {
     /**
      * Creates a new type.
      */
-    ObjectType createType(ObjectType type);
+    ObjectType createType(TypeDefinition type);
 
     /**
      * Updates an existing type.
      */
-    ObjectType updateType(ObjectType type);
+    ObjectType updateType(TypeDefinition type);
 
     /**
      * Deletes a type.
@@ -502,8 +503,8 @@ public interface Session extends Serializable {
     /**
      * Updates multiple objects in one request.
      */
-    BulkUpdateObjectIdAndChangeToken bulkUpdateProperties(BulkUpdateObjectIdAndChangeToken objectIdsAndChangeToken,
-            Map<String, ?> properties, List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds);
+    List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(List<CmisObject> objects, Map<String, ?> properties,
+            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds);
 
     /**
      * Deletes an object and, if it is a document, all versions in the version
