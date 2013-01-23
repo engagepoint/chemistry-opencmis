@@ -21,6 +21,7 @@ package org.apache.chemistry.opencmis.client.runtime;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +43,7 @@ import org.apache.chemistry.opencmis.client.api.Policy;
 import org.apache.chemistry.opencmis.client.api.QueryResult;
 import org.apache.chemistry.opencmis.client.api.QueryStatement;
 import org.apache.chemistry.opencmis.client.api.Relationship;
+import org.apache.chemistry.opencmis.client.api.SecondaryType;
 import org.apache.chemistry.opencmis.client.api.Session;
 import org.apache.chemistry.opencmis.client.api.Tree;
 import org.apache.chemistry.opencmis.client.runtime.cache.Cache;
@@ -71,6 +73,7 @@ import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateObjectIdAndChangeTokenImpl;
 import org.apache.chemistry.opencmis.commons.spi.AclService;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
 import org.apache.chemistry.opencmis.commons.spi.CmisBinding;
@@ -546,7 +549,7 @@ public class SessionImpl implements Session {
         return result;
     }
 
-    public ObjectType createType(ObjectType type) {
+    public ObjectType createType(TypeDefinition type) {
         if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
             throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
         }
@@ -555,7 +558,7 @@ public class SessionImpl implements Session {
                 type, null));
     }
 
-    public ObjectType updateType(ObjectType type) {
+    public ObjectType updateType(TypeDefinition type) {
         if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
             throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
         }
@@ -753,7 +756,7 @@ public class SessionImpl implements Session {
 
         String newId = getBinding().getObjectService().createDocument(
                 getRepositoryId(),
-                objectFactory.convertProperties(properties, null,
+                objectFactory.convertProperties(properties, null, null,
                         (versioningState == VersioningState.CHECKEDOUT ? CREATE_AND_CHECKOUT_UPDATABILITY
                                 : CREATE_UPDATABILITY)), (folderId == null ? null : folderId.getId()),
                 objectFactory.convertContentStream(contentStream), versioningState,
@@ -775,11 +778,14 @@ public class SessionImpl implements Session {
 
         // get the type of the source document
         ObjectType type = null;
+        List<SecondaryType> secondaryTypes = null;
         if (source instanceof CmisObject) {
             type = ((CmisObject) source).getType();
+            secondaryTypes = ((CmisObject) source).getSecondaryTypes();
         } else {
             CmisObject sourceObj = getObject(source);
             type = sourceObj.getType();
+            secondaryTypes = sourceObj.getSecondaryTypes();
         }
 
         if (type.getBaseTypeId() != BaseTypeId.CMIS_DOCUMENT) {
@@ -789,7 +795,7 @@ public class SessionImpl implements Session {
         String newId = getBinding().getObjectService().createDocumentFromSource(
                 getRepositoryId(),
                 source.getId(),
-                objectFactory.convertProperties(properties, type,
+                objectFactory.convertProperties(properties, type, secondaryTypes,
                         (versioningState == VersioningState.CHECKEDOUT ? CREATE_AND_CHECKOUT_UPDATABILITY
                                 : CREATE_UPDATABILITY)), (folderId == null ? null : folderId.getId()), versioningState,
                 objectFactory.convertPolicies(policies), objectFactory.convertAces(addAces),
@@ -812,7 +818,7 @@ public class SessionImpl implements Session {
         }
 
         String newId = getBinding().getObjectService().createFolder(getRepositoryId(),
-                objectFactory.convertProperties(properties, null, CREATE_UPDATABILITY), folderId.getId(),
+                objectFactory.convertProperties(properties, null, null, CREATE_UPDATABILITY), folderId.getId(),
                 objectFactory.convertPolicies(policies), objectFactory.convertAces(addAces),
                 objectFactory.convertAces(removeAces), null);
 
@@ -830,7 +836,7 @@ public class SessionImpl implements Session {
         }
 
         String newId = getBinding().getObjectService().createPolicy(getRepositoryId(),
-                objectFactory.convertProperties(properties, null, CREATE_UPDATABILITY),
+                objectFactory.convertProperties(properties, null, null, CREATE_UPDATABILITY),
                 (folderId == null ? null : folderId.getId()), objectFactory.convertPolicies(policies),
                 objectFactory.convertAces(addAces), objectFactory.convertAces(removeAces), null);
 
@@ -848,7 +854,7 @@ public class SessionImpl implements Session {
         }
 
         String newId = getBinding().getObjectService().createItem(getRepositoryId(),
-                objectFactory.convertProperties(properties, null, CREATE_UPDATABILITY),
+                objectFactory.convertProperties(properties, null, null, CREATE_UPDATABILITY),
                 (folderId == null ? null : folderId.getId()), objectFactory.convertPolicies(policies),
                 objectFactory.convertAces(addAces), objectFactory.convertAces(removeAces), null);
 
@@ -866,7 +872,7 @@ public class SessionImpl implements Session {
         }
 
         String newId = getBinding().getObjectService().createRelationship(getRepositoryId(),
-                objectFactory.convertProperties(properties, null, CREATE_UPDATABILITY),
+                objectFactory.convertProperties(properties, null, null, CREATE_UPDATABILITY),
                 objectFactory.convertPolicies(policies), objectFactory.convertAces(addAces),
                 objectFactory.convertAces(removeAces), null);
 
@@ -950,14 +956,60 @@ public class SessionImpl implements Session {
 
     // --- bulk update ---
 
-    public BulkUpdateObjectIdAndChangeToken bulkUpdateProperties(
-            BulkUpdateObjectIdAndChangeToken objectIdsAndChangeToken, Map<String, ?> properties,
-            List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds) {
+    public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(List<CmisObject> objects,
+            Map<String, ?> properties, List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds) {
         if (repositoryInfo.getCmisVersion() == CmisVersion.CMIS_1_0) {
             throw new CmisNotSupportedException("This method is not supported for CMIS 1.0 repositories.");
         }
 
-        throw new CmisNotSupportedException("Not implemented, yet");
+        if ((objects == null) || objects.isEmpty()) {
+            throw new IllegalArgumentException("Objects must be set!");
+        }
+
+        ObjectType objectType = null;
+        Map<String, SecondaryType> secondaryTypes = new HashMap<String, SecondaryType>();
+
+        // gather secondary types
+        if (addSecondaryTypeIds != null) {
+            for (String stid : addSecondaryTypeIds) {
+                ObjectType secondaryType = getTypeDefinition(stid);
+
+                if (!(secondaryType instanceof SecondaryType)) {
+                    throw new IllegalArgumentException("Secondary types contains a type that is not a secondary type: "
+                            + secondaryType.getId());
+                }
+
+                secondaryTypes.put(secondaryType.getId(), (SecondaryType) secondaryType);
+            }
+        }
+
+        // gather ids and change tokens
+        List<BulkUpdateObjectIdAndChangeToken> objectIdsAndChangeTokens = new ArrayList<BulkUpdateObjectIdAndChangeToken>();
+        for (CmisObject object : objects) {
+            if (object == null) {
+                continue;
+            }
+
+            objectIdsAndChangeTokens.add(new BulkUpdateObjectIdAndChangeTokenImpl(object.getId(), object
+                    .getChangeToken()));
+
+            if (objectType == null) {
+                objectType = object.getType();
+            }
+
+            if (object.getSecondaryTypes() != null) {
+                for (SecondaryType secondaryType : object.getSecondaryTypes()) {
+                    secondaryTypes.put(secondaryType.getId(), secondaryType);
+                }
+            }
+        }
+
+        Set<Updatability> updatebility = new HashSet<Updatability>();
+        updatebility.add(Updatability.READWRITE);
+
+        return getBinding().getObjectService().bulkUpdateProperties(getRepositoryId(), objectIdsAndChangeTokens,
+                objectFactory.convertProperties(properties, objectType, secondaryTypes.values(), updatebility),
+                addSecondaryTypeIds, removeSecondaryTypeIds, null);
     }
 
     // --- delete ---
