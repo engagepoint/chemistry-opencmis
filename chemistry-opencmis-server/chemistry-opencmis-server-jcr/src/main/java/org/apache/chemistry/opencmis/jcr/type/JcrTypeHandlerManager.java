@@ -42,7 +42,7 @@ public class JcrTypeHandlerManager {
 
     private final PathManager pathManager;
     private final JcrTypeManager typeManager;
-    private final Map<String, JcrTypeHandler> typeHandlers = new HashMap<String, JcrTypeHandler>();
+    private Map<String, JcrTypeHandler> typeHandlers = new HashMap<String, JcrTypeHandler>();
 
     public JcrTypeHandlerManager(PathManager pathManager, JcrTypeManager typeManager) {
         this.pathManager = pathManager;
@@ -121,5 +121,13 @@ public class JcrTypeHandlerManager {
             log.debug(e.getMessage(), e);
             throw new CmisObjectNotFoundException(e.getMessage(), e);
         }
+    }
+
+    public Map<String, JcrTypeHandler> getTypeHandlers() {
+        return typeHandlers;
+    }
+
+    public void setTypeHandlers(Map<String, JcrTypeHandler> typeHandlers) {
+        this.typeHandlers = typeHandlers;
     }
 }
