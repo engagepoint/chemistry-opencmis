@@ -18,10 +18,11 @@
  */
 package org.apache.chemistry.opencmis.server.impl.webservices;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.xml.ws.WebServiceFeature;
-
+import com.sun.xml.ws.api.WSFeatureList;
+import com.sun.xml.ws.developer.StreamingAttachmentFeature;
+import com.sun.xml.ws.transport.http.servlet.ServletAdapter;
+import com.sun.xml.ws.transport.http.servlet.WSServlet;
+import com.sun.xml.ws.transport.http.servlet.WSServletDelegate;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.server.CmisServiceFactory;
@@ -29,11 +30,9 @@ import org.apache.chemistry.opencmis.server.impl.CmisRepositoryContextListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.xml.ws.api.WSFeatureList;
-import com.sun.xml.ws.developer.StreamingAttachmentFeature;
-import com.sun.xml.ws.transport.http.servlet.ServletAdapter;
-import com.sun.xml.ws.transport.http.servlet.WSServlet;
-import com.sun.xml.ws.transport.http.servlet.WSServletDelegate;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.xml.ws.WebServiceFeature;
 
 public class CmisWebServicesServlet extends WSServlet {
 
@@ -94,12 +93,21 @@ public class CmisWebServicesServlet extends WSServlet {
                 for (WebServiceFeature ft : wsfl) {
                     if (ft instanceof StreamingAttachmentFeature) {
                         ((StreamingAttachmentFeature) ft).setDir(factory.getTempDirectory().getAbsolutePath());
-                        ((StreamingAttachmentFeature) ft).setMemoryThreshold(factory.getMemoryThreshold());
+                        trySetMemoryThreshold(factory, (StreamingAttachmentFeature) ft);
                     }
                 }
             }
         }
 
         return delegate;
+    }
+
+    private void trySetMemoryThreshold(CmisServiceFactory factory, StreamingAttachmentFeature ft) {
+        try {
+            ft.setMemoryThreshold(factory.getMemoryThreshold());
+        } catch (NoSuchMethodError e) {
+            LOG.warn("Could not set memory threshold for streaming");
+            LOG.warn("JAXWS API mismatch. API version used is 2.1 but runtime is probably 2.2 or higher");
+        }
     }
 }
