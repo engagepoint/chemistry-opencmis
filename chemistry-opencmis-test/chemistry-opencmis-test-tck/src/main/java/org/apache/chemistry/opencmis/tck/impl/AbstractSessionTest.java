@@ -649,8 +649,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                 // known properties that are strings and must be set
                 if (PropertyIds.OBJECT_ID.equals(propId) || PropertyIds.BASE_TYPE_ID.equals(propId)
                         || PropertyIds.OBJECT_TYPE_ID.equals(propId) || PropertyIds.PATH.equals(propId)
-                        || PropertyIds.SOURCE_ID.equals(propId) || PropertyIds.TARGET_ID.equals(propId)
-                        || PropertyIds.POLICY_TEXT.equals(propId)) {
+                        || PropertyIds.SOURCE_ID.equals(propId) || PropertyIds.TARGET_ID.equals(propId)) {
                     propertyCheck = PropertyCheckEnum.STRING_MUST_NOT_BE_EMPTY;
                 }
 
@@ -661,7 +660,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                 }
 
                 // known properties that are strings and should be set
-                if (PropertyIds.NAME.equals(propId)) {
+                if (PropertyIds.NAME.equals(propId) || PropertyIds.POLICY_TEXT.equals(propId)) {
                     propertyCheck = PropertyCheckEnum.STRING_SHOULD_NOT_BE_EMPTY;
                 }
 
@@ -925,6 +924,21 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             // check renditions
             if (object.getRenditions() != null) {
                 addResult(results, checkRenditions(session, object, "Rendition check"));
+            }
+
+            // check path
+            if (object instanceof FileableCmisObject) {
+                List<String> paths = ((FileableCmisObject) object).getPaths();
+                if (object instanceof Folder) {
+                    f = createResult(FAILURE, "Folder does not have excatly one path! This is an OpenCMIS bug!");
+                    addResult(results, assertEquals(1, paths.size(), null, f));
+                } else {
+                    if (Boolean.FALSE.equals(session.getRepositoryInfo().getCapabilities().isMultifilingSupported())) {
+                        f = createResult(FAILURE,
+                                "Repository does not support multi-filing, but the object has more than one parent!");
+                        addResult(results, assertIsTrue(paths.size() < 2, null, f));
+                    }
+                }
             }
         }
 
@@ -1496,9 +1510,11 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             addResult(results, assertNotNull(property.getLocalName(), null, f));
 
             if ((propertyCheck == PropertyCheckEnum.MUST_BE_SET)
-                    || (propertyCheck == PropertyCheckEnum.STRING_MUST_NOT_BE_EMPTY)
-                    || (propertyCheck == PropertyCheckEnum.STRING_SHOULD_NOT_BE_EMPTY)) {
+                    || (propertyCheck == PropertyCheckEnum.STRING_MUST_NOT_BE_EMPTY)) {
                 f = createResult(FAILURE, "Property has no value!");
+                addResult(results, assertIsTrue(property.getValues().size() > 0, null, f));
+            } else if (propertyCheck == PropertyCheckEnum.STRING_SHOULD_NOT_BE_EMPTY) {
+                f = createResult(WARNING, "Property has no value!");
                 addResult(results, assertIsTrue(property.getValues().size() > 0, null, f));
             } else if (propertyCheck == PropertyCheckEnum.MUST_NOT_BE_SET) {
                 f = createResult(FAILURE, "Property has a value!");
@@ -1987,7 +2003,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
 
                     // cmis:secondaryObjectTypeIds
                     cpd = new CmisPropertyDefintion(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, null, PropertyType.ID,
-                            Cardinality.MULTI, null, null, null);
+                            Cardinality.MULTI, null, null, false);
                     addResult(results, cpd.check(type));
 
                     if (BaseTypeId.CMIS_DOCUMENT.equals(type.getBaseTypeId())) {
@@ -2081,7 +2097,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
 
                     // cmis:allowedChildObjectTypeIds
                     cpd = new CmisPropertyDefintion(PropertyIds.ALLOWED_CHILD_OBJECT_TYPE_IDS, false, PropertyType.ID,
-                            Cardinality.MULTI, Updatability.READONLY, null, null);
+                            Cardinality.MULTI, Updatability.READONLY, null, false);
                     addResult(results, cpd.check(type));
                 } else if (BaseTypeId.CMIS_RELATIONSHIP.equals(type.getBaseTypeId())) {
                     // cmis:sourceId
@@ -2988,7 +3004,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             this.cardinality = cardinality;
             this.updatability = updatability;
             this.queryable = queryable;
-            this.orderable = orderable;
+            this.orderable = (cardinality == Cardinality.MULTI ? Boolean.FALSE : orderable);
         }
 
         public CmisTestResult check(TypeDefinition type) {

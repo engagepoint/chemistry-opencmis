@@ -38,6 +38,7 @@ import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.inmemory.AbstractServiceTest;
 import org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator;
 import org.slf4j.Logger;
@@ -859,6 +860,26 @@ public class EvalQueryTest extends AbstractServiceTest {
         assertTrue(resultContains(BigInteger.valueOf(100), UnitTestTypeSystemCreator.SECONDARY_INTEGER_PROP, res));
     }
 
+    @Test
+    public void testMultipleContains() {
+        String statement = "SELECT * FROM " + COMPLEX_TYPE + " WHERE CONTAINS('abc') AND CONTAINS('123')";
+        try {
+            doQuery(statement);
+            fail("Multiple CONTAINS clauses should throw CmisInvalidArgumentException");
+        } catch (CmisInvalidArgumentException e) {
+            assertTrue(e.getMessage().contains("More than one CONTAINS"));
+        }
+    }
+
+    @Test
+    public void testPredfinedQueryName() {
+        String statement = "SELECT cmis:name as abc, SCORE() FROM " + COMPLEX_TYPE + " ORDER BY SEARCH_SCORE";
+        try {
+            doQuery(statement);
+        } catch (Exception e) {
+            fail("SEARCH_SCORE in ORDER_BY must be supported.");
+        }
+    }
     private ObjectList doQuery(String queryString) {
         log.debug("\nExecuting query: " + queryString);
         ObjectList res = fDiscSvc.query(fRepositoryId, queryString, false, false,
