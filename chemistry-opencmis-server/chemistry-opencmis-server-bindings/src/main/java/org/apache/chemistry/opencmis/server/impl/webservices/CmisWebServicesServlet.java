@@ -18,6 +18,8 @@
  */
 package org.apache.chemistry.opencmis.server.impl.webservices;
 
+import java.lang.reflect.Method;
+
 import com.sun.xml.ws.api.WSFeatureList;
 import com.sun.xml.ws.developer.StreamingAttachmentFeature;
 import com.sun.xml.ws.transport.http.servlet.ServletAdapter;
@@ -93,7 +95,7 @@ public class CmisWebServicesServlet extends WSServlet {
                 for (WebServiceFeature ft : wsfl) {
                     if (ft instanceof StreamingAttachmentFeature) {
                         ((StreamingAttachmentFeature) ft).setDir(factory.getTempDirectory().getAbsolutePath());
-                        trySetMemoryThreshold(factory, (StreamingAttachmentFeature) ft);
+                        setMemoryThreshold(factory, (StreamingAttachmentFeature) ft);
                     }
                 }
             }
@@ -102,12 +104,20 @@ public class CmisWebServicesServlet extends WSServlet {
         return delegate;
     }
 
-    private void trySetMemoryThreshold(CmisServiceFactory factory, StreamingAttachmentFeature ft) {
+    private void setMemoryThreshold(CmisServiceFactory factory, StreamingAttachmentFeature ft) {
         try {
+            // JAX-WS RI 2.1
             ft.setMemoryThreshold(factory.getMemoryThreshold());
         } catch (NoSuchMethodError e) {
-            LOG.warn("Could not set memory threshold for streaming");
-            LOG.warn("JAXWS API mismatch. API version used is 2.1 but runtime is probably 2.2 or higher");
+            // JAX-WS RI 2.2 
+            // see CMIS-626
+            try {
+                Method m = ft.getClass().getMethod("setMemoryThreshold", long.class);
+                m.invoke(ft, (long) factory.getMemoryThreshold());
+            } catch (Exception e2) {
+                LOG.warn("Could not set memory threshold for streaming");
+            }
         }
     }
+
 }
