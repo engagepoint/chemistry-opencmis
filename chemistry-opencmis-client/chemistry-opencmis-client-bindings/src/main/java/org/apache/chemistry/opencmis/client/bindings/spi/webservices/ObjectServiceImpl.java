@@ -18,11 +18,11 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.webservices;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertExtensionHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setExtensionValues;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setHolderValue;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convert;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertExtensionHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setExtensionValues;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setHolderValue;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -38,6 +38,7 @@ import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
@@ -45,6 +46,7 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedExceptio
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisException;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisExtensionType;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectIdAndChangeTokenType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisRenditionType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.EnumIncludeRelationships;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.EnumUnfileObject;
@@ -71,7 +73,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     public String createDocument(String repositoryId, Properties properties, String folderId,
             ContentStream contentStream, VersioningState versioningState, List<String> policies, Acl addACEs,
             Acl removeACEs, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "createDocument");
 
         try {
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
@@ -96,7 +98,8 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     public String createDocumentFromSource(String repositoryId, String sourceId, Properties properties,
             String folderId, VersioningState versioningState, List<String> policies, Acl addACEs, Acl removeACEs,
             ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId),
+                "createDocumentFromSource");
 
         try {
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
@@ -120,7 +123,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public String createFolder(String repositoryId, Properties properties, String folderId, List<String> policies,
             Acl addACEs, Acl removeACEs, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "createFolder");
 
         try {
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
@@ -143,7 +146,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public String createPolicy(String repositoryId, Properties properties, String folderId, List<String> policies,
             Acl addACEs, Acl removeACEs, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "createPolicy");
 
         try {
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
@@ -165,13 +168,35 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     }
 
     public String createItem(String repositoryId, Properties properties, String folderId, List<String> policies,
-            Acl addAces, Acl removeAces, ExtensionsData extension) {
-        throw new CmisNotSupportedException("Not supported!");
+            Acl addACEs, Acl removeACEs, ExtensionsData extension) {
+        if (getCmisVersion(repositoryId) == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("Repository is a CMIS 1.0 repository!");
+        }
+
+        ObjectServicePort port = portProvider.getObjectServicePort(CmisVersion.CMIS_1_1, "createItem");
+
+        try {
+            javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
+            javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
+
+            port.createItem(repositoryId, convert(properties), folderId, convert(addACEs), convert(removeACEs),
+                    portExtension, objectId);
+
+            setExtensionValues(portExtension, extension);
+
+            return objectId.value;
+        } catch (CmisException e) {
+            throw convertException(e);
+        } catch (Exception e) {
+            throw new CmisRuntimeException("Error: " + e.getMessage(), e);
+        } finally {
+            portProvider.endCall(port);
+        }
     }
 
     public String createRelationship(String repositoryId, Properties properties, List<String> policies, Acl addACEs,
             Acl removeACEs, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "createRelationship");
 
         try {
             javax.xml.ws.Holder<String> objectId = new javax.xml.ws.Holder<String>();
@@ -194,7 +219,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public void updateProperties(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             Properties properties, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "updateProperties");
 
         try {
             javax.xml.ws.Holder<String> portObjectId = convertHolder(objectId);
@@ -218,11 +243,39 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
             List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
             List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
-        throw new CmisNotSupportedException("Not supported!");
+        if (getCmisVersion(repositoryId) == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("Repository is a CMIS 1.0 repository!");
+        }
+
+        ObjectServicePort port = portProvider.getObjectServicePort(CmisVersion.CMIS_1_1, "bulkUpdateProperties");
+
+        try {
+            javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
+            javax.xml.ws.Holder<CmisObjectIdAndChangeTokenType> bulkUpdateResponse = new javax.xml.ws.Holder<CmisObjectIdAndChangeTokenType>();
+
+            port.bulkUpdateProperties(repositoryId,
+                    convert(objectIdAndChangeToken, properties, addSecondaryTypeIds, removeSecondaryTypeIds),
+                    portExtension, bulkUpdateResponse);
+
+            setExtensionValues(portExtension, extension);
+
+            List<BulkUpdateObjectIdAndChangeToken> result = null;
+            if (bulkUpdateResponse.value != null) {
+                // TODO: fix
+            }
+
+            return result;
+        } catch (CmisException e) {
+            throw convertException(e);
+        } catch (Exception e) {
+            throw new CmisRuntimeException("Error: " + e.getMessage(), e);
+        } finally {
+            portProvider.endCall(port);
+        }
     }
 
     public void deleteObject(String repositoryId, String objectId, Boolean allVersions, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "deleteObject");
 
         try {
             javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
@@ -241,7 +294,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public FailedToDeleteData deleteTree(String repositoryId, String folderId, Boolean allVersions,
             UnfileObject unfileObjects, Boolean continueOnFailure, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "deleteTree");
 
         try {
             return convert(port.deleteTree(repositoryId, folderId, allVersions,
@@ -256,7 +309,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     }
 
     public AllowableActions getAllowableActions(String repositoryId, String objectId, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getAllowableActions");
 
         try {
             return convert(port.getAllowableActions(repositoryId, objectId, convert(extension)));
@@ -271,7 +324,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public ContentStream getContentStream(String repositoryId, String objectId, String streamId, BigInteger offset,
             BigInteger length, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getContentStream");
 
         try {
             return convert(port.getContentStream(repositoryId, objectId, streamId, offset, length, convert(extension)));
@@ -287,7 +340,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     public ObjectData getObject(String repositoryId, String objectId, String filter, Boolean includeAllowableActions,
             IncludeRelationships includeRelationships, String renditionFilter, Boolean includePolicyIds,
             Boolean includeACL, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getObject");
 
         try {
             return convert(port.getObject(repositoryId, objectId, filter, includeAllowableActions,
@@ -305,7 +358,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     public ObjectData getObjectByPath(String repositoryId, String path, String filter, Boolean includeAllowableActions,
             IncludeRelationships includeRelationships, String renditionFilter, Boolean includePolicyIds,
             Boolean includeACL, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getObjectByPath");
 
         try {
             return convert(port.getObjectByPath(repositoryId, path, filter, includeAllowableActions,
@@ -321,7 +374,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
     }
 
     public Properties getProperties(String repositoryId, String objectId, String filter, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getProperties");
 
         try {
             return convert(port.getProperties(repositoryId, objectId, filter, convert(extension)));
@@ -336,7 +389,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public List<RenditionData> getRenditions(String repositoryId, String objectId, String renditionFilter,
             BigInteger maxItems, BigInteger skipCount, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "getRenditions");
 
         try {
             List<CmisRenditionType> renditionList = port.getRenditions(repositoryId, objectId, renditionFilter,
@@ -365,7 +418,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public void moveObject(String repositoryId, Holder<String> objectId, String targetFolderId, String sourceFolderId,
             ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "moveObject");
 
         try {
             javax.xml.ws.Holder<String> portObjectId = convertHolder(objectId);
@@ -386,7 +439,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public void setContentStream(String repositoryId, Holder<String> objectId, Boolean overwriteFlag,
             Holder<String> changeToken, ContentStream contentStream, ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "setContentStream");
 
         try {
             javax.xml.ws.Holder<String> portObjectId = convertHolder(objectId);
@@ -410,7 +463,7 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public void deleteContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             ExtensionsData extension) {
-        ObjectServicePort port = portProvider.getObjectServicePort();
+        ObjectServicePort port = portProvider.getObjectServicePort(getCmisVersion(repositoryId), "deleteContentStream");
 
         try {
             javax.xml.ws.Holder<String> portObjectId = convertHolder(objectId);
@@ -433,6 +486,29 @@ public class ObjectServiceImpl extends AbstractWebServicesService implements Obj
 
     public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
-        throw new CmisNotSupportedException("Not supported!");
+        if (getCmisVersion(repositoryId) == CmisVersion.CMIS_1_0) {
+            throw new CmisNotSupportedException("Repository is a CMIS 1.0 repository!");
+        }
+
+        ObjectServicePort port = portProvider.getObjectServicePort(CmisVersion.CMIS_1_1, "appendContentStream");
+
+        try {
+            javax.xml.ws.Holder<String> portObjectId = convertHolder(objectId);
+            javax.xml.ws.Holder<String> portChangeToken = convertHolder(changeToken);
+            javax.xml.ws.Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
+
+            port.appendContentStream(repositoryId, portObjectId, isLastChunk, portChangeToken,
+                    convert(contentStream, false), portExtension);
+
+            setHolderValue(portObjectId, objectId);
+            setHolderValue(portChangeToken, changeToken);
+            setExtensionValues(portExtension, extension);
+        } catch (CmisException e) {
+            throw convertException(e);
+        } catch (Exception e) {
+            throw new CmisRuntimeException("Error: " + e.getMessage(), e);
+        } finally {
+            portProvider.endCall(port);
+        }
     }
 }

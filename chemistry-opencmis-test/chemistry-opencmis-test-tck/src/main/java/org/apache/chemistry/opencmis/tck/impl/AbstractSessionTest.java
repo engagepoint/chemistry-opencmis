@@ -32,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import org.apache.chemistry.opencmis.client.api.CmisObject;
 import org.apache.chemistry.opencmis.client.api.Document;
 import org.apache.chemistry.opencmis.client.api.FileableCmisObject;
 import org.apache.chemistry.opencmis.client.api.Folder;
+import org.apache.chemistry.opencmis.client.api.Item;
 import org.apache.chemistry.opencmis.client.api.ItemIterable;
 import org.apache.chemistry.opencmis.client.api.ObjectId;
 import org.apache.chemistry.opencmis.client.api.ObjectType;
@@ -63,6 +65,7 @@ import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
+import org.apache.chemistry.opencmis.commons.data.NewTypeSettableAttributes;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.RepositoryCapabilities;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
@@ -114,6 +117,8 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
 
     private Boolean supportsRelationships;
     private Boolean supportsPolicies;
+    private Boolean supportsItems;
+    private Boolean supportsSecondaries;
 
     public BindingType getBinding() {
         if (getParameters() == null) {
@@ -153,6 +158,10 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             if (!(e instanceof FatalTestException)) {
                 addResult(createResult(UNEXPECTED_EXCEPTION, "Exception: " + e, e, true));
             }
+        } catch (Error err) {
+            addResult(createResult(UNEXPECTED_EXCEPTION, "Error: " + err, err, true));
+        } finally {
+            testFolder = null;
         }
     }
 
@@ -180,6 +189,24 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         String objectTypeId = getParameters().get(TestParameters.DEFAULT_DOCUMENT_TYPE);
         if (objectTypeId == null) {
             objectTypeId = TestParameters.DEFAULT_DOCUMENT_TYPE_VALUE;
+        }
+
+        return objectTypeId;
+    }
+
+    protected String getItemTestTypeId() {
+        String objectTypeId = getParameters().get(TestParameters.DEFAULT_ITEM_TYPE);
+        if (objectTypeId == null) {
+            objectTypeId = TestParameters.DEFAULT_ITEM_TYPE_VALUE;
+        }
+
+        return objectTypeId;
+    }
+
+    protected String getSecondaryTestTypeId() {
+        String objectTypeId = getParameters().get(TestParameters.DEFAULT_SECONDARY_TYPE);
+        if (objectTypeId == null) {
+            objectTypeId = TestParameters.DEFAULT_SECONDARY_TYPE_VALUE;
         }
 
         return objectTypeId;
@@ -254,7 +281,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         try {
             CmisTestResult f;
 
-            // check document name
+            // check folder name
             f = createResult(FAILURE, "Folder name does not match!", false);
             addResult(assertEquals(name, result.getName(), null, f));
 
@@ -334,13 +361,14 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
      * Creates a document.
      */
     protected Document createDocument(Session session, Folder parent, String name, String content) {
-        return createDocument(session, parent, name, getDocumentTestTypeId(), content);
+        return createDocument(session, parent, name, getDocumentTestTypeId(), null, content);
     }
 
     /**
      * Creates a document.
      */
-    protected Document createDocument(Session session, Folder parent, String name, String objectTypeId, String content) {
+    protected Document createDocument(Session session, Folder parent, String name, String objectTypeId,
+            String[] secondaryTypeIds, String content) {
         if (content == null) {
             content = "";
         }
@@ -348,6 +376,10 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, objectTypeId);
+
+        if (secondaryTypeIds != null) {
+            properties.put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, Arrays.asList(secondaryTypeIds));
+        }
 
         TypeDefinition type = session.getTypeDefinition(objectTypeId);
         if (!(type instanceof DocumentTypeDefinition)) {
@@ -479,6 +511,63 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
     }
 
     /**
+     * Creates a item.
+     */
+    protected Item createItem(Session session, Folder parent, String name) {
+        return createItem(session, parent, name, getItemTestTypeId());
+    }
+
+    /**
+     * Creates a item.
+     */
+    protected Item createItem(Session session, Folder parent, String name, String objectTypeId) {
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put(PropertyIds.NAME, name);
+        properties.put(PropertyIds.OBJECT_TYPE_ID, objectTypeId);
+
+        Item result = null;
+        try {
+            // create the item
+            result = parent.createItem(properties, null, null, null, SELECT_ALL_NO_CACHE_OC);
+        } catch (CmisBaseException e) {
+            addResult(createResult(UNEXPECTED_EXCEPTION, "Item could not be created! Exception: " + e.getMessage(), e,
+                    true));
+            return null;
+        }
+
+        try {
+            CmisTestResult f;
+
+            // check item name
+            f = createResult(FAILURE, "Item name does not match!", false);
+            addResult(assertEquals(name, result.getName(), null, f));
+
+            addResult(checkObject(session, result, getAllProperties(result), "New item object spec compliance"));
+        } catch (CmisBaseException e) {
+            addResult(createResult(UNEXPECTED_EXCEPTION, "Newly created Item is invalid! Exception: " + e.getMessage(),
+                    e, true));
+        }
+
+        if (parent != null) {
+            List<Folder> parents = result.getParents(SELECT_ALL_NO_CACHE_OC);
+            boolean found = false;
+            for (Folder folder : parents) {
+                if (parent.getId().equals(folder.getId())) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                addResult(createResult(FAILURE,
+                        "The folder the item has been created in is not in the list of the item parents!"));
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Deletes an object and checks if it is deleted.
      */
     protected void deleteObject(CmisObject object) {
@@ -514,6 +603,80 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             return true;
         } catch (CmisObjectNotFoundException e) {
             return false;
+        }
+    }
+
+    // --- type helpers ---
+
+    /**
+     * Creates a new type.
+     */
+    protected ObjectType createType(Session session, TypeDefinition typeDef) {
+
+        NewTypeSettableAttributes settableAttributes = session.getRepositoryInfo().getCapabilities()
+                .getNewTypeSettableAttributes();
+        if (settableAttributes == null) {
+            addResult(createResult(WARNING, "Repository Info does not indicate, which type attributes can be set!"));
+        } else {
+            // TODO: add more tests
+        }
+
+        ObjectType newType = null;
+        try {
+            newType = session.createType(typeDef);
+            addResult(createInfoResult("Created type '" + typeDef.getId()
+                    + "'. Repository assigned the following type id: " + newType.getId()));
+        } catch (CmisBaseException e) {
+            addResult(createResult(FAILURE, "Creating type '" + typeDef.getId() + "' failed: " + e.getMessage(), e,
+                    false));
+            return null;
+        }
+
+        addResult(checkTypeDefinition(session, newType, "Newly created type spec compliance."));
+
+        if (newType.getTypeMutability() == null) {
+            addResult(createResult(FAILURE,
+                    "Newly created type does not provide type mutability data! Id: " + newType.getId()));
+        }
+
+        return newType;
+    }
+
+    /**
+     * Deletes a type.
+     */
+    protected void deleteType(Session session, String typeId) {
+        ObjectType type = session.getTypeDefinition(typeId);
+
+        if (type == null) {
+            addResult(createResult(FAILURE, "Type does not exist and therefore cannot be deleted! Id: " + typeId));
+            return;
+        }
+
+        // check if type can be deleted
+        if (type.getTypeMutability() == null) {
+            addResult(createResult(FAILURE, "Type does not provide type mutability data! Id: " + typeId));
+        } else {
+            if (!Boolean.TRUE.equals(type.getTypeMutability().canDelete())) {
+                addResult(createResult(WARNING, "Type indicates that it cannot be deleted. Trying it anyway. Id: "
+                        + typeId));
+            }
+        }
+
+        // delete it
+        try {
+            session.deleteType(typeId);
+        } catch (CmisBaseException e) {
+            addResult(createResult(FAILURE, "Deleting type '" + typeId + "' failed: " + e.getMessage(), e, false));
+            return;
+        }
+
+        // check if the type still exists
+        try {
+            session.getTypeDefinition(typeId);
+            addResult(createResult(FAILURE, "Type should not exist anymore but it is still there! Id: " + typeId, true));
+        } catch (CmisObjectNotFoundException e) {
+            // expected result
         }
     }
 
@@ -622,6 +785,34 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         }
 
         return supportsPolicies.booleanValue();
+    }
+
+    protected boolean hasItems(Session session) {
+        if (supportsItems == null) {
+            supportsItems = Boolean.FALSE;
+            for (ObjectType type : session.getTypeChildren(null, false)) {
+                if (BaseTypeId.CMIS_ITEM.value().equals(type.getId())) {
+                    supportsItems = Boolean.TRUE;
+                    break;
+                }
+            }
+        }
+
+        return supportsItems.booleanValue();
+    }
+
+    protected boolean hasSecondaries(Session session) {
+        if (supportsSecondaries == null) {
+            supportsSecondaries = Boolean.FALSE;
+            for (ObjectType type : session.getTypeChildren(null, false)) {
+                if (BaseTypeId.CMIS_SECONDARY.value().equals(type.getId())) {
+                    supportsSecondaries = Boolean.TRUE;
+                    break;
+                }
+            }
+        }
+
+        return supportsSecondaries.booleanValue();
     }
 
     protected CmisTestResult checkObject(Session session, CmisObject object, String[] properties, String message) {
@@ -854,13 +1045,13 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                     addResult(results, assertNotAllowableAction(object, Action.CAN_CREATE_FOLDER, null, f));
                 }
 
-                if (!(object instanceof Document) && !(object instanceof Policy)) {
+                if (!(object instanceof FileableCmisObject) || (object instanceof Folder)) {
                     f = createResult(FAILURE,
-                            "Non-Document/Policy object has CAN_ADD_OBJECT_TO_FOLDER allowable action!");
+                            "Non-Filable object or folder has CAN_ADD_OBJECT_TO_FOLDER allowable action!");
                     addResult(results, assertNotAllowableAction(object, Action.CAN_ADD_OBJECT_TO_FOLDER, null, f));
 
                     f = createResult(FAILURE,
-                            "Non-Document/Policy object has CAN_REMOVE_OBJECT_FROM_FOLDER allowable action!");
+                            "Non-Filable object or folder has CAN_REMOVE_OBJECT_FROM_FOLDER allowable action!");
                     addResult(results, assertNotAllowableAction(object, Action.CAN_REMOVE_OBJECT_FROM_FOLDER, null, f));
                 }
 
@@ -2111,7 +2302,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                     addResult(results, cpd.check(type));
                 } else if (BaseTypeId.CMIS_POLICY.equals(type.getBaseTypeId())) {
                     // cmis:policyText
-                    cpd = new CmisPropertyDefintion(PropertyIds.POLICY_TEXT, true, PropertyType.STRING,
+                    cpd = new CmisPropertyDefintion(PropertyIds.POLICY_TEXT, null, PropertyType.STRING,
                             Cardinality.SINGLE, null, null, null);
                     addResult(results, cpd.check(type));
                 }

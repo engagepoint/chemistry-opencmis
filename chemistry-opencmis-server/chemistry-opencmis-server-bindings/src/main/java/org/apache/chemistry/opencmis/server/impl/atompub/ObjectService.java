@@ -18,10 +18,12 @@
  */
 package org.apache.chemistry.opencmis.server.impl.atompub;
 
+import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_BULK_UPDATE;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_CONTENT;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_ENTRY;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileBaseUrl;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrl;
+import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrlBuilder;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.getNamespaces;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.writeObjectEntry;
 import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getBooleanParameter;
@@ -30,17 +32,23 @@ import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getStringPar
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.math.BigInteger;
+import java.util.GregorianCalendar;
+import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
@@ -50,16 +58,26 @@ import org.apache.chemistry.opencmis.commons.data.PropertyString;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.MimeHelper;
 import org.apache.chemistry.opencmis.commons.impl.ReturnVersion;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
+import org.apache.chemistry.opencmis.commons.impl.XMLConverter;
+import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ContentStreamImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectDataImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertiesImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIdImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
+import org.apache.chemistry.opencmis.server.shared.HttpUtils;
+import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 
 /**
  * Object Service operations.
@@ -82,8 +100,9 @@ public final class ObjectService {
         VersioningState versioningState = getEnumParameter(request, Constants.PARAM_VERSIONIG_STATE,
                 VersioningState.class);
 
-        AtomEntryParser parser = new AtomEntryParser(context.getTempDirectory(), context.getMemoryThreshold(),
-                context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
         parser.setIgnoreAtomContentSrc(true); // needed for some clients
         parser.parse(request.getInputStream());
 
@@ -94,8 +113,13 @@ public final class ObjectService {
 
         if (objectId == null) {
             // create
-            newObjectId = service.create(repositoryId, parser.getProperties(), folderId, parser.getContentStream(),
-                    versioningState, parser.getPolicyIds(), null);
+            ContentStream contentStream = parser.getContentStream();
+            try {
+                newObjectId = service.create(repositoryId, parser.getProperties(), folderId, contentStream,
+                        versioningState, parser.getPolicyIds(), null);
+            } finally {
+                closeContentStream(contentStream);
+            }
         } else {
             if ((sourceFolderId == null) || (sourceFolderId.trim().length() == 0)) {
                 // addObjectToFolder
@@ -129,7 +153,8 @@ public final class ObjectService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -139,8 +164,9 @@ public final class ObjectService {
     public static void createRelationship(CallContext context, CmisService service, String repositoryId,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         // get parameters
-        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), context.getTempDirectory(),
-                context.getMemoryThreshold(), context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), streamFactory);
 
         // execute
         String newObjectId = service.createRelationship(repositoryId, parser.getProperties(), parser.getPolicyIds(),
@@ -166,7 +192,8 @@ public final class ObjectService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -204,14 +231,16 @@ public final class ObjectService {
     }
 
     /**
-     * Set content stream.
+     * Set or append content stream.
      */
-    public static void setContentStream(CallContext context, CmisService service, String repositoryId,
+    public static void setOrAppendContentStream(CallContext context, CmisService service, String repositoryId,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         // get parameters
         String objectId = getStringParameter(request, Constants.PARAM_ID);
         String changeToken = getStringParameter(request, Constants.PARAM_CHANGE_TOKEN);
+        Boolean appendFlag = getBooleanParameter(request, Constants.PARAM_APPEND);
         Boolean overwriteFlag = getBooleanParameter(request, Constants.PARAM_OVERWRITE_FLAG);
+        Boolean isLastChunk = getBooleanParameter(request, Constants.PARAM_IS_LAST_CHUNK);
 
         ContentStreamImpl contentStream = new ContentStreamImpl();
         contentStream.setStream(request.getInputStream());
@@ -230,8 +259,13 @@ public final class ObjectService {
 
         // execute
         Holder<String> objectIdHolder = new Holder<String>(objectId);
-        service.setContentStream(repositoryId, objectIdHolder, overwriteFlag, changeToken == null ? null
-                : new Holder<String>(changeToken), contentStream, null);
+        if (Boolean.TRUE.equals(appendFlag)) {
+            service.appendContentStream(repositoryId, objectIdHolder, changeToken == null ? null : new Holder<String>(
+                    changeToken), contentStream, (Boolean.TRUE.equals(isLastChunk) ? true : false), null);
+        } else {
+            service.setContentStream(repositoryId, objectIdHolder, overwriteFlag, changeToken == null ? null
+                    : new Holder<String>(changeToken), contentStream, null);
+        }
 
         // set headers
         String newObjectId = (objectIdHolder.getValue() == null ? objectId : objectIdHolder.getValue());
@@ -324,7 +358,8 @@ public final class ObjectService {
 
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -365,7 +400,8 @@ public final class ObjectService {
 
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -389,8 +425,10 @@ public final class ObjectService {
         response.setContentType(Constants.MEDIATYPE_ALLOWABLEACTION);
 
         // write XML
-        AllowableActionsDocument allowableActionsDocument = new AllowableActionsDocument();
-        allowableActionsDocument.writeAllowableActions(allowableActions, response.getOutputStream());
+        XMLStreamWriter writer = XMLUtils.createWriter(response.getOutputStream());
+        XMLUtils.startXmlDocument(writer);
+        XMLConverter.writeAllowableActions(writer, context.getCmisVersion(), true, allowableActions);
+        XMLUtils.endXmlDocument(writer);
     }
 
     /**
@@ -410,6 +448,11 @@ public final class ObjectService {
 
         if ((content == null) || (content.getStream() == null)) {
             throw new CmisRuntimeException("Content stream is null!");
+        }
+
+        // set HTTP headers, if requested by the server implementation
+        if (HttpUtils.setContentStreamHeaders(content, request, response)) {
+            return;
         }
 
         String contentType = content.getMimeType();
@@ -455,15 +498,21 @@ public final class ObjectService {
         String checkinComment = getStringParameter(request, Constants.PARAM_CHECKIN_COMMENT);
         Boolean major = getBooleanParameter(request, Constants.PARAM_MAJOR);
 
-        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), context.getTempDirectory(),
-                context.getMemoryThreshold(), context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), streamFactory);
 
         // execute
         Holder<String> objectIdHolder = new Holder<String>(objectId);
 
         if ((checkin != null) && (checkin.booleanValue())) {
-            service.checkIn(repositoryId, objectIdHolder, major, parser.getProperties(), parser.getContentStream(),
-                    checkinComment, parser.getPolicyIds(), null, null, null);
+            ContentStream contentStream = parser.getContentStream();
+            try {
+                service.checkIn(repositoryId, objectIdHolder, major, parser.getProperties(), contentStream,
+                        checkinComment, parser.getPolicyIds(), null, null, null);
+            } finally {
+                closeContentStream(contentStream);
+            }
         } else {
             String changeToken = extractChangeToken(parser.getProperties());
 
@@ -493,8 +542,79 @@ public final class ObjectService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
+    }
+
+    /**
+     * BulkUpdateProperties.
+     */
+    public static void bulkUpdateProperties(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
+        parser.parse(request.getInputStream());
+
+        BulkUpdateImpl bulkUpdate = parser.getBulkUpdate();
+        if (bulkUpdate == null) {
+            throw new CmisInvalidArgumentException("Bulk update data is missing!");
+        }
+
+        List<BulkUpdateObjectIdAndChangeToken> result = service.bulkUpdateProperties(repositoryId,
+                bulkUpdate.getObjectIdAndChangeToken(), bulkUpdate.getProperties(),
+                bulkUpdate.getAddSecondaryTypeIds(), bulkUpdate.getRemoveSecondaryTypeIds(), null);
+
+        response.setStatus(HttpServletResponse.SC_CREATED);
+        response.setContentType(Constants.MEDIATYPE_FEED);
+
+        // write XML
+        AtomFeed feed = new AtomFeed();
+        feed.startDocument(response.getOutputStream(), getNamespaces(service));
+        feed.startFeed(true);
+
+        // write basic Atom feed elements
+        feed.writeFeedElements(null, null, null, "Bulk Update Properties",
+                new GregorianCalendar(TimeZone.getTimeZone("GMT")), null,
+                (result == null ? null : BigInteger.valueOf(result.size())));
+
+        // write links
+        UrlBuilder baseUrl = compileBaseUrl(request, repositoryId);
+
+        feed.writeServiceLink(baseUrl.toString(), repositoryId);
+
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_BULK_UPDATE, null);
+        feed.writeSelfLink(selfLink.toString(), null);
+
+        // write entries
+        if (result != null) {
+            AtomEntry entry = new AtomEntry(feed.getWriter());
+            for (BulkUpdateObjectIdAndChangeToken idAndToken : result) {
+                if ((idAndToken == null) || (idAndToken.getId() == null)) {
+                    continue;
+                }
+
+                ObjectDataImpl object = new ObjectDataImpl();
+                PropertiesImpl properties = new PropertiesImpl();
+                object.setProperties(properties);
+
+                properties.addProperty(new PropertyIdImpl(PropertyIds.OBJECT_ID, idAndToken.getId()));
+
+                if (idAndToken.getChangeToken() != null) {
+                    properties
+                            .addProperty(new PropertyStringImpl(PropertyIds.CHANGE_TOKEN, idAndToken.getChangeToken()));
+                }
+
+                writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, false,
+                        context.getCmisVersion());
+            }
+        }
+
+        // we are done
+        feed.endFeed();
+        feed.endDocument();
     }
 
     /**
@@ -516,5 +636,15 @@ public final class ObjectService {
         }
 
         return ((PropertyString) changeLogProperty).getFirstValue();
+    }
+
+    public static void closeContentStream(ContentStream contentStream) {
+        if (contentStream != null && contentStream.getStream() != null) {
+            try {
+                contentStream.getStream().close();
+            } catch (IOException e) {
+                // we tried our best
+            }
+        }
     }
 }

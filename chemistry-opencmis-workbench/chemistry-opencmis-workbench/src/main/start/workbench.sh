@@ -38,8 +38,9 @@ for i in *.jar; do
   WCP="$i:${WCP}"
 done
 
+# use variable CUSTOM_JAVA_OPTS to set additional JAVA options
 
-JAVA_OPTS="-Djava.net.useSystemProxies=true"
+JAVA_OPTS="-Djava.net.useSystemProxies=true -Dorg.apache.chemistry.opencmis.binding.webservices.jaxws.impl=sunjre"
 
 if [ -n "$http_proxy" ]; then
   HTTP_PROXY_HOST=$(echo $http_proxy | sed 's/http:\/\/\(.*\):.*/\1/')
@@ -54,4 +55,4 @@ if [ -n "$https_proxy" ]; then
 fi
 
 
-exec $JAVA $JAVA_OPTS -classpath $WCP org.apache.chemistry.opencmis.workbench.Workbench &
+exec $JAVA $JAVA_OPTS $CUSTOM_JAVA_OPTS -classpath $WCP org.apache.chemistry.opencmis.workbench.Workbench &

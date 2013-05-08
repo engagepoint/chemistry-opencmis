@@ -80,6 +80,9 @@
                                <descriptor>
                                    src/main/assembly/client-with-dependencies-assembly.xml
                                </descriptor>
+                               <descriptor>
+                                   src/main/assembly/client-with-cxf-dependencies-assembly.xml
+                               </descriptor>
                            </descriptors>
                        </configuration>
                    </execution>
@@ -115,15 +118,27 @@
             <version>1.0.0</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-rt-frontend-jaxws</artifactId>
+            <version>${cxf.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-rt-transports-http</artifactId>
+            <version>${cxf.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
 	        <groupId>log4j</groupId>
 	        <artifactId>log4j</artifactId>
-	        <version>1.2.16</version>
+	        <version>${log4j.version}</version>
 	        <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>1.6.6</version>
+            <version>${slf4j.version}</version>
             <scope>test</scope>            
         </dependency>
     </dependencies>

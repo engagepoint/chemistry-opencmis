@@ -263,10 +263,15 @@ public class ClientModel {
     }
 
     public synchronized ObjectId createDocument(String name, String type, String filename,
-            VersioningState versioningState, boolean unfiled) throws Exception {
+            Map<String, Object> additionalProperties, VersioningState versioningState, boolean unfiled)
+            throws Exception {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
+
+        if (additionalProperties != null) {
+            properties.putAll(additionalProperties);
+        }
 
         ContentStream content = createContentStream(filename);
 
@@ -285,11 +290,15 @@ public class ClientModel {
                 .createContentStream(name, length, "application/octet-stream", new RandomInputStream(length, seed));
     }
 
-    public synchronized ObjectId createDocument(String name, String type, long length, long seed,
-            VersioningState versioningState, boolean unfiled) throws Exception {
+    public synchronized ObjectId createDocument(String name, String type, Map<String, Object> additionalProperties,
+            long length, long seed, VersioningState versioningState, boolean unfiled) throws Exception {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
+
+        if (additionalProperties != null) {
+            properties.putAll(additionalProperties);
+        }
 
         ContentStream content = createContentStream(name, length, seed);
         try {
@@ -302,34 +311,48 @@ public class ClientModel {
         }
     }
 
-    public synchronized ObjectId createItem(String name, String type) throws Exception {
+    public synchronized ObjectId createItem(String name, String type, Map<String, Object> additionalProperties)
+            throws Exception {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
+
+        if (additionalProperties != null) {
+            properties.putAll(additionalProperties);
+        }
 
         return clientSession.getSession().createItem(properties, currentFolder, null, null, null);
     }
 
-    public synchronized ObjectId createFolder(String name, String type) throws Exception {
+    public synchronized ObjectId createFolder(String name, String type, Map<String, Object> additionalProperties)
+            throws Exception {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
 
+        if (additionalProperties != null) {
+            properties.putAll(additionalProperties);
+        }
+
         return clientSession.getSession().createFolder(properties, currentFolder, null, null, null);
     }
 
-    public synchronized ObjectId createRelationship(String name, String type, String sourceId, String targetId)
-            throws Exception {
+    public synchronized ObjectId createRelationship(String name, String type, String sourceId, String targetId,
+            Map<String, Object> additionalProperties) throws Exception {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
         properties.put(PropertyIds.SOURCE_ID, sourceId);
         properties.put(PropertyIds.TARGET_ID, targetId);
 
+        if (additionalProperties != null) {
+            properties.putAll(additionalProperties);
+        }
+
         return clientSession.getSession().createRelationship(properties, null, null, null);
     }
 
-    public synchronized List<ObjectType> getCreateableTypes(String rootTypeId) {
+    public synchronized List<ObjectType> getTypesAsList(String rootTypeId, boolean creatableOnly) {
         List<ObjectType> result = new ArrayList<ObjectType>();
 
         ObjectType rootType = null;
@@ -339,11 +362,15 @@ public class ClientModel {
             return result;
         }
 
-        List<Tree<ObjectType>> types = clientSession.getSession().getTypeDescendants(rootTypeId, -1, false);
-        addType(types, result);
+        List<Tree<ObjectType>> types = clientSession.getSession().getTypeDescendants(rootTypeId, -1, true);
+        addType(types, result, creatableOnly);
 
-        boolean isCreatable = (rootType.isCreatable() == null ? true : rootType.isCreatable().booleanValue());
-        if (isCreatable) {
+        if (creatableOnly) {
+            boolean isCreatable = (rootType.isCreatable() == null ? true : rootType.isCreatable().booleanValue());
+            if (isCreatable) {
+                result.add(rootType);
+            }
+        } else {
             result.add(rootType);
         }
 
@@ -356,17 +383,20 @@ public class ClientModel {
         return result;
     }
 
-    private void addType(List<Tree<ObjectType>> types, List<ObjectType> resultList) {
+    private void addType(List<Tree<ObjectType>> types, List<ObjectType> resultList, boolean creatableOnly) {
         for (Tree<ObjectType> tt : types) {
             if (tt.getItem() != null) {
-                boolean isCreatable = (tt.getItem().isCreatable() == null ? true : tt.getItem().isCreatable()
-                        .booleanValue());
-
-                if (isCreatable) {
+                if (creatableOnly) {
+                    boolean isCreatable = (tt.getItem().isCreatable() == null ? true : tt.getItem().isCreatable()
+                            .booleanValue());
+                    if (isCreatable) {
+                        resultList.add(tt.getItem());
+                    }
+                } else {
                     resultList.add(tt.getItem());
                 }
 
-                addType(tt.getChildren(), resultList);
+                addType(tt.getChildren(), resultList, creatableOnly);
             }
         }
     }

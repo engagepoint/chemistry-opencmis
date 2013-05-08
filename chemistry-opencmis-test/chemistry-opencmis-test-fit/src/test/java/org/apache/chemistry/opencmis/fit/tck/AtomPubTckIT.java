@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 
 public class AtomPubTckIT extends AbstractTckIT {
 
@@ -42,6 +43,11 @@ public class AtomPubTckIT extends AbstractTckIT {
     @Override
     public BindingType getBindingType() {
         return BindingType.ATOMPUB;
+    }
+    
+    @Override
+    public CmisVersion getCmisVersion() {
+        return CmisVersion.CMIS_1_0;
     }
     
 }

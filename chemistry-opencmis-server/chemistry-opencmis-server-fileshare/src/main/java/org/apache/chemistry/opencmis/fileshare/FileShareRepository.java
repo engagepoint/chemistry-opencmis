@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,9 +41,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import javax.xml.stream.XMLStreamReader;
+import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Ace;
@@ -76,6 +76,7 @@ import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdate
 import org.apache.chemistry.opencmis.commons.enums.CapabilityJoin;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityQuery;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityRenditions;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.SupportedPermissions;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
@@ -91,9 +92,10 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisStorageException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisStreamNotSupportedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
 import org.apache.chemistry.opencmis.commons.impl.Base64;
-import org.apache.chemistry.opencmis.commons.impl.Converter;
-import org.apache.chemistry.opencmis.commons.impl.JaxBHelper;
 import org.apache.chemistry.opencmis.commons.impl.MimeTypes;
+import org.apache.chemistry.opencmis.commons.impl.XMLConstants;
+import org.apache.chemistry.opencmis.commons.impl.XMLConverter;
+import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlEntryImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlListImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlPrincipalDataImpl;
@@ -120,8 +122,6 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyUriImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryCapabilitiesImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryInfoImpl;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisProperty;
 import org.apache.chemistry.opencmis.commons.impl.server.ObjectInfoImpl;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfoHandler;
@@ -287,7 +287,7 @@ public class FileShareRepository {
 
     private static PermissionDefinition createPermission(String permission, String description) {
         PermissionDefinitionDataImpl pd = new PermissionDefinitionDataImpl();
-        pd.setPermission(permission);
+        pd.setId(permission);
         pd.setDescription(description);
 
         return pd;
@@ -1416,6 +1416,10 @@ public class FileShareRepository {
             // change token - always null
             addPropertyString(result, typeId, filter, PropertyIds.CHANGE_TOKEN, null);
 
+            // CMIS 1.1 properties
+            addPropertyString(result, typeId, filter, PropertyIds.DESCRIPTION, null);
+            addPropertyIdList(result, typeId, filter, PropertyIds.SECONDARY_OBJECT_TYPE_IDS, null);
+
             // directory or file
             if (file.isDirectory()) {
                 // base type and type name
@@ -1495,7 +1499,6 @@ public class FileShareRepository {
     /**
      * Reads and adds properties.
      */
-    @SuppressWarnings("unchecked")
     private void readCustomProperties(File file, PropertiesImpl properties, Set<String> filter,
             ObjectInfoImpl objectInfo) {
         File propFile = getPropertiesFile(file);
@@ -1506,22 +1509,32 @@ public class FileShareRepository {
         }
 
         // parse it
-        JAXBElement<CmisObjectType> obj = null;
+        ObjectData obj = null;
+        InputStream stream = null;
         try {
-            Unmarshaller u = JaxBHelper.createUnmarshaller();
-            obj = (JAXBElement<CmisObjectType>) u.unmarshal(propFile);
+            stream = new BufferedInputStream(new FileInputStream(propFile));
+            XMLStreamReader parser = XMLUtils.createParser(stream);
+            XMLUtils.findNextStartElemenet(parser);
+            obj = XMLConverter.convertObject(parser);
+            parser.close();
         } catch (Exception e) {
             warn("Unvalid CMIS properties: " + propFile.getAbsolutePath(), e);
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException ioe) {
+                    // ignore
+                }
+            }
         }
 
-        if ((obj == null) || (obj.getValue() == null) || (obj.getValue().getProperties() == null)) {
+        if ((obj == null) || (obj.getProperties() == null)) {
             return;
         }
 
         // add it to properties
-        for (CmisProperty cmisProp : obj.getValue().getProperties().getProperty()) {
-            PropertyData<?> prop = Converter.convert(cmisProp);
-
+        for (PropertyData<?> prop : obj.getProperties().getPropertyList()) {
             // overwrite object info
             if (prop instanceof PropertyString) {
                 String firstValueStr = ((PropertyString) prop).getFirstValue();
@@ -1567,7 +1580,7 @@ public class FileShareRepository {
             }
 
             // add it
-            properties.addProperty(prop);
+            properties.replaceProperty(prop);
         }
     }
 
@@ -1858,12 +1871,12 @@ public class FileShareRepository {
         boolean isFolder = file.isDirectory();
         boolean isRoot = root.equals(file);
 
-        Set<Action> aas = new HashSet<Action>();
+        Set<Action> aas = EnumSet.noneOf(Action.class);
 
         addAction(aas, Action.CAN_GET_OBJECT_PARENTS, !isRoot);
         addAction(aas, Action.CAN_GET_PROPERTIES, true);
         addAction(aas, Action.CAN_UPDATE_PROPERTIES, !userReadOnly && !isReadOnly);
-        addAction(aas, Action.CAN_MOVE_OBJECT, !userReadOnly);
+        addAction(aas, Action.CAN_MOVE_OBJECT, !userReadOnly && !isRoot);
         addAction(aas, Action.CAN_DELETE_OBJECT, !userReadOnly && !isReadOnly && !isRoot);
         addAction(aas, Action.CAN_GET_ACL, true);
 
@@ -1938,18 +1951,26 @@ public class FileShareRepository {
         }
 
         // create object
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(Converter.convert(properties));
+        ObjectDataImpl object = new ObjectDataImpl();
+        object.setProperties(properties);
 
-        // write it
+        OutputStream stream = null;
         try {
-            JAXBElement<CmisObjectType> objElement = JaxBHelper.CMIS_EXTRA_OBJECT_FACTORY.createObject(object);
-
-            Marshaller m = JaxBHelper.createMarshaller();
-            m.setProperty("jaxb.formatted.output", true);
-            m.marshal(objElement, propFile);
+            stream = new BufferedOutputStream(new FileOutputStream(propFile));
+            XMLStreamWriter writer = XMLUtils.createWriter(stream);
+            XMLUtils.startXmlDocument(writer);
+            XMLConverter.writeObject(writer, CmisVersion.CMIS_1_1, true, "object", XMLConstants.NAMESPACE_CMIS, object);
+            XMLUtils.endXmlDocument(writer);
         } catch (Exception e) {
             throw new CmisStorageException("Couldn't store properties!", e);
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException e2) {
+                    // ignore
+                }
+            }
         }
     }
 

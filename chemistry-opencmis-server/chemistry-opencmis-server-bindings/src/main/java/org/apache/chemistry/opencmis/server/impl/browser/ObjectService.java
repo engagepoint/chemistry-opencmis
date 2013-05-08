@@ -38,6 +38,7 @@ import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.com
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrl;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.CONTEXT_OBJECT_ID;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.CONTEXT_OBJECT_TYPE_ID;
+import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.closeContentStream;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createAddAcl;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createContentStream;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createCookieValue;
@@ -62,8 +63,6 @@ import java.io.OutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -74,7 +73,6 @@ import org.apache.chemistry.opencmis.commons.data.AllowableActions;
 import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
-import org.apache.chemistry.opencmis.commons.data.LastModifiedContentStream;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
@@ -85,7 +83,6 @@ import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
-import org.apache.chemistry.opencmis.commons.impl.DateTimeHelper;
 import org.apache.chemistry.opencmis.commons.impl.JSONConverter;
 import org.apache.chemistry.opencmis.commons.impl.MimeHelper;
 import org.apache.chemistry.opencmis.commons.impl.ReturnVersion;
@@ -96,6 +93,7 @@ import org.apache.chemistry.opencmis.commons.impl.json.JSONObject;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
+import org.apache.chemistry.opencmis.server.shared.HttpUtils;
 
 /**
  * Object Service operations.
@@ -122,9 +120,15 @@ public final class ObjectService {
         ControlParser cp = new ControlParser(request);
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
 
-        String newObjectId = service.createDocument(repositoryId, createNewProperties(cp, typeCache), folderId,
-                createContentStream(request), versioningState, createPolicies(cp), createAddAcl(cp),
-                createRemoveAcl(cp), null);
+        ContentStream contentStream = createContentStream(request);
+
+        String newObjectId = null;
+        try {
+            newObjectId = service.createDocument(repositoryId, createNewProperties(cp, typeCache), folderId,
+                    contentStream, versioningState, createPolicies(cp), createAddAcl(cp), createRemoveAcl(cp), null);
+        } finally {
+            closeContentStream(contentStream);
+        }
 
         ObjectData object = getSimpleObject(service, repositoryId, newObjectId);
         if (object == null) {
@@ -132,7 +136,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -176,7 +180,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -208,7 +212,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -240,7 +244,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -272,7 +276,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -303,7 +307,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         setStatus(request, response, HttpServletResponse.SC_CREATED);
         setCookie(request, response, repositoryId, token,
@@ -341,7 +345,7 @@ public final class ObjectService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         int status = HttpServletResponse.SC_OK;
         if (!objectId.equals(newObjectId)) {
@@ -432,7 +436,8 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(properties, objectId, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(properties, objectId, typeCache,
+                JSONConverter.PropertyMode.OBJECT, succinct);
 
         response.setStatus(HttpServletResponse.SC_OK);
         writeJSON(jsonObject, request, response);
@@ -473,7 +478,7 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         response.setStatus(HttpServletResponse.SC_OK);
         writeJSON(jsonObject, request, response);
@@ -541,29 +546,9 @@ public final class ObjectService {
             throw new CmisRuntimeException("Content stream is null!");
         }
 
-        // check if Last-Modified header should be set
-        if (content instanceof LastModifiedContentStream) {
-            GregorianCalendar lastModified = ((LastModifiedContentStream) content).getLastModified();
-            if (lastModified != null) {
-                long lastModifiedSecs = (long) Math.floor((double) lastModified.getTimeInMillis() / 1000);
-
-                Date modifiedSince = DateTimeHelper.parseHttpDateTime(request.getHeader("If-Modified-Since"));
-                if (modifiedSince != null) {
-                    long modifiedSinceSecs = (long) Math.floor((double) modifiedSince.getTime() / 1000);
-
-                    if (modifiedSinceSecs >= lastModifiedSecs) {
-                        // close stream
-                        content.getStream().close();
-
-                        // send not modified status code
-                        response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
-                        response.setContentLength(0);
-                        return;
-                    }
-                }
-
-                response.setHeader("Last-Modified", DateTimeHelper.formateHttpDateTime(lastModifiedSecs * 1000));
-            }
+        // set HTTP headers, if requested by the server implementation
+        if (HttpUtils.setContentStreamHeaders(content, request, response)) {
+            return;
         }
 
         String contentType = content.getMimeType();
@@ -673,7 +658,7 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         writeJSON(jsonObject, request, response);
     }
@@ -692,8 +677,14 @@ public final class ObjectService {
         // execute
         Holder<String> objectIdHolder = new Holder<String>(objectId);
         Holder<String> changeTokenHolder = (changeToken == null ? null : new Holder<String>(changeToken));
-        service.setContentStream(repositoryId, objectIdHolder, overwriteFlag, changeTokenHolder,
-                createContentStream(request), null);
+        ContentStream contentStream = createContentStream(request);
+
+        try {
+            service.setContentStream(repositoryId, objectIdHolder, overwriteFlag, changeTokenHolder, contentStream,
+                    null);
+        } finally {
+            closeContentStream(contentStream);
+        }
 
         String newObjectId = (objectIdHolder.getValue() == null ? objectId : objectIdHolder.getValue());
 
@@ -710,7 +701,7 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         writeJSON(jsonObject, request, response);
     }
@@ -729,8 +720,14 @@ public final class ObjectService {
         // execute
         Holder<String> objectIdHolder = new Holder<String>(objectId);
         Holder<String> changeTokenHolder = (changeToken == null ? null : new Holder<String>(changeToken));
-        service.appendContentStream(repositoryId, objectIdHolder, changeTokenHolder, createContentStream(request),
-                isLastChunk, null);
+        ContentStream contentStream = createContentStream(request);
+
+        try {
+            service.appendContentStream(repositoryId, objectIdHolder, changeTokenHolder, contentStream, isLastChunk,
+                    null);
+        } finally {
+            closeContentStream(contentStream);
+        }
 
         String newObjectId = (objectIdHolder.getValue() == null ? objectId : objectIdHolder.getValue());
 
@@ -747,7 +744,7 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         writeJSON(jsonObject, request, response);
     }
@@ -782,7 +779,7 @@ public final class ObjectService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         writeJSON(jsonObject, request, response);
     }

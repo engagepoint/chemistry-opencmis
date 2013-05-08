@@ -54,6 +54,7 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractTypeDefini
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AclCapabilitiesDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.BindingsObjectFactoryImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.CreatablePropertyTypesImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.NewTypeSettableAttributesImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PermissionDefinitionDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PermissionMappingDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryCapabilitiesImpl;
@@ -166,7 +167,17 @@ public class StoreManagerImpl implements StoreManager {
             throw new RuntimeException("Unknown repository " + repositoryId);
         }
 
-        return typeManager.getTypeById(typeId);
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+        TypeDefinitionContainer tdc = typeManager.getTypeById(typeId);
+        if (null != tdc && !cmis11) {
+            TypeDefinition td = tdc.getTypeDefinition();
+            if (td.getBaseTypeId() == BaseTypeId.CMIS_ITEM || td.getBaseTypeId() == BaseTypeId.CMIS_SECONDARY
+                    || td.getId().equals(BaseTypeId.CMIS_ITEM.value())
+                    || td.getId().equals(BaseTypeId.CMIS_SECONDARY.value())) {
+                tdc = null; // filter new types for CMIS 1.0
+            }
+        }
+        return tdc;
     }
 
     public TypeDefinitionContainer getTypeById(String repositoryId, String typeId, boolean includePropertyDefinitions,
@@ -361,6 +372,7 @@ public class StoreManagerImpl implements StoreManager {
 
     @SuppressWarnings("serial")
     private RepositoryInfo createRepositoryInfo(String repositoryId) {
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
         ObjectStore objStore = getObjectStore(repositoryId);
         String rootFolderId = objStore.getRootFolder().getId();
         // repository info
@@ -374,7 +386,6 @@ public class StoreManagerImpl implements StoreManager {
         repoInfo.setPrincipalAnyone(InMemoryAce.getAnyoneUser());
         repoInfo.setThinClientUri("");
         repoInfo.setChangesIncomplete(Boolean.TRUE);
-        repoInfo.setChangesOnType(null);
         repoInfo.setLatestChangeLogToken(Long.valueOf(new Date(0).getTime()).toString());
         repoInfo.setVendorName("Apache Chemistry");
         repoInfo.setProductName(OPENCMIS_SERVER);
@@ -384,7 +395,7 @@ public class StoreManagerImpl implements StoreManager {
         RepositoryCapabilitiesImpl caps = new RepositoryCapabilitiesImpl();
         caps.setAllVersionsSearchable(false);
         caps.setCapabilityAcl(CapabilityAcl.MANAGE);
-        caps.setCapabilityChanges(CapabilityChanges.NONE);
+        caps.setCapabilityChanges(CapabilityChanges.OBJECTIDSONLY);
         caps.setCapabilityContentStreamUpdates(CapabilityContentStreamUpdates.ANYTIME);
         caps.setCapabilityJoin(CapabilityJoin.NONE);
         caps.setCapabilityQuery(CapabilityQuery.BOTHCOMBINED);
@@ -407,6 +418,23 @@ public class StoreManagerImpl implements StoreManager {
         permissions.add(createPermission(CMIS_READ, "Read"));
         permissions.add(createPermission(CMIS_WRITE, "Write"));
         permissions.add(createPermission(CMIS_ALL, "All"));
+        if (cmis11) {
+            NewTypeSettableAttributesImpl typeAttrs = new NewTypeSettableAttributesImpl();
+            typeAttrs.setCanSetControllableAcl(false);
+            typeAttrs.setCanSetControllablePolicy(false);
+            typeAttrs.setCanSetCreatable(true);
+            typeAttrs.setCanSetDescription(true);
+            typeAttrs.setCanSetDisplayName(true);
+            typeAttrs.setCanSetFileable(false);
+            typeAttrs.setCanSetFulltextIndexed(false);
+            typeAttrs.setCanSetId(true);
+            typeAttrs.setCanSetIncludedInSupertypeQuery(false);
+            typeAttrs.setCanSetLocalName(true);
+            typeAttrs.setCanSetLocalNamespace(true);
+            typeAttrs.setCanSetQueryable(false);
+            typeAttrs.setCanSetQueryName(true);
+            caps.setNewTypeSettableAttributes(typeAttrs);
+        }
         aclCaps.setPermissionDefinitionData(permissions);
 
         // mapping
@@ -455,19 +483,16 @@ public class StoreManagerImpl implements StoreManager {
             map.put(pm.getKey(), pm);
         }
         
+        List<BaseTypeId> changesOnType;
         // CMIS 1.1 extensions
-        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
         if (cmis11) {
             repoInfo.setCmisVersionSupported(CmisVersion.CMIS_1_1.value());
             repoInfo.setCmisVersion(CmisVersion.CMIS_1_1);
-            repoInfo.setCmisVersion(CmisVersion.CMIS_1_1);
-            List<BaseTypeId> changesOnType = new ArrayList<BaseTypeId>() {{
+            changesOnType = new ArrayList<BaseTypeId>() {{
                 add(BaseTypeId.CMIS_DOCUMENT);
                 add(BaseTypeId.CMIS_FOLDER);
                 add(BaseTypeId.CMIS_ITEM);
-                add(BaseTypeId.CMIS_SECONDARY);
             }};
-            repoInfo.setChangesOnType(changesOnType);
             
             Set<PropertyType> propertyTypeSet = new HashSet<PropertyType>() {{
                 add(PropertyType.BOOLEAN);
@@ -486,8 +511,13 @@ public class StoreManagerImpl implements StoreManager {
         } else {
             repoInfo.setCmisVersionSupported(CmisVersion.CMIS_1_0.value());
             repoInfo.setCmisVersion(CmisVersion.CMIS_1_0);
+            changesOnType = new ArrayList<BaseTypeId>() {{
+                add(BaseTypeId.CMIS_DOCUMENT);
+                add(BaseTypeId.CMIS_FOLDER);
+            }};
         }
-        
+        repoInfo.setChangesOnType(changesOnType);
+
         aclCaps.setPermissionMappingData(map);
 
         repoInfo.setAclCapabilities(aclCaps);
@@ -500,7 +530,7 @@ public class StoreManagerImpl implements StoreManager {
 
     private static PermissionDefinition createPermission(String permission, String description) {
         PermissionDefinitionDataImpl pd = new PermissionDefinitionDataImpl();
-        pd.setPermission(permission);
+        pd.setId(permission);
         pd.setDescription(description);
 
         return pd;

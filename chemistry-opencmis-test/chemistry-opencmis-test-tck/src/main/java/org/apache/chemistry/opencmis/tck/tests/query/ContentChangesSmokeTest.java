@@ -21,15 +21,12 @@ package org.apache.chemistry.opencmis.tck.tests.query;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.FAILURE;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.SKIPPED;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.chemistry.opencmis.client.api.ChangeEvent;
 import org.apache.chemistry.opencmis.client.api.ChangeEvents;
 import org.apache.chemistry.opencmis.client.api.CmisObject;
-import org.apache.chemistry.opencmis.client.api.Folder;
 import org.apache.chemistry.opencmis.client.api.Session;
-import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
@@ -54,22 +51,14 @@ public class ContentChangesSmokeTest extends AbstractSessionTest {
     public void run(Session session) {
         CmisTestResult f;
 
-        if (supportsContentChanges(session)) { 
-        	fillObservationJournal(session);
-        	ChangeEvents events = session.getContentChanges(null, true, 10, SELECT_ALL_NO_CACHE_OC);
-            
+        if (supportsContentChanges(session)) {
+            ChangeEvents events = session.getContentChanges(null, true, 1000, SELECT_ALL_NO_CACHE_OC);
+
             f = createResult(FAILURE, "Change events are null!");
             addResult(assertNotNull(events, null, f));
 
             if (events != null && events.getChangeEvents() != null) {
-            	//check paging
-            	f = createResult(FAILURE, "Events paging is not working!");
-            	long previousChangeLogToken = Long.parseLong(events.getLatestChangeLogToken());
-            	events = session.getContentChanges(events.getLatestChangeLogToken(), true, 10, SELECT_ALL_NO_CACHE_OC);
-            	long latestChangeLogToken = Long.parseLong(events.getLatestChangeLogToken());
-            	
-                addResult(assertIsTrue(previousChangeLogToken < latestChangeLogToken, null, f));
-            	
+
                 if (getBinding() != BindingType.ATOMPUB) {
                     // the AtompPub binding does not return a change log token
                     f = createResult(FAILURE, "Change log token is null!");
@@ -111,18 +100,6 @@ public class ContentChangesSmokeTest extends AbstractSessionTest {
             addResult(createResult(SKIPPED, "Content Changes not supported. Test Skipped!"));
         }
     }
-
-	private void fillObservationJournal(Session session) {
-		Map<String, Object> properties = new HashMap<String, Object>();
-        properties.put(PropertyIds.NAME, "OBSERVATION_TEST_FOLDER");
-        properties.put(PropertyIds.OBJECT_TYPE_ID, "cmis:folder");
-        properties.put(PropertyIds.CREATED_BY, "anonymous");
-
-        Folder testFolder = session.getRootFolder().createFolder(properties);
-        properties.put(PropertyIds.CREATED_BY, "Nikss");
-        testFolder.updateProperties(properties);
-        testFolder.delete();
-	}
 
     protected boolean supportsContentChanges(Session session) {
         RepositoryInfo repository = session.getRepositoryInfo();

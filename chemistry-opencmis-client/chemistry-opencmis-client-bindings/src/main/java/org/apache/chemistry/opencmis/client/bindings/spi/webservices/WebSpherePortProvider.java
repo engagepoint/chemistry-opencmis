@@ -31,68 +31,34 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.ws.BindingProvider;
-import javax.xml.ws.Service;
 import javax.xml.ws.soap.MTOMFeature;
 
 import org.apache.chemistry.opencmis.client.bindings.impl.CmisBindingsHelper;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConnectionException;
-import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.ACLService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.DiscoveryService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.MultiFilingService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.NavigationService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.ObjectService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.PolicyService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.RelationshipService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.RepositoryService;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.VersioningService;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
 
 /**
- * Provides CMIS Web Services port objects for WebSphere. Handles authentication
- * headers.
+ * WebSphere JAX-WS implementation
  */
 public class WebSpherePortProvider extends AbstractPortProvider {
-    private static final Logger log = LoggerFactory.getLogger(WebSpherePortProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WebSpherePortProvider.class);
 
     /**
      * Creates a port object.
      */
-    protected Object createPortObject(Service service) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("Creating Web Service port object of " + (service == null ? "???" : service.getServiceName())
-                    + "...");
+    protected BindingProvider createPortObject(CmisServiceHolder serviceHolder) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Creating Web Service port object of " + serviceHolder.getServiceName() + "...");
         }
 
-        Object portObject;
         try {
-            if (service instanceof RepositoryService) {
-                portObject = ((RepositoryService) service).getRepositoryServicePort(new MTOMFeature());
-            } else if (service instanceof NavigationService) {
-                portObject = ((NavigationService) service).getNavigationServicePort(new MTOMFeature());
-            } else if (service instanceof ObjectService) {
-                portObject = ((ObjectService) service).getObjectServicePort(new MTOMFeature());
-            } else if (service instanceof VersioningService) {
-                portObject = ((VersioningService) service).getVersioningServicePort(new MTOMFeature());
-            } else if (service instanceof DiscoveryService) {
-                portObject = ((DiscoveryService) service).getDiscoveryServicePort(new MTOMFeature());
-            } else if (service instanceof MultiFilingService) {
-                portObject = ((MultiFilingService) service).getMultiFilingServicePort(new MTOMFeature());
-            } else if (service instanceof RelationshipService) {
-                portObject = ((RelationshipService) service).getRelationshipServicePort(new MTOMFeature());
-            } else if (service instanceof PolicyService) {
-                portObject = ((PolicyService) service).getPolicyServicePort(new MTOMFeature());
-            } else if (service instanceof ACLService) {
-                portObject = ((ACLService) service).getACLServicePort(new MTOMFeature());
-            } else {
-                throw new CmisRuntimeException("Cannot find Web Services service object!");
-            }
+            // create port object
+            BindingProvider portObject = createPortObjectFromServiceHolder(serviceHolder, new MTOMFeature());
 
             // add SOAP and HTTP authentication headers
             AuthenticationProvider authProvider = CmisBindingsHelper.getAuthenticationProvider(getSession());
@@ -110,16 +76,24 @@ public class WebSpherePortProvider extends AbstractPortProvider {
                     Map<QName, List<String>> header = new HashMap<QName, List<String>>();
                     header.put(new QName(soapHeader.getNamespaceURI(), soapHeader.getLocalName()),
                             Collections.singletonList(headerXml.toString()));
-                    ((BindingProvider) portObject).getRequestContext().put("jaxws.binding.soap.headers.outbound",
-                            header);
+                    portObject.getRequestContext().put("jaxws.binding.soap.headers.outbound", header);
                 }
 
                 // HTTP header
-                httpHeaders = authProvider.getHTTPHeaders(service.getWSDLDocumentLocation().toString());
+                String url = (serviceHolder.getEndpointUrl() != null ? serviceHolder.getEndpointUrl().toString()
+                        : serviceHolder.getServiceObject().getWSDLDocumentLocation().toString());
+                httpHeaders = authProvider.getHTTPHeaders(url);
+
+                // TODO: set SSL Factory
+
+                // TODO: set Hostname Verifier
             }
 
             // set HTTP headers
             setHTTPHeaders(portObject, httpHeaders);
+
+            // set endpoint URL
+            setEndpointUrl(portObject, serviceHolder.getEndpointUrl());
 
             // timeouts
             int connectTimeout = getSession().get(SessionParameter.CONNECT_TIMEOUT, -1);
@@ -131,12 +105,12 @@ public class WebSpherePortProvider extends AbstractPortProvider {
             if (readTimeout >= 0) {
                 ((BindingProvider) portObject).getRequestContext().put("request_timeout", readTimeout);
             }
+
+            return portObject;
         } catch (CmisBaseException ce) {
             throw ce;
         } catch (Exception e) {
             throw new CmisConnectionException("Cannot initalize Web Services port object: " + e.getMessage(), e);
         }
-
-        return portObject;
     }
 }

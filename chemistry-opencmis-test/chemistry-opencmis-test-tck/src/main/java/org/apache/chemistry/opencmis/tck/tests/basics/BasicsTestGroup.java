@@ -37,6 +37,5 @@ public class BasicsTestGroup extends AbstractSessionTestGroup {
         addTest(new SecurityTest());
         addTest(new RepositoryInfoTest());
         addTest(new RootFolderTest());
-        addTest(new TypesTest());
     }
 }

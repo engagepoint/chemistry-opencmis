@@ -34,6 +34,7 @@ import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
@@ -52,12 +53,14 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.Children;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Filing;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.Item;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.MultiFiling;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.SingleFiling;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoreManager;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
+import org.apache.chemistry.opencmis.server.support.TypeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,11 +68,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
 
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryNavigationServiceImpl.class);
 
-    final AtomLinkInfoProvider fAtomLinkProvider;
-
     public InMemoryNavigationServiceImpl(StoreManager storeManager) {
         super(storeManager);
-        fAtomLinkProvider = new AtomLinkInfoProvider(fStoreManager);
     }
 
     public ObjectList getCheckedOutDocs(CallContext context, String repositoryId, String folderId, String filter,
@@ -88,11 +88,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
             List<StoredObject> checkedOuts = fStoreManager.getObjectStore(repositoryId).getCheckedOutDocuments(
                     orderBy, context.getUsername(), includeRelationships);
             for (StoredObject checkedOut : checkedOuts) {
-                TypeDefinition td = fStoreManager.getTypeById(repositoryId, checkedOut.getTypeId()).getTypeDefinition();
-//                DocumentVersion workingCopy = ((VersionedDocument) checkedOut).getPwc();
-//                if (null == workingCopy)
-//                	throw new CmisConstraintException("document " + checkedOut + " is checked out but has no working copy");       
-                ObjectData od = PropertyCreationHelper.getObjectData(td, checkedOut, filter, user,
+                TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+                ObjectData od = PropertyCreationHelper.getObjectData(tm, checkedOut, filter, user,
                         includeAllowableActions, includeRelationships, renditionFilter, false, false, extension);
                 if (context.isObjectInfoRequired()) {
                     ObjectInfoImpl objectInfo = new ObjectInfoImpl();
@@ -281,7 +278,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
         ObjectStore fs = fStoreManager.getObjectStore(repositoryId);
         StoredObject so = fs.getObjectById(folderId);
         Folder folder = null;
-
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+        
         if (so == null) {
             throw new CmisObjectNotFoundException("Unknown object id: " + folderId);
         }
@@ -297,13 +295,16 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
                 .getChildren(maxItems, skipCount, user);
 
         for (StoredObject spo : children.getChildren()) {
+            if (!cmis11 && spo instanceof Item)
+                continue; // ignore items for CMIS 1.1‚
+            
             ObjectInFolderDataImpl oifd = new ObjectInFolderDataImpl();
             if (includePathSegments != null && includePathSegments) {
                 oifd.setPathSegment(spo.getName());
             }
 
-            TypeDefinition typeDef = fStoreManager.getTypeById(repositoryId, spo.getTypeId()).getTypeDefinition();
-            ObjectData objectData = PropertyCreationHelper.getObjectData(typeDef, spo, filter, user, includeAllowableActions, 
+            TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+            ObjectData objectData = PropertyCreationHelper.getObjectData(tm, spo, filter, user, includeAllowableActions, 
                     includeRelationships, renditionFilter, false, false, null);
 
             oifd.setObject(objectData);
@@ -391,8 +392,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
             if (null != parents) {
                 for (Folder parent : parents) {
                     ObjectParentDataImpl parentData = new ObjectParentDataImpl();
-                    TypeDefinition typeDef = fStoreManager.getTypeById(repositoryId, parent.getTypeId()).getTypeDefinition();
-                    ObjectData objData = PropertyCreationHelper.getObjectData(typeDef, parent, filter, user, includeAllowableActions, 
+                    TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+                    ObjectData objData = PropertyCreationHelper.getObjectData(tm, parent, filter, user, includeAllowableActions, 
                             includeRelationships, renditionFilter, false, true, null);
 
                     parentData.setObject(objData);
@@ -423,7 +424,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
 
         copyFilteredProperties(repositoryId, parentFolder, filter, parent);
         
-        parent.setRelationships(DataObjectCreator.getRelationships(includeRelationships, parentFolder, user));
+        TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+        parent.setRelationships(DataObjectCreator.getRelationships(tm, includeRelationships, parentFolder, user));
         
         if (includeAllowableActions != null && includeAllowableActions) {
             //  AllowableActions allowableActions = DataObjectCreator.fillAllowableActions(spo, user);
@@ -442,8 +444,8 @@ public class InMemoryNavigationServiceImpl extends InMemoryAbstractServiceImpl {
 
     void copyFilteredProperties(String repositoryId, StoredObject so, String filter, ObjectDataImpl objData) {
         List<String> requestedIds = FilterParser.getRequestedIdsFromFilter(filter);
-        TypeDefinition td = fStoreManager.getTypeById(repositoryId, so.getTypeId()).getTypeDefinition();
-        Properties props = PropertyCreationHelper.getPropertiesFromObject(so, td, requestedIds, true);
+        TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+        Properties props = PropertyCreationHelper.getPropertiesFromObject(so, tm, requestedIds, true);
         objData.setProperties(props);
     }
 

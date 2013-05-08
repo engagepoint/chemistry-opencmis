@@ -20,6 +20,7 @@ package org.apache.chemistry.opencmis.inmemory;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -30,20 +31,26 @@ import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.PolicyIdList;
-import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.enums.Action;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlListImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AllowableActionsImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ChangeEventInfoDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PolicyIdListImpl;
+import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Content;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Filing;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.Item;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.Policy;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.Relationship;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Version;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
+import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
+import org.apache.chemistry.opencmis.server.support.TypeManager;
 
 /**
  * @author Jens A collection of utility functions to fill the data objects used
@@ -51,7 +58,7 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
  */
 public class DataObjectCreator {
 
-	 public static BigInteger MINUS_ONE = BigInteger.valueOf(-1L);
+    public static BigInteger MINUS_ONE = BigInteger.valueOf(-1L);
 
     // Utility class
     private DataObjectCreator() {
@@ -61,14 +68,21 @@ public class DataObjectCreator {
 
         boolean isFolder = so instanceof Folder;
         boolean isDocument = so instanceof Content;
+        boolean isItem = so instanceof Item;
+        boolean isRelationship = so instanceof Relationship;
+        boolean isFileable = isFolder || isDocument || isItem;
+        boolean isPolicy = so instanceof Policy;
         boolean isCheckedOut = false;
         boolean canCheckOut = false;
         boolean canCheckIn = false;
         boolean isVersioned = so instanceof Version || so instanceof VersionedDocument;
         boolean hasContent = so instanceof Content && ((Content) so).hasContent();
-        boolean isRootFolder = isFolder && ((Folder)so).getParent() == null;
+        boolean isRootFolder = isFolder && ((Folder) so).getParent() == null;
         boolean hasRendition = so.hasRendition(user);
-        
+        boolean canGetAcl = user != null && (isDocument || isFolder || isItem);
+        boolean canSetAcl = canGetAcl;
+        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
+
         if (so instanceof Version) {
             isCheckedOut = ((Version) so).isPwc();
             canCheckIn = isCheckedOut && ((Version) so).getParentDocument().getCheckedOutBy().equals(user);
@@ -78,19 +92,21 @@ public class DataObjectCreator {
             canCheckOut = !((VersionedDocument) so).isCheckedOut();
             canCheckIn = isCheckedOut && ((VersionedDocument) so).getCheckedOutBy().equals(user);
         }
-        
+
         AllowableActionsImpl allowableActions = new AllowableActionsImpl();
         Set<Action> set = allowableActions.getAllowableActions();
-
+        
         if (!isRootFolder) {
             set.add(Action.CAN_DELETE_OBJECT);
             set.add(Action.CAN_UPDATE_PROPERTIES);
+            set.add(Action.CAN_APPLY_POLICY);
+            set.add(Action.CAN_GET_APPLIED_POLICIES);
         }
 
-        if (isFolder || isDocument) {
+        if (isFolder || isDocument || isItem || isRelationship || isPolicy) {
             set.add(Action.CAN_GET_PROPERTIES);
-            if (!isRootFolder) {
-                set.add(Action.CAN_GET_OBJECT_PARENTS);   
+            if (!isRootFolder && isFileable) {
+                set.add(Action.CAN_GET_OBJECT_PARENTS);
                 set.add(Action.CAN_MOVE_OBJECT);
             }
         }
@@ -105,6 +121,8 @@ public class DataObjectCreator {
 
             set.add(Action.CAN_CREATE_DOCUMENT);
             set.add(Action.CAN_CREATE_FOLDER);
+            if (cmis11)
+                set.add(Action.CAN_CREATE_ITEM);
             set.add(Action.CAN_GET_CHILDREN);
         }
 
@@ -124,22 +142,28 @@ public class DataObjectCreator {
             set.add(Action.CAN_GET_ALL_VERSIONS);
         }
 
-        if (isDocument) {
-            if (so instanceof Filing && ((Filing)so).hasParent()) {
+        if (isDocument || isItem) {
+            if (so instanceof Filing && ((Filing) so).hasParent()) {
                 set.add(Action.CAN_ADD_OBJECT_TO_FOLDER);
                 set.add(Action.CAN_REMOVE_OBJECT_FROM_FOLDER);
             }
-            if (isVersioned) {
-                if (canCheckIn)
+            if (isDocument)
+                if (isVersioned) {
+                    if (canCheckIn)
+                        set.add(Action.CAN_SET_CONTENT_STREAM);
+                } else
                     set.add(Action.CAN_SET_CONTENT_STREAM);
-            } else
-                set.add(Action.CAN_SET_CONTENT_STREAM);
         }
 
         if (hasRendition) {
             set.add(Action.CAN_GET_RENDITIONS);
         }
-        
+
+        if (canSetAcl)
+            set.add(Action.CAN_APPLY_ACL);
+        if (canGetAcl)
+            set.add(Action.CAN_GET_ACL);
+
         allowableActions.setAllowableActions(set);
         return allowableActions;
     }
@@ -153,14 +177,15 @@ public class DataObjectCreator {
     }
 
     public static PolicyIdList fillPolicyIds(StoredObject so) {
-        // TODO: to be completed if policies are implemented
         PolicyIdListImpl polIds = new PolicyIdListImpl();
-        // polIds.setPolicyIds(...);
+        List<String> pols = so.getAppliedPolicies();
+        polIds.setPolicyIds(pols);
         return polIds;
     }
 
-    public static List<ObjectData> fillRelationships(IncludeRelationships includeRelationships, StoredObject so, String user) {
-        return getRelationships(includeRelationships, so, user);
+    public static List<ObjectData> fillRelationships(TypeManager tm, IncludeRelationships includeRelationships,
+            StoredObject so, String user) {
+        return getRelationships(tm, includeRelationships, so, user);
     }
 
     public static ChangeEventInfo fillChangeEventInfo(StoredObject so) {
@@ -168,23 +193,26 @@ public class DataObjectCreator {
         ChangeEventInfo changeEventInfo = new ChangeEventInfoDataImpl();
         return changeEventInfo;
     }
-    
-    public static List<ObjectData> getRelationships(IncludeRelationships includeRelationships,
-    		StoredObject spo, String user)
-    {
-         if (includeRelationships != IncludeRelationships.NONE) 
-        {
-        	RelationshipDirection relationshipDirection = RelationshipDirection.SOURCE;
-        	// source is default
-        	if (includeRelationships == IncludeRelationships.TARGET)
-        		relationshipDirection = RelationshipDirection.TARGET;
-        	else if (includeRelationships == IncludeRelationships.BOTH)
-        		relationshipDirection = RelationshipDirection.EITHER;  // either and both!!
-        	
-            ObjectList relationships = spo.getObjectRelationships(false, relationshipDirection,
-            		null, null, false, MINUS_ONE, MINUS_ONE, null, user);
-           return (relationships == null? null : relationships.getObjects());
+
+    public static List<ObjectData> getRelationships(TypeManager tm, IncludeRelationships includeRelationships,
+            StoredObject spo, String user) {
+        if (includeRelationships != IncludeRelationships.NONE) {
+            RelationshipDirection relationshipDirection = RelationshipDirection.SOURCE;
+            // source is default
+            if (includeRelationships == IncludeRelationships.TARGET)
+                relationshipDirection = RelationshipDirection.TARGET;
+            else if (includeRelationships == IncludeRelationships.BOTH)
+                relationshipDirection = RelationshipDirection.EITHER;
+            
+            List<StoredObject>  relationships = spo.getObjectRelationships(relationshipDirection, user);
+            List<ObjectData> res = new ArrayList<ObjectData>(relationships.size());
+            for (StoredObject so : relationships) {
+                ObjectData od = PropertyCreationHelper.getObjectData(tm, so, null, user, false,
+                        IncludeRelationships.NONE, null, false, false, null);
+                res.add(od);
+            }
+            return res;
         }
-         return null;
+        return null;
     }
 }

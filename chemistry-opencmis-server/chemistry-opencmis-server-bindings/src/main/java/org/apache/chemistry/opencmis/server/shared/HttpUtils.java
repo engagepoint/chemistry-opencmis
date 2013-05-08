@@ -18,12 +18,14 @@
  */
 package org.apache.chemistry.opencmis.server.shared;
 
-import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.net.URLDecoder;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.Map;
 
@@ -31,9 +33,14 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.chemistry.opencmis.commons.data.CacheHeaderContentStream;
+import org.apache.chemistry.opencmis.commons.data.ContentLengthContentStream;
+import org.apache.chemistry.opencmis.commons.data.ContentStream;
+import org.apache.chemistry.opencmis.commons.data.LastModifiedContentStream;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+import org.apache.chemistry.opencmis.commons.impl.DateTimeHelper;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.server.impl.CallContextImpl;
 
@@ -50,8 +57,7 @@ public final class HttpUtils {
      */
     public static CallContext createContext(HttpServletRequest request, HttpServletResponse response,
             ServletContext servletContext, String binding, CmisVersion cmisVersion,
-            CallContextHandler callContextHandler, File tempDir, int memoryThreshold, long maxContentSize,
-            boolean encrypt) {
+            CallContextHandler callContextHandler, ThresholdOutputStreamFactory streamFactory) {
         String[] pathFragments = splitPath(request);
 
         String repositoryId = null;
@@ -79,12 +85,13 @@ public final class HttpUtils {
 
         // CMIS version
         context.put(CallContext.CMIS_VERSION, cmisVersion);
-        
+
         // content
-        context.put(CallContext.TEMP_DIR, tempDir);
-        context.put(CallContext.MEMORY_THRESHOLD, memoryThreshold);
-        context.put(CallContext.MAX_CONTENT_SIZE, maxContentSize);
-        context.put(CallContext.ENCRYPT_TEMP_FILE, encrypt);
+        context.put(CallContext.TEMP_DIR, streamFactory.getTempDir());
+        context.put(CallContext.MEMORY_THRESHOLD, streamFactory.getMemoryThreshold());
+        context.put(CallContext.MAX_CONTENT_SIZE, streamFactory.getMaxContentSize());
+        context.put(CallContext.ENCRYPT_TEMP_FILE, streamFactory.isEncrypted());
+        context.put(CallContext.STREAM_FACTORY, streamFactory);
 
         // decode range
         String rangeHeader = request.getHeader("Range");
@@ -165,6 +172,85 @@ public final class HttpUtils {
         }
 
         return result;
+    }
+
+    // -------------------------------------------------------------------------
+    // --- HTTP headers ---
+    // -------------------------------------------------------------------------
+
+    /**
+     * Sets certain HTTP headers if the server implementation requested them.
+     */
+    public static boolean setContentStreamHeaders(ContentStream content, HttpServletRequest request,
+            HttpServletResponse response) throws IOException {
+
+        // check if Last-Modified header should be set
+        if (content instanceof LastModifiedContentStream) {
+            GregorianCalendar lastModified = ((LastModifiedContentStream) content).getLastModified();
+            if (lastModified != null) {
+                long lastModifiedSecs = (long) Math.floor((double) lastModified.getTimeInMillis() / 1000);
+
+                Date modifiedSince = DateTimeHelper.parseHttpDateTime(request.getHeader("If-Modified-Since"));
+                if (modifiedSince != null) {
+                    long modifiedSinceSecs = (long) Math.floor((double) modifiedSince.getTime() / 1000);
+
+                    if (modifiedSinceSecs >= lastModifiedSecs) {
+                        // close stream
+                        content.getStream().close();
+
+                        // send not modified status code
+                        response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+                        response.setContentLength(0);
+                        return true;
+                    }
+                }
+
+                response.setHeader("Last-Modified", DateTimeHelper.formatHttpDateTime(lastModifiedSecs * 1000));
+            }
+        }
+
+        // check if cache headers should be set
+        if (content instanceof CacheHeaderContentStream) {
+            CacheHeaderContentStream chcs = (CacheHeaderContentStream) content;
+
+            if (chcs.getETag() != null) {
+                String etag = request.getHeader("If-None-Match");
+                if (etag != null && !etag.equals("*")) {
+                    if (etag.length() > 2 && etag.startsWith("\"") && etag.endsWith("\"")) {
+                        etag = etag.substring(1, etag.length() - 1);
+                    }
+
+                    if (chcs.getETag().equals(etag)) {
+                        // close stream
+                        content.getStream().close();
+
+                        // send not modified status code
+                        response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+                        response.setContentLength(0);
+                        return true;
+                    }
+                }
+
+                response.setHeader("ETag", "\"" + chcs.getETag() + "\"");
+            }
+
+            if (chcs.getCacheControl() != null) {
+                response.setHeader("Cache-Control", chcs.getCacheControl());
+            }
+
+            if (chcs.getExpires() != null) {
+                response.setHeader("Expires", DateTimeHelper.formatHttpDateTime(chcs.getExpires()));
+            }
+        }
+
+        // check if Content-Length header should be set
+        if (content instanceof ContentLengthContentStream) {
+            if (content.getBigLength() != null && content.getBigLength().signum() >= 0) {
+                response.setHeader("Content-Length", content.getBigLength().toString());
+            }
+        }
+
+        return false;
     }
 
     // -------------------------------------------------------------------------

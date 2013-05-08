@@ -18,8 +18,6 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.atompub;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -30,7 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.xml.stream.XMLStreamWriter;
+
 import org.apache.chemistry.opencmis.client.bindings.impl.CmisBindingsHelper;
+import org.apache.chemistry.opencmis.client.bindings.impl.RepositoryInfoCache;
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.client.bindings.spi.LinkAccess;
 import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomAcl;
@@ -49,9 +50,11 @@ import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
+import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConnectionException;
@@ -71,18 +74,17 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisUnauthorizedExceptio
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisVersioningException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
-import org.apache.chemistry.opencmis.commons.impl.JaxBHelper;
 import org.apache.chemistry.opencmis.commons.impl.ReturnVersion;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
+import org.apache.chemistry.opencmis.commons.impl.XMLConverter;
+import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlEntryImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlListImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlPrincipalDataImpl;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisAccessControlListType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisPropertiesType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisPropertyId;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisRepositoryInfoType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisTypeDefinitionType;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.ObjectDataImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PolicyIdListImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertiesImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIdImpl;
 
 /**
  * Base class for all AtomPub client services.
@@ -132,6 +134,24 @@ public abstract class AbstractAtomPubService implements LinkAccess {
         }
 
         return null;
+    }
+
+    /**
+     * Return the CMIS version of the given repository.
+     */
+    protected CmisVersion getCmisVersion(String repositoryId) {
+        RepositoryInfoCache cache = CmisBindingsHelper.getRepositoryInfoCache(session);
+        RepositoryInfo info = cache.get(repositoryId);
+
+        if (info == null) {
+            List<RepositoryInfo> infoList = getRepositoriesInternal(repositoryId);
+            if (!infoList.isEmpty()) {
+                info = infoList.get(0);
+                cache.put(info);
+            }
+        }
+
+        return (info == null ? CmisVersion.CMIS_1_0 : info.getCmisVersion());
     }
 
     // ---- link cache ----
@@ -512,18 +532,35 @@ public abstract class AbstractAtomPubService implements LinkAccess {
     }
 
     /**
-     * Creates a CMIS object that only contains an id in the property list.
+     * Creates a CMIS object with properties and policy ids.
      */
-    protected CmisObjectType createIdObject(String objectId) {
-        CmisObjectType object = new CmisObjectType();
+    protected ObjectDataImpl createObject(Properties properties, List<String> policies) {
+        ObjectDataImpl object = new ObjectDataImpl();
 
-        CmisPropertiesType properties = new CmisPropertiesType();
+        if (properties == null) {
+            properties = new PropertiesImpl();
+        }
         object.setProperties(properties);
 
-        CmisPropertyId idProperty = new CmisPropertyId();
-        properties.getProperty().add(idProperty);
-        idProperty.setPropertyDefinitionId(PropertyIds.OBJECT_ID);
-        idProperty.getValue().add(objectId);
+        if (policies != null && !policies.isEmpty()) {
+            PolicyIdListImpl policyIdList = new PolicyIdListImpl();
+            policyIdList.setPolicyIds(policies);
+            object.setPolicyIds(policyIdList);
+        }
+
+        return object;
+    }
+
+    /**
+     * Creates a CMIS object that only contains an id in the property list.
+     */
+    protected ObjectData createIdObject(String objectId) {
+        ObjectDataImpl object = new ObjectDataImpl();
+
+        PropertiesImpl properties = new PropertiesImpl();
+        object.setProperties(properties);
+
+        properties.addProperty(new PropertyIdImpl(PropertyIds.OBJECT_ID, objectId));
 
         return object;
     }
@@ -743,8 +780,8 @@ public abstract class AbstractAtomPubService implements LinkAccess {
                 } else if (is(NAME_URI_TEMPLATE, element)) {
                     Map<String, String> tempMap = (Map<String, String>) element.getObject();
                     addTemplate(ws.getId(), tempMap.get("type"), tempMap.get("template"));
-                } else if (element.getObject() instanceof CmisRepositoryInfoType) {
-                    repInfos.add(convert((CmisRepositoryInfoType) element.getObject()));
+                } else if (element.getObject() instanceof RepositoryInfo) {
+                    repInfos.add((RepositoryInfo) element.getObject());
                 }
             }
         }
@@ -802,8 +839,8 @@ public abstract class AbstractAtomPubService implements LinkAccess {
             for (AtomElement element : entry.getElements()) {
                 if (element.getObject() instanceof AtomLink) {
                     addLink(repositoryId, entry.getId(), (AtomLink) element.getObject());
-                } else if (element.getObject() instanceof CmisObjectType) {
-                    result = convert((CmisObjectType) element.getObject());
+                } else if (element.getObject() instanceof ObjectData) {
+                    result = (ObjectData) element.getObject();
                 }
             }
         } finally {
@@ -845,8 +882,8 @@ public abstract class AbstractAtomPubService implements LinkAccess {
             for (AtomElement element : entry.getElements()) {
                 if (element.getObject() instanceof AtomLink) {
                     addTypeLink(repositoryId, entry.getId(), (AtomLink) element.getObject());
-                } else if (element.getObject() instanceof CmisTypeDefinitionType) {
-                    result = convert((CmisTypeDefinitionType) element.getObject());
+                } else if (element.getObject() instanceof TypeDefinition) {
+                    result = (TypeDefinition) element.getObject();
                 }
             }
         } finally {
@@ -876,13 +913,13 @@ public abstract class AbstractAtomPubService implements LinkAccess {
         Response resp = read(url);
         AtomAcl acl = parse(resp.getStream(), AtomAcl.class);
 
-        return convert(acl.getACL(), null);
+        return acl.getACL();
     }
 
     /**
      * Updates the ACL of an object.
      */
-    protected AtomAcl updateAcl(String repositoryId, String objectId, Acl acl, AclPropagation aclPropagation) {
+    protected AtomAcl updateAcl(String repositoryId, String objectId, final Acl acl, AclPropagation aclPropagation) {
 
         // find the link
         String link = loadLink(repositoryId, objectId, Constants.REL_ACL, Constants.MEDIATYPE_ACL);
@@ -894,13 +931,15 @@ public abstract class AbstractAtomPubService implements LinkAccess {
         UrlBuilder aclUrl = new UrlBuilder(link);
         aclUrl.addParameter(Constants.PARAM_ACL_PROPAGATION, aclPropagation);
 
-        // set up object and writer
-        final CmisAccessControlListType aclJaxb = convert(acl);
+        final CmisVersion cmisVersion = getCmisVersion(repositoryId);
 
         // update
         Response resp = put(aclUrl, Constants.MEDIATYPE_ACL, new Output() {
             public void write(OutputStream out) throws Exception {
-                JaxBHelper.marshal(JaxBHelper.CMIS_OBJECT_FACTORY.createAcl(aclJaxb), out, false);
+                XMLStreamWriter writer = XMLUtils.createWriter(out);
+                XMLUtils.startXmlDocument(writer);
+                XMLConverter.writeAcl(writer, cmisVersion, true, acl);
+                XMLUtils.endXmlDocument(writer);
             }
         });
 

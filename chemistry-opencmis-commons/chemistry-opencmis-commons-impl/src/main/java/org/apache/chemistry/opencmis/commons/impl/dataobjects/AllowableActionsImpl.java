@@ -18,7 +18,7 @@
  */
 package org.apache.chemistry.opencmis.commons.impl.dataobjects;
 
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.Set;
 
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
@@ -31,9 +31,13 @@ public class AllowableActionsImpl extends AbstractExtensionData implements Allow
 
     private static final long serialVersionUID = 1L;
 
-    private Set<Action> allowableActions = new HashSet<Action>();
+    private Set<Action> allowableActions;
 
     public Set<Action> getAllowableActions() {
+        if (allowableActions == null) {
+            allowableActions = EnumSet.noneOf(Action.class);
+        }
+
         return allowableActions;
     }
 

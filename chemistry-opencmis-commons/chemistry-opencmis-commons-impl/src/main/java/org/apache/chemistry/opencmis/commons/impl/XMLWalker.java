@@ -19,6 +19,7 @@
 package org.apache.chemistry.opencmis.commons.impl;
 
 import static org.apache.chemistry.opencmis.commons.impl.XMLUtils.next;
+import static org.apache.chemistry.opencmis.commons.impl.XMLUtils.skip;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -50,9 +51,12 @@ public abstract class XMLWalker<T> {
             int event = parser.getEventType();
             if (event == XMLStreamReader.START_ELEMENT) {
                 QName name = parser.getName();
-                if (!read(parser, name, result) && (result instanceof ExtensionsData)) {
-                    handleExtension(parser, (ExtensionsData) result);
-                }
+                if (!read(parser, name, result))
+                    if (result instanceof ExtensionsData) {
+                        handleExtension(parser, (ExtensionsData) result);
+                    } else {
+                        skip(parser);
+                    }
             } else if (event == XMLStreamReader.END_ELEMENT) {
                 break;
             } else {
@@ -68,20 +72,20 @@ public abstract class XMLWalker<T> {
     }
 
     protected boolean isCmisNamespace(QName name) {
-        return Constants.NAMESPACE_CMIS.hashCode() == name.getNamespaceURI().hashCode()
-                && Constants.NAMESPACE_CMIS.equals(name.getNamespaceURI());
+        return XMLConstants.NAMESPACE_CMIS.hashCode() == name.getNamespaceURI().hashCode()
+                && XMLConstants.NAMESPACE_CMIS.equals(name.getNamespaceURI());
     }
 
     protected boolean isAtomNamespace(QName name) {
-        return Constants.NAMESPACE_ATOM.hashCode() == name.getNamespaceURI().hashCode()
-                && Constants.NAMESPACE_ATOM.equals(name.getNamespaceURI());
+        return XMLConstants.NAMESPACE_ATOM.hashCode() == name.getNamespaceURI().hashCode()
+                && XMLConstants.NAMESPACE_ATOM.equals(name.getNamespaceURI());
     }
 
     protected boolean isTag(QName name, String tag) {
         return tag.hashCode() == name.getLocalPart().hashCode() && tag.equals(name.getLocalPart());
     }
 
-    private void handleExtension(XMLStreamReader parser, ExtensionsData extData) throws XMLStreamException {
+    protected void handleExtension(XMLStreamReader parser, ExtensionsData extData) throws XMLStreamException {
         List<CmisExtensionElement> extensions = extData.getExtensions();
         if (extensions == null) {
             extensions = new ArrayList<CmisExtensionElement>();
@@ -138,6 +142,8 @@ public abstract class XMLWalker<T> {
                 }
 
                 children.add(handleExtensionLevel(parser, level + 1));
+
+                continue;
             }
 
             if (!next(parser)) {
@@ -155,7 +161,7 @@ public abstract class XMLWalker<T> {
     }
 
     protected <S> List<S> addToList(List<S> list, S value) {
-        if (list == null) {
+        if (list == null || list.isEmpty()) {
             list = new ArrayList<S>();
         }
         list.add(value);

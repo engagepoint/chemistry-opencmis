@@ -25,9 +25,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +170,10 @@ public final class JSONConverter {
      * Private constructor.
      */
     private JSONConverter() {
+    }
+
+    public enum PropertyMode {
+        OBJECT, QUERY, CHANGE
     }
 
     /**
@@ -411,15 +415,15 @@ public final class JSONConverter {
         result.setChangesIncomplete(getBoolean(json, JSON_REPINFO_CHANGES_INCOMPLETE));
 
         List<Object> changesOnType = getList(json.get(JSON_REPINFO_CHANGES_ON_TYPE));
-        List<BaseTypeId> types = new ArrayList<BaseTypeId>();
         if (changesOnType != null) {
+            List<BaseTypeId> types = new ArrayList<BaseTypeId>();
             for (Object type : changesOnType) {
                 if (type != null) {
                     types.add(BaseTypeId.fromValue(type.toString()));
                 }
             }
+            result.setChangesOnType(types);
         }
-        result.setChangesOnType(types);
 
         result.setPrincipalAnonymous(getString(json, JSON_REPINFO_PRINCIPAL_ID_ANONYMOUS));
         result.setPrincipalAnyone(getString(json, JSON_REPINFO_PRINCIPAL_ID_ANYONE));
@@ -497,7 +501,7 @@ public final class JSONConverter {
             List<Object> canCreateJson = getList(creatablePropertyTypesJson
                     .get(JSON_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE));
             if (canCreateJson != null) {
-                Set<PropertyType> canCreate = new HashSet<PropertyType>();
+                Set<PropertyType> canCreate = EnumSet.noneOf(PropertyType.class);
 
                 for (Object o : canCreateJson) {
                     try {
@@ -580,7 +584,7 @@ public final class JSONConverter {
                 if (permissionMap != null) {
                     PermissionDefinitionDataImpl permDef = new PermissionDefinitionDataImpl();
 
-                    permDef.setPermission(getString(permissionMap, JSON_ACLCAP_PERMISSION_PERMISSION));
+                    permDef.setId(getString(permissionMap, JSON_ACLCAP_PERMISSION_PERMISSION));
                     permDef.setDescription(getString(permissionMap, JSON_ACLCAP_PERMISSION_DESCRIPTION));
 
                     convertExtension(permissionMap, permDef, ACLCAP_PERMISSION_KEYS);
@@ -1040,8 +1044,8 @@ public final class JSONConverter {
     /**
      * Converts an object.
      */
-    public static JSONObject convert(final ObjectData object, final TypeCache typeCache, final boolean isQueryResult,
-            final boolean succinct) {
+    public static JSONObject convert(final ObjectData object, final TypeCache typeCache,
+            final PropertyMode propertyMode, final boolean succinct) {
         if (object == null) {
             return null;
         }
@@ -1051,12 +1055,12 @@ public final class JSONConverter {
         // properties
         if (object.getProperties() != null) {
             if (succinct) {
-                JSONObject properties = convert(object.getProperties(), object.getId(), typeCache, isQueryResult, true);
+                JSONObject properties = convert(object.getProperties(), object.getId(), typeCache, propertyMode, true);
                 if (properties != null) {
                     result.put(JSON_OBJECT_SUCCINCT_PROPERTIES, properties);
                 }
             } else {
-                JSONObject properties = convert(object.getProperties(), object.getId(), typeCache, isQueryResult, false);
+                JSONObject properties = convert(object.getProperties(), object.getId(), typeCache, propertyMode, false);
                 if (properties != null) {
                     result.put(JSON_OBJECT_PROPERTIES, properties);
                 }
@@ -1079,14 +1083,14 @@ public final class JSONConverter {
             JSONArray relationships = new JSONArray();
 
             for (ObjectData relationship : object.getRelationships()) {
-                relationships.add(convert(relationship, typeCache, false, succinct));
+                relationships.add(convert(relationship, typeCache, propertyMode, succinct));
             }
 
             result.put(JSON_OBJECT_RELATIONSHIPS, relationships);
         }
 
         // change event info
-        if (object.getChangeEventInfo() != null && !isQueryResult) {
+        if (object.getChangeEventInfo() != null && propertyMode == PropertyMode.CHANGE) {
             JSONObject changeEventInfo = new JSONObject();
 
             ChangeEventInfo cei = object.getChangeEventInfo();
@@ -1099,13 +1103,14 @@ public final class JSONConverter {
         }
 
         // ACL
-        if ((object.getAcl() != null) && (object.getAcl().getAces() != null) && !isQueryResult) {
+        if ((object.getAcl() != null) && (object.getAcl().getAces() != null) && propertyMode != PropertyMode.QUERY) {
             result.put(JSON_OBJECT_ACL, convert(object.getAcl()));
             result.put(JSON_OBJECT_EXACT_ACL, object.isExactAcl());
         }
 
         // policy ids
-        if ((object.getPolicyIds() != null) && (object.getPolicyIds().getPolicyIds() != null)) {
+        if ((object.getPolicyIds() != null) && (object.getPolicyIds().getPolicyIds() != null)
+                && propertyMode != PropertyMode.QUERY) {
             JSONObject policyIds = new JSONObject();
             JSONArray ids = new JSONArray();
             policyIds.put(JSON_OBJECT_POLICY_IDS_IDS, ids);
@@ -1139,7 +1144,7 @@ public final class JSONConverter {
      * Converts a bag of properties.
      */
     public static JSONObject convert(final Properties properties, final String objectId, final TypeCache typeCache,
-            final boolean isQueryResult, final boolean succinct) {
+            final PropertyMode propertyMode, final boolean succinct) {
         if (properties == null) {
             return null;
         }
@@ -1155,7 +1160,7 @@ public final class JSONConverter {
                 }
             }
 
-            if (type == null && objectId != null) {
+            if (type == null && objectId != null && propertyMode != PropertyMode.CHANGE) {
                 type = typeCache.getTypeDefinitionForObject(objectId);
             }
         }
@@ -1171,7 +1176,7 @@ public final class JSONConverter {
                 propDef = type.getPropertyDefinitions().get(property.getId());
             }
 
-            String propId = (isQueryResult ? property.getQueryName() : property.getId());
+            String propId = (propertyMode == PropertyMode.QUERY ? property.getQueryName() : property.getId());
             result.put(propId, convert(property, propDef, succinct));
         }
 
@@ -1349,7 +1354,7 @@ public final class JSONConverter {
     /**
      * Converts a query object list.
      */
-    public static JSONObject convert(final ObjectList list, final TypeCache typeCache, final boolean isQueryResult,
+    public static JSONObject convert(final ObjectList list, final TypeCache typeCache, final PropertyMode propertyMode,
             final boolean succinct) {
         if (list == null) {
             return null;
@@ -1360,11 +1365,11 @@ public final class JSONConverter {
         JSONArray objects = new JSONArray();
         if (list.getObjects() != null) {
             for (ObjectData object : list.getObjects()) {
-                objects.add(convert(object, typeCache, isQueryResult, succinct));
+                objects.add(convert(object, typeCache, propertyMode, succinct));
             }
         }
 
-        if (isQueryResult) {
+        if (propertyMode == PropertyMode.QUERY) {
             result.put(JSON_QUERYRESULTLIST_RESULTS, objects);
 
             setIfNotNull(JSON_QUERYRESULTLIST_HAS_MORE_ITEMS, list.hasMoreItems(), result);
@@ -1391,7 +1396,8 @@ public final class JSONConverter {
         }
 
         JSONObject result = new JSONObject();
-        result.put(JSON_OBJECTINFOLDER_OBJECT, convert(objectInFolder.getObject(), typeCache, false, succinct));
+        result.put(JSON_OBJECTINFOLDER_OBJECT,
+                convert(objectInFolder.getObject(), typeCache, PropertyMode.OBJECT, succinct));
         setIfNotNull(JSON_OBJECTINFOLDER_PATH_SEGMENT, objectInFolder.getPathSegment(), result);
 
         convertExtension(objectInFolder, result);
@@ -1463,7 +1469,7 @@ public final class JSONConverter {
         }
 
         JSONObject result = new JSONObject();
-        result.put(JSON_OBJECTPARENTS_OBJECT, convert(parent.getObject(), typeCache, false, succinct));
+        result.put(JSON_OBJECTPARENTS_OBJECT, convert(parent.getObject(), typeCache, PropertyMode.OBJECT, succinct));
         if (parent.getRelativePathSegment() != null) {
             result.put(JSON_OBJECTPARENTS_RELATIVE_PATH_SEGMENT, parent.getRelativePathSegment());
         }
@@ -1918,7 +1924,7 @@ public final class JSONConverter {
         }
 
         AllowableActionsImpl result = new AllowableActionsImpl();
-        Set<Action> allowableActions = new HashSet<Action>();
+        Set<Action> allowableActions = EnumSet.noneOf(Action.class);
 
         for (Action action : Action.values()) {
             Boolean value = getBoolean(json, action.value());
@@ -2066,6 +2072,17 @@ public final class JSONConverter {
             typeDef = typeCache.getTypeDefinition((String) json.get(PropertyIds.OBJECT_TYPE_ID));
         }
 
+        List<Object> secTypeIds = getList(json.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS));
+        List<TypeDefinition> secTypeDefs = null;
+        if (secTypeIds != null && !secTypeIds.isEmpty()) {
+            secTypeDefs = new ArrayList<TypeDefinition>(secTypeIds.size());
+            for (Object secTypeId : secTypeIds) {
+                if (secTypeId instanceof String) {
+                    secTypeDefs.add(typeCache.getTypeDefinition((String) secTypeId));
+                }
+            }
+        }
+
         PropertiesImpl result = new PropertiesImpl();
 
         for (Map.Entry<String, Object> entry : json.entrySet()) {
@@ -2074,6 +2091,15 @@ public final class JSONConverter {
             PropertyDefinition<?> propDef = null;
             if (typeDef != null) {
                 propDef = typeDef.getPropertyDefinitions().get(id);
+            }
+
+            if (propDef == null && secTypeDefs != null) {
+                for (TypeDefinition secTypeDef : secTypeDefs) {
+                    propDef = secTypeDef.getPropertyDefinitions().get(id);
+                    if (propDef != null) {
+                        break;
+                    }
+                }
             }
 
             if (propDef == null) {

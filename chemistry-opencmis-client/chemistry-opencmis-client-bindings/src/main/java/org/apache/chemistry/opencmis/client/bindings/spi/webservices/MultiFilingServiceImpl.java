@@ -18,8 +18,8 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.webservices;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertExtensionHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setExtensionValues;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertExtensionHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setExtensionValues;
 
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
@@ -48,7 +48,8 @@ public class MultiFilingServiceImpl extends AbstractWebServicesService implement
 
     public void addObjectToFolder(String repositoryId, String objectId, String folderId, Boolean allVersions,
             ExtensionsData extension) {
-        MultiFilingServicePort port = portProvider.getMultiFilingServicePort();
+        MultiFilingServicePort port = portProvider.getMultiFilingServicePort(getCmisVersion(repositoryId),
+                "addObjectToFolder");
 
         try {
             Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
@@ -66,7 +67,8 @@ public class MultiFilingServiceImpl extends AbstractWebServicesService implement
     }
 
     public void removeObjectFromFolder(String repositoryId, String objectId, String folderId, ExtensionsData extension) {
-        MultiFilingServicePort port = portProvider.getMultiFilingServicePort();
+        MultiFilingServicePort port = portProvider.getMultiFilingServicePort(getCmisVersion(repositoryId),
+                "removeObjectFromFolder");
 
         try {
             Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);

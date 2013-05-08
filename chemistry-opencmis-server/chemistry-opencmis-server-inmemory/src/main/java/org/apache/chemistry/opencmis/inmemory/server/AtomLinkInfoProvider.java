@@ -30,6 +30,7 @@ import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
+import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.impl.server.ObjectInfoImpl;
 import org.apache.chemistry.opencmis.commons.impl.server.RenditionInfoImpl;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfoHandler;
@@ -42,6 +43,7 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoreManager;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
 import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
+import org.apache.chemistry.opencmis.server.support.TypeManager;
 
 /**
  * For the Atom binding more information might be required than the result of a
@@ -128,7 +130,6 @@ public class AtomLinkInfoProvider {
             objInfo.setHasParent(false);
         }
 
-        // Renditions, currently not supported by in-memory provider
         List<RenditionData> renditions = so.getRenditions("*", 0, 0);
         if (renditions == null || renditions.size() == 0)
             objInfo.setRenditionInfos(null);
@@ -146,13 +147,22 @@ public class AtomLinkInfoProvider {
             objInfo.setRenditionInfos(infos);
         }
 
-        // Relationships, currently not supported by in-memory provider
-        objInfo.setSupportsRelationships(false);
-        objInfo.setRelationshipSourceIds(null);
-        objInfo.setRelationshipTargetIds(null);
+        // Relationships
+        objInfo.setSupportsRelationships(true);
+        List<StoredObject> rels = so.getObjectRelationships(RelationshipDirection.SOURCE, null);
+        List<String> srcIds = new ArrayList<String>(rels.size());
+        for (StoredObject rel : rels)
+            srcIds.add(rel.getId());
+        
+        rels = so.getObjectRelationships(RelationshipDirection.TARGET, null);
+        List<String> targetIds = new ArrayList<String>(rels.size());
+        for (StoredObject rel : rels)
+            targetIds.add(rel.getId());
+        objInfo.setRelationshipSourceIds(srcIds);
+        objInfo.setRelationshipTargetIds(targetIds);
 
         // Policies, currently not supported by in-memory provider
-        objInfo.setSupportsPolicies(false);
+        objInfo.setSupportsPolicies(true);
 
         // ACLs, currently not supported by in-memory provider
         objInfo.setHasAcl(true);
@@ -163,8 +173,9 @@ public class AtomLinkInfoProvider {
     }
 
     public void fillInformationForAtomLinks(String repositoryId, StoredObject so, ObjectInfoImpl objectInfo) {
-        TypeDefinition td = fStoreManager.getTypeById(repositoryId, so.getTypeId()).getTypeDefinition();
-        ObjectData od = PropertyCreationHelper.getObjectData(td, so, null, null, false,
+        TypeManager tm = fStoreManager.getTypeManager(repositoryId);
+
+        ObjectData od = PropertyCreationHelper.getObjectData(tm, so, null, null, false,
                 IncludeRelationships.NONE, null, false, false, null);
         fillInformationForAtomLinks(repositoryId, so, od, objectInfo);
     }
@@ -254,12 +265,16 @@ public class AtomLinkInfoProvider {
             if (null != listObjects) {
                 for (ObjectData object : listObjects) {
                     objectInfo = new ObjectInfoImpl();
-                    fillInformationForAtomLinks(repositoryId, object.getId(), objectInfo);
+                    fillInformationForAtomLinks(repositoryId, object, objectInfo);
                     objectInfos.addObjectInfo(objectInfo);
                 }
             }
         }
 
+    }
+
+    private void fillInformationForAtomLinks(String repositoryId, ObjectData od, ObjectInfoImpl objectInfo) {
+            objectInfo.setObject(od); 
     }
 
     /**

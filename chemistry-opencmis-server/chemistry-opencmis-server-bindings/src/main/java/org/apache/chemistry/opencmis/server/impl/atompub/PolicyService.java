@@ -18,10 +18,8 @@
  */
 package org.apache.chemistry.opencmis.server.impl.atompub;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_POLICIES;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileBaseUrl;
-import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrl;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrlBuilder;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.getNamespaces;
 import static org.apache.chemistry.opencmis.server.shared.HttpUtils.getStringParameter;
@@ -32,13 +30,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
+import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 
 /**
  * Policy Service operations.
@@ -87,7 +86,9 @@ public final class PolicyService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_POLICIES, objectInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_POLICIES, objectInfo.getId());
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        feed.writeSelfLink(selfLink.toString(), null);
 
         // write entries
         AtomEntry entry = new AtomEntry(feed.getWriter());
@@ -95,7 +96,8 @@ public final class PolicyService {
             if (policy == null) {
                 continue;
             }
-            writePolicyEntry(service, entry, objectInfo.getId(), policy, repositoryId, baseUrl);
+            writePolicyEntry(service, entry, objectInfo.getId(), policy, repositoryId, baseUrl,
+                    context.getCmisVersion());
         }
 
         // we are done
@@ -111,8 +113,9 @@ public final class PolicyService {
         // get parameters
         String objectId = getStringParameter(request, Constants.PARAM_ID);
 
-        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), context.getTempDirectory(),
-                context.getMemoryThreshold(), context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(request.getInputStream(), streamFactory);
 
         // execute
         service.applyPolicy(repositoryId, parser.getId(), objectId, null);
@@ -140,7 +143,7 @@ public final class PolicyService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writePolicyEntry(service, entry, objectId, policy, repositoryId, baseUrl);
+        writePolicyEntry(service, entry, objectId, policy, repositoryId, baseUrl, context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -164,12 +167,7 @@ public final class PolicyService {
      * Writes an entry that is attached to an object.
      */
     private static void writePolicyEntry(CmisService service, AtomEntry entry, String objectId, ObjectData policy,
-            String repositoryId, UrlBuilder baseUrl) throws Exception {
-        CmisObjectType resultJaxb = convert(policy);
-        if (resultJaxb == null) {
-            return;
-        }
-
+            String repositoryId, UrlBuilder baseUrl, CmisVersion cmisVersion) throws Exception {
         ObjectInfo info = service.getObjectInfo(repositoryId, policy.getId());
         if (info == null) {
             throw new CmisRuntimeException("Object Info not found!");
@@ -179,7 +177,7 @@ public final class PolicyService {
         entry.startEntry(false);
 
         // write the object
-        entry.writeObject(policy, info, null, null, null, null);
+        entry.writeObject(policy, info, null, null, null, null, cmisVersion);
 
         // write links
         UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_POLICIES, objectId);

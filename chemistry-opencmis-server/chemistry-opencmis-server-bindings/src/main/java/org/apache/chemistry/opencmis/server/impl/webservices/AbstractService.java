@@ -102,14 +102,13 @@ public abstract class AbstractService {
             }
         }
 
-        CmisVersion cmisVersion = (CmisVersion) servletContext.getAttribute(CmisWebServicesServlet.CMIS_VERSION);
-        context.put(CallContext.CMIS_VERSION, cmisVersion);
-
         context.put(CallContext.SERVLET_CONTEXT, servletContext);
 
         HttpServletRequest request = (HttpServletRequest) wsContext.getMessageContext().get(
                 MessageContext.SERVLET_REQUEST);
         context.put(CallContext.HTTP_SERVLET_REQUEST, request);
+
+        context.put(CallContext.CMIS_VERSION, request.getAttribute(CmisWebServicesServlet.CMIS_VERSION));
 
         HttpServletResponse response = (HttpServletResponse) wsContext.getMessageContext().get(
                 MessageContext.SERVLET_RESPONSE);
@@ -144,6 +143,15 @@ public abstract class AbstractService {
         context.put(CallContext.ENCRYPT_TEMP_FILE, false);
 
         return context;
+    }
+
+    /**
+     * Returns the CMIS version.
+     */
+    protected CmisVersion getCmisVersion(WebServiceContext wsContext) {
+        HttpServletRequest request = (HttpServletRequest) wsContext.getMessageContext().get(
+                MessageContext.SERVLET_REQUEST);
+        return (CmisVersion) request.getAttribute(CmisWebServicesServlet.CMIS_VERSION);
     }
 
     /**

@@ -30,8 +30,10 @@ import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -52,9 +54,23 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
+import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
+import org.apache.chemistry.opencmis.commons.data.PropertyData;
+import org.apache.chemistry.opencmis.commons.data.PropertyId;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
+import org.apache.chemistry.opencmis.commons.enums.PropertyType;
 import org.apache.chemistry.opencmis.commons.impl.XMLConstants;
 import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractPropertyData;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.CmisExtensionElementImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyBooleanImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyDateTimeImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyDecimalImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyHtmlImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIdImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIntegerImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyUriImpl;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +85,7 @@ public abstract class AbstractXMLConverterTest {
 
     private final static long SEED = 1234567890;
 
-    protected final static String TEST_SCHEMA = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+    protected final static String TEST_SCHEMA10 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" elementFormDefault=\"qualified\" targetNamespace=\""
             + TEST_NAMESPACE
             + "\" xmlns:test=\""
@@ -85,6 +101,30 @@ public abstract class AbstractXMLConverterTest {
             + "<xs:element name=\"repositoryInfo\" type=\"cmis:cmisRepositoryInfoType\" minOccurs=\"0\" maxOccurs=\"1\" />"
             + "<xs:element name=\"type\" type=\"cmis:cmisTypeDefinitionType\" minOccurs=\"0\" maxOccurs=\"1\" />"
             + "<xs:element name=\"object\" type=\"cmis:cmisObjectType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "<xs:element name=\"query\" type=\"cmis:cmisQueryType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "</xs:sequence>" //
+            + "</xs:complexType>" //
+            + "<xs:element name=\"test\" type=\"test:testType\"/>" //
+            + "</xs:schema>";
+
+    protected final static String TEST_SCHEMA11 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            + "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" elementFormDefault=\"qualified\" targetNamespace=\""
+            + TEST_NAMESPACE
+            + "\" xmlns:test=\""
+            + TEST_NAMESPACE
+            + "\" xmlns:cmis=\""
+            + XMLConstants.NAMESPACE_CMIS
+            + "\" version=\"1.0\">"
+            + "<xs:import namespace=\""
+            + XMLConstants.NAMESPACE_CMIS
+            + "\"/>"
+            + "<xs:complexType name=\"testType\">"
+            + "<xs:sequence>"
+            + "<xs:element name=\"repositoryInfo\" type=\"cmis:cmisRepositoryInfoType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "<xs:element name=\"type\" type=\"cmis:cmisTypeDefinitionType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "<xs:element name=\"object\" type=\"cmis:cmisObjectType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "<xs:element name=\"query\" type=\"cmis:cmisQueryType\" minOccurs=\"0\" maxOccurs=\"1\" />"
+            + "<xs:element name=\"bulkUpdate\" type=\"cmis:cmisBulkUpdateType\" minOccurs=\"0\" maxOccurs=\"1\" />"
             + "</xs:sequence>" //
             + "</xs:complexType>" //
             + "<xs:element name=\"test\" type=\"test:testType\"/>" //
@@ -104,14 +144,14 @@ public abstract class AbstractXMLConverterTest {
         InputStream schema10stream = AbstractXMLConverterTest.class.getResourceAsStream("/schema/cmis10/CMIS-core.xsd");
         if (schema10stream != null) {
             StreamSource core10 = new StreamSource(schema10stream);
-            StreamSource test10 = new StreamSource(new ByteArrayInputStream(TEST_SCHEMA.getBytes("UTF-8")));
+            StreamSource test10 = new StreamSource(new ByteArrayInputStream(TEST_SCHEMA10.getBytes("UTF-8")));
             schema10 = sf.newSchema(new Source[] { core10, test10 });
         }
 
         InputStream schema11stream = AbstractXMLConverterTest.class.getResourceAsStream("/schema/cmis11/CMIS-core.xsd");
         if (schema11stream != null) {
             StreamSource core11 = new StreamSource(schema11stream);
-            StreamSource test11 = new StreamSource(new ByteArrayInputStream(TEST_SCHEMA.getBytes("UTF-8")));
+            StreamSource test11 = new StreamSource(new ByteArrayInputStream(TEST_SCHEMA11.getBytes("UTF-8")));
             schema11 = sf.newSchema(new Source[] { core11, test11 });
         }
 
@@ -124,8 +164,8 @@ public abstract class AbstractXMLConverterTest {
     protected void writeRootTag(XMLStreamWriter writer) throws XMLStreamException {
         writer.setPrefix(TEST_PREFIX, TEST_NAMESPACE);
         writer.writeStartElement(TEST_NAMESPACE, TEST_PREFIX);
-        writer.writeNamespace(XMLUtils.PREFIX_XSI, XMLConstants.NAMESPACE_XSI);
-        writer.writeNamespace(XMLUtils.PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
+        writer.writeNamespace(XMLConstants.PREFIX_XSI, XMLConstants.NAMESPACE_XSI);
+        writer.writeNamespace(XMLConstants.PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
         writer.writeNamespace(TEST_PREFIX, TEST_NAMESPACE);
     }
 
@@ -231,6 +271,140 @@ public abstract class AbstractXMLConverterTest {
         return result.getWriter().toString();
     }
 
+    protected PropertyData<?> createPropertyData(PropertyType propertyType, int numValues) {
+        AbstractPropertyData<?> result;
+
+        switch (propertyType) {
+        case BOOLEAN:
+            result = new PropertyBooleanImpl();
+            if (numValues > 0) {
+                List<Boolean> values = new ArrayList<Boolean>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomBoolean());
+                }
+                ((PropertyBooleanImpl) result).setValues(values);
+            }
+            break;
+        case DATETIME:
+            result = new PropertyDateTimeImpl();
+            if (numValues > 0) {
+                List<GregorianCalendar> values = new ArrayList<GregorianCalendar>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomDateTime());
+                }
+                ((PropertyDateTimeImpl) result).setValues(values);
+            }
+            break;
+        case DECIMAL:
+            result = new PropertyDecimalImpl();
+            if (numValues > 0) {
+                List<BigDecimal> values = new ArrayList<BigDecimal>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomDecimal());
+                }
+                ((PropertyDecimalImpl) result).setValues(values);
+            }
+            break;
+        case HTML:
+            result = new PropertyHtmlImpl();
+            if (numValues > 0) {
+                List<String> values = new ArrayList<String>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomString());
+                }
+                ((PropertyHtmlImpl) result).setValues(values);
+            }
+            break;
+        case ID:
+            result = new PropertyIdImpl();
+            if (numValues > 0) {
+                List<String> values = new ArrayList<String>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomString());
+                }
+                ((PropertyIdImpl) result).setValues(values);
+            }
+            break;
+        case INTEGER:
+            result = new PropertyIntegerImpl();
+            if (numValues > 0) {
+                List<BigInteger> values = new ArrayList<BigInteger>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomInteger());
+                }
+                ((PropertyIntegerImpl) result).setValues(values);
+            }
+            break;
+        case STRING:
+            result = new PropertyStringImpl();
+            if (numValues > 0) {
+                List<String> values = new ArrayList<String>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomString());
+                }
+                ((PropertyStringImpl) result).setValues(values);
+            }
+            break;
+        case URI:
+            result = new PropertyUriImpl();
+            if (numValues > 0) {
+                List<String> values = new ArrayList<String>();
+                for (int i = 0; i < numValues; i++) {
+                    values.add(randomUri());
+                }
+                ((PropertyUriImpl) result).setValues(values);
+            }
+            break;
+        default:
+            return null;
+        }
+
+        result.setId(randomString());
+        result.setDisplayName(randomString());
+        result.setLocalName(randomString());
+        result.setQueryName(randomString());
+
+        return result;
+    }
+
+    protected PropertyId createIdPropertyData(String id, String value) {
+        PropertyIdImpl result = new PropertyIdImpl();
+
+        result.setId(id);
+        result.setDisplayName(id);
+        result.setLocalName(id);
+        result.setQueryName(id);
+        result.setValue(value);
+
+        return result;
+    }
+
+    protected List<CmisExtensionElement> createExtensions(int depth) {
+        List<CmisExtensionElement> result = new ArrayList<CmisExtensionElement>();
+
+        String[] namespaces = new String[] { "http://ext1.com", "http://ext2.org", "http://ext3.net" };
+
+        for (int i = 0; i < randomInt(4) + 1; i++) {
+            String ns = namespaces[randomInt(namespaces.length)];
+
+            Map<String, String> attr = new HashMap<String, String>();
+            for (int j = 0; j < randomInt(3); j++) {
+                attr.put(randomTag(), randomString());
+            }
+
+            CmisExtensionElementImpl element;
+            if (randomBoolean() || depth < 1) {
+                element = new CmisExtensionElementImpl(ns, randomTag(), attr, randomString());
+            } else {
+                element = new CmisExtensionElementImpl(ns, randomTag(), attr, createExtensions(depth - 1));
+            }
+
+            result.add(element);
+        }
+
+        return result;
+    }
+
     protected String randomString() {
         StringBuilder sb = new StringBuilder();
 
@@ -275,6 +449,10 @@ public abstract class AbstractXMLConverterTest {
         return cal;
     }
 
+    protected int randomInt(int n) {
+        return rnd.nextInt(n);
+    }
+
     @SuppressWarnings("unchecked")
     protected <T extends Enum<?>> T randomEnum(Class<T> enumClass) {
         T[] values = null;
@@ -284,6 +462,17 @@ public abstract class AbstractXMLConverterTest {
             throw new RuntimeException(e);
         }
         return values[rnd.nextInt(values.length)];
+    }
+
+    protected String randomTag() {
+        StringBuilder sb = new StringBuilder();
+
+        int length = rnd.nextInt(7) + 3;
+        for (int i = 0; i < length; i++) {
+            sb.append((char) (rnd.nextInt(26) + 'a'));
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -304,11 +493,11 @@ public abstract class AbstractXMLConverterTest {
         // handle simple types
         if ((expected instanceof String) || (expected instanceof Boolean) || (expected instanceof BigInteger)
                 || (expected instanceof BigDecimal) || (expected instanceof Enum<?>)) {
-            assertEquals(expected, actual);
+            assertEquals(name, expected, actual);
 
             return;
         } else if (expected instanceof GregorianCalendar) {
-            assertEquals(((GregorianCalendar) expected).getTimeInMillis(),
+            assertEquals(name, ((GregorianCalendar) expected).getTimeInMillis(),
                     ((GregorianCalendar) actual).getTimeInMillis());
 
             return;
@@ -316,7 +505,7 @@ public abstract class AbstractXMLConverterTest {
             List<?> expectedList = (List<?>) expected;
             List<?> actualList = (List<?>) actual;
 
-            assertEquals(expectedList.size(), actualList.size());
+            assertEquals(name + ".length", expectedList.size(), actualList.size());
 
             for (int i = 0; i < expectedList.size(); i++) {
                 assertDataObjectsEquals(name + "[" + i + "]", expectedList.get(i), actualList.get(i), ignoreMethods);
@@ -327,12 +516,23 @@ public abstract class AbstractXMLConverterTest {
             Map<?, ?> expectedMap = (Map<?, ?>) expected;
             Map<?, ?> actualMap = (Map<?, ?>) actual;
 
-            assertEquals(expectedMap.size(), actualMap.size());
+            assertEquals(name + ".length", expectedMap.size(), actualMap.size());
 
             for (Map.Entry<?, ?> entry : expectedMap.entrySet()) {
-                assertTrue(actualMap.containsKey(entry.getKey()));
+                assertTrue(name + ".contains[" + entry.getKey() + "]", actualMap.containsKey(entry.getKey()));
                 assertDataObjectsEquals(name + "[" + entry.getKey() + "]", entry.getValue(),
                         actualMap.get(entry.getKey()), ignoreMethods);
+            }
+
+            return;
+        } else if (expected instanceof Set<?>) {
+            Set<?> expectedSet = (Set<?>) expected;
+            Set<?> actualSet = (Set<?>) actual;
+
+            assertEquals(name + ".length", expectedSet.size(), actualSet.size());
+
+            for (Object item : expectedSet) {
+                assertTrue(name + ".contains[" + item + "]", actualSet.contains(item));
             }
 
             return;

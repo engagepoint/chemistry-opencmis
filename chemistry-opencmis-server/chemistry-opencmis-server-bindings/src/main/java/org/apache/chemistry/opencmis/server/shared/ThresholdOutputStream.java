@@ -36,6 +36,8 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An OutputStream that stores the data in main memory until it reaches a
@@ -47,6 +49,9 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
  * InputStream isn't required!
  */
 public class ThresholdOutputStream extends OutputStream {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ThresholdOutputStream.class);
+
     private static final int MAX_GROW = 10 * 1024 * 1024; // 10 MiB
     private static final int DEFAULT_THRESHOLD = 4 * 1024 * 1024; // 4 MiB
 
@@ -73,7 +78,8 @@ public class ThresholdOutputStream extends OutputStream {
      * Constructor.
      * 
      * @param tempDir
-     *            temp directory
+     *            temp directory or <code>null</code> for the default temp
+     *            directory
      * @param memoryThreshold
      *            memory threshold in bytes
      * @param maxContentSize
@@ -87,7 +93,8 @@ public class ThresholdOutputStream extends OutputStream {
      * Constructor.
      * 
      * @param tempDir
-     *            temp directory
+     *            temp directory or <code>null</code> for the default temp
+     *            directory
      * @param memoryThreshold
      *            memory threshold in bytes
      * @param maxContentSize
@@ -103,11 +110,14 @@ public class ThresholdOutputStream extends OutputStream {
      * @param initSize
      *            initial internal buffer size
      * @param tempDir
-     *            temp directory
+     *            temp directory or <code>null</code> for the default temp
+     *            directory
      * @param memoryThreshold
      *            memory threshold in bytes
      * @param maxContentSize
      *            max size of the content in bytes (-1 to disable the check)
+     * @param encrypt
+     *            indicates if temporary files must be encrypted
      */
     public ThresholdOutputStream(int initSize, File tempDir, int memoryThreshold, long maxContentSize, boolean encrypt) {
         if (initSize < 0) {
@@ -258,7 +268,10 @@ public class ThresholdOutputStream extends OutputStream {
         }
 
         if (tempFile != null) {
-            tempFile.delete();
+            boolean isDeleted = tempFile.delete();
+            if (!isDeleted) {
+                LOG.warn("Temp file " + tempFile.getAbsolutePath() + " could not be deleted!");
+            }
         }
 
         buf = null;
@@ -398,6 +411,10 @@ public class ThresholdOutputStream extends OutputStream {
                 return -1;
             }
 
+            if (len == 0) {
+                return 0;
+            }
+
             if ((pos + len) > bufSize) {
                 len = (bufSize - pos);
             }
@@ -414,12 +431,12 @@ public class ThresholdOutputStream extends OutputStream {
                 return -1;
             }
 
-            if ((pos + n) > bufSize) {
-                n = bufSize - pos;
+            if (n <= 0) {
+                return 0;
             }
 
-            if (n < 0) {
-                return 0;
+            if ((pos + n) > bufSize) {
+                n = bufSize - pos;
             }
 
             pos += n;
@@ -451,6 +468,7 @@ public class ThresholdOutputStream extends OutputStream {
                     cipher = Cipher.getInstance(TRANSFORMATION);
                     cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
                 } catch (Exception e) {
+                    delete();
                     throw new IOException("Cannot initialize decryption cipher!", e);
                 }
             } else {
@@ -535,13 +553,8 @@ public class ThresholdOutputStream extends OutputStream {
 
             int b = stream.read();
 
-            if (b == -1 && !isDeleted) {
-                try {
-                    stream.close();
-                    isClosed = true;
-                } catch (Exception e) {
-                }
-                isDeleted = tempFile.delete();
+            if (b == -1) {
+                delete();
             }
 
             return b;
@@ -560,13 +573,8 @@ public class ThresholdOutputStream extends OutputStream {
 
             int n = super.read(b, off, len);
 
-            if (n == -1 && !isDeleted) {
-                try {
-                    stream.close();
-                    isClosed = true;
-                } catch (Exception e) {
-                }
-                isDeleted = tempFile.delete();
+            if (n == -1) {
+                delete();
             }
 
             return n;
@@ -574,16 +582,24 @@ public class ThresholdOutputStream extends OutputStream {
 
         @Override
         public void close() throws IOException {
+            delete();
+        }
+
+        protected void delete() {
             if (!isClosed) {
                 try {
                     stream.close();
                     isClosed = true;
                 } catch (Exception e) {
+                    // ignore
                 }
             }
 
             if (!isDeleted) {
                 isDeleted = tempFile.delete();
+                if (!isDeleted) {
+                    LOG.warn("Temp file " + tempFile.getAbsolutePath() + " could not be deleted!");
+                }
             }
         }
     }

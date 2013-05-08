@@ -31,6 +31,7 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractTypeDefinition;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.TypeDefinitionListImpl;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.inmemory.TypeValidator;
@@ -152,12 +153,11 @@ public class InMemoryRepositoryServiceImpl extends InMemoryAbstractServiceImpl {
         if (null == typeManager)
             throw new CmisInvalidArgumentException("Unknown repository " + repositoryId);
         
-        TypeValidator.checkType(typeManager, type);
-        if (null != type.getPropertyDefinitions())
-            TypeValidator.checkProperties(typeManager, type.getPropertyDefinitions().values());
-        
-        typeManager.addTypeDefinition(type);
-        return type;
+        AbstractTypeDefinition newType = TypeValidator.completeType(type);
+        TypeValidator.adjustTypeNamesAndId(newType);
+        TypeValidator.checkType(typeManager, newType);
+        typeManager.addTypeDefinition(newType);
+        return newType;
     }
 
     public TypeDefinition updateType(String repositoryId, TypeDefinition type, ExtensionsData extension) {

@@ -29,14 +29,6 @@ public final class Constants {
     private Constants() {
     }
 
-    // namespaces
-    public static final String NAMESPACE_CMIS = "http://docs.oasis-open.org/ns/cmis/core/200908/";
-    public static final String NAMESPACE_ATOM = "http://www.w3.org/2005/Atom";
-    public static final String NAMESPACE_APP = "http://www.w3.org/2007/app";
-    public static final String NAMESPACE_RESTATOM = "http://docs.oasis-open.org/ns/cmis/restatom/200908/";
-    public static final String NAMESPACE_XSI = "http://www.w3.org/2001/XMLSchema-instance";
-    public static final String NAMESPACE_APACHE_CHEMISTRY = "http://chemistry.apache.org/";
-
     // media types
     public static final String MEDIATYPE_SERVICE = "application/atomsvc+xml";
     public static final String MEDIATYPE_FEED = "application/atom+xml;type=feed";
@@ -55,6 +47,7 @@ public final class Constants {
     public static final String COLLECTION_QUERY = "query";
     public static final String COLLECTION_CHECKEDOUT = "checkedout";
     public static final String COLLECTION_UNFILED = "unfiled";
+    public static final String COLLECTION_BULK_UPDATE = "update";
 
     // URI templates
     public static final String TEMPLATE_OBJECT_BY_ID = "objectbyid";
@@ -171,6 +164,7 @@ public final class Constants {
     public static final String PARAM_ACL = "includeACL";
     public static final String PARAM_ALLOWABLE_ACTIONS = "includeAllowableActions";
     public static final String PARAM_ALL_VERSIONS = "allVersions";
+    public static final String PARAM_APPEND = "append";
     public static final String PARAM_CHANGE_LOG_TOKEN = "changeLogToken";
     public static final String PARAM_CHANGE_TOKEN = "changeToken";
     public static final String PARAM_CHECKIN_COMMENT = "checkinComment";
@@ -183,6 +177,7 @@ public final class Constants {
     public static final String PARAM_SUCCINCT = "succinct";
     public static final String PARAM_FOLDER_ID = "folderId";
     public static final String PARAM_ID = "id";
+    public static final String PARAM_IS_LAST_CHUNK = "isLastChunk";
     public static final String PARAM_MAJOR = "major";
     public static final String PARAM_MAX_ITEMS = "maxItems";
     public static final String PARAM_OBJECT_ID = "objectId";

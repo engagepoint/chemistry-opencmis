@@ -28,12 +28,13 @@ import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.com
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.compileUrl;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.CONTEXT_OBJECT_ID;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.CONTEXT_OBJECT_TYPE_ID;
+import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.closeContentStream;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createAddAcl;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createContentStream;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createCookieValue;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createPolicies;
-import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createUpdateProperties;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createRemoveAcl;
+import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.createUpdateProperties;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.getSimpleObject;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.setCookie;
 import static org.apache.chemistry.opencmis.server.impl.browser.BrowserBindingUtils.setStatus;
@@ -48,6 +49,7 @@ import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
@@ -88,7 +90,7 @@ public final class VersioningService {
 
         // return object
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         // set headers
         String location = compileUrl(compileBaseUrl(request, repositoryId), RESOURCE_CONTENT, object.getId());
@@ -134,11 +136,15 @@ public final class VersioningService {
         ControlParser cp = new ControlParser(request);
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
         Holder<String> objectIdHolder = new Holder<String>(objectId);
+        ContentStream contentStream = createContentStream(request);
 
-        service.checkIn(repositoryId, objectIdHolder, major,
-                createUpdateProperties(cp, typeId, null, Collections.singletonList(objectId), typeCache),
-                createContentStream(request), checkinComment, createPolicies(cp), createAddAcl(cp),
-                createRemoveAcl(cp), null);
+        try {
+            service.checkIn(repositoryId, objectIdHolder, major,
+                    createUpdateProperties(cp, typeId, null, Collections.singletonList(objectId), typeCache),
+                    contentStream, checkinComment, createPolicies(cp), createAddAcl(cp), createRemoveAcl(cp), null);
+        } finally {
+            closeContentStream(contentStream);
+        }
 
         String newObjectId = (objectIdHolder.getValue() == null ? objectId : objectIdHolder.getValue());
 
@@ -148,7 +154,7 @@ public final class VersioningService {
         }
 
         // return object
-        JSONObject jsonObject = JSONConverter.convert(object, typeCache, false, succinct);
+        JSONObject jsonObject = JSONConverter.convert(object, typeCache, JSONConverter.PropertyMode.OBJECT, succinct);
 
         String location = compileUrl(compileBaseUrl(request, repositoryId), RESOURCE_CONTENT, object.getId());
 
@@ -183,7 +189,7 @@ public final class VersioningService {
         TypeCache typeCache = new ServerTypeCacheImpl(repositoryId, service);
         JSONArray jsonVersions = new JSONArray();
         for (ObjectData version : versions) {
-            jsonVersions.add(JSONConverter.convert(version, typeCache, false, succinct));
+            jsonVersions.add(JSONConverter.convert(version, typeCache, JSONConverter.PropertyMode.OBJECT, succinct));
         }
 
         response.setStatus(HttpServletResponse.SC_OK);

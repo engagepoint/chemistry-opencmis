@@ -31,6 +31,14 @@ public class XMLConstants {
     public static final String NAMESPACE_XSI = "http://www.w3.org/2001/XMLSchema-instance";
     public static final String NAMESPACE_APACHE_CHEMISTRY = "http://chemistry.apache.org/";
 
+    // prefixes
+    public static final String PREFIX_XSI = "xsi";
+    public static final String PREFIX_ATOM = "atom";
+    public static final String PREFIX_APP = "app";
+    public static final String PREFIX_CMIS = "cmis";
+    public static final String PREFIX_RESTATOM = "cmisra";
+    public static final String PREFIX_APACHE_CHEMISTY = "chemistry";
+
     // tags
     public static final String TAG_REPOSITORY_INFO = "repositoryInfo";
 
@@ -108,7 +116,7 @@ public class XMLConstants {
     public static final String TAG_FEATURE_DATA_VALUE = "value";
 
     public static final String TAG_OBJECT = "object";
-    
+
     public static final String TAG_OBJECT_PROPERTIES = "properties";
     public static final String TAG_OBJECT_ALLOWABLE_ACTIONS = "allowableActions";
     public static final String TAG_OBJECT_RELATIONSHIP = "relationship";
@@ -131,6 +139,7 @@ public class XMLConstants {
     public static final String TAG_CHANGE_EVENT_TIME = "changeTime";
 
     public static final String TAG_ACL_PERMISSISONS = "permission";
+    public static final String TAG_ACL_IS_EXACT = "permission";
     public static final String TAG_ACE_PRINCIPAL = "principal";
     public static final String TAG_ACE_PRINCIPAL_ID = "principalId";
     public static final String TAG_ACE_PERMISSIONS = "permission";
@@ -154,7 +163,7 @@ public class XMLConstants {
     public static final String TAG_PROPERTY_VALUE = "value";
 
     public static final String TAG_TYPE = "type";
-    
+
     public static final String ATTR_DOCUMENT_TYPE = "cmisTypeDocumentDefinitionType";
     public static final String ATTR_FOLDER_TYPE = "cmisTypeFolderDefinitionType";
     public static final String ATTR_RELATIONSHIP_TYPE = "cmisTypeRelationshipDefinitionType";
@@ -223,4 +232,23 @@ public class XMLConstants {
     public static final String TAG_TYPE_TYPE_MUTABILITY_CREATE = "create";
     public static final String TAG_TYPE_TYPE_MUTABILITY_UPDATE = "update";
     public static final String TAG_TYPE_TYPE_MUTABILITY_DELETE = "delete";
+
+    public static final String TAG_QUERY = "query";
+    public static final String TAG_QUERY_STATEMENT = "statement";
+    public static final String TAG_QUERY_SEARCHALLVERSIONS = "searchAllVersions";
+    public static final String TAG_QUERY_INCLUDEALLOWABLEACTIONS = "includeAllowableActions";
+    public static final String TAG_QUERY_INCLUDERELATIONSHIPS = "includeRelationships";
+    public static final String TAG_QUERY_RENDITIONFILTER = "renditionFilter";
+    public static final String TAG_QUERY_MAXITEMS = "maxItems";
+    public static final String TAG_QUERY_SKIPCOUNT = "skipCount";
+
+    public static final String TAG_BULK_UPDATE = "bulkUpdate";
+    public static final String TAG_BULK_UPDATE_ID_AND_TOKEN = "objectIdAndChangeToken";
+    public static final String TAG_BULK_UPDATE_PROPERTIES = "properties";
+    public static final String TAG_BULK_UPDATE_ADD_SECONDARY_TYPES = "addSecondaryTypeIds";
+    public static final String TAG_BULK_UPDATE_REMOVE_SECONDARY_TYPES = "removeSecondaryTypeIds";
+
+    public static final String TAG_IDANDTOKEN_ID = "id";
+    public static final String TAG_IDANDTOKEN_NEWID = "newId";
+    public static final String TAG_IDANDTOKEN_CHANGETOKEN = "changeToken";
 }

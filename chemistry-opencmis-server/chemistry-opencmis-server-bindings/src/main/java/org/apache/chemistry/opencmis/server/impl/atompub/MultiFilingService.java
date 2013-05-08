@@ -37,6 +37,7 @@ import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
+import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 
 /**
  * MultiFiling Service operations.
@@ -54,8 +55,9 @@ public final class MultiFilingService {
         // get parameters
         String removeFrom = getStringParameter(request, Constants.PARAM_REMOVE_FROM);
 
-        AtomEntryParser parser = new AtomEntryParser(context.getTempDirectory(), context.getMemoryThreshold(),
-                context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
         parser.setIgnoreAtomContentSrc(true); // needed for some clients
         parser.parse(request.getInputStream());
 
@@ -94,7 +96,8 @@ public final class MultiFilingService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -134,7 +137,8 @@ public final class MultiFilingService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 }

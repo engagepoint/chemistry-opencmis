@@ -18,11 +18,22 @@
  */
 package org.apache.chemistry.opencmis.inmemory.query;
 
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.COMPLEX_TYPE;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.FOLDER_TYPE;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_BOOLEAN;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_DATETIME;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_DECIMAL;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_INT;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_STRING;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.PROP_ID_STRING_MULTI_VALUE;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.SECONDARY_INTEGER_PROP;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.SECONDARY_STRING_PROP;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.SECONDARY_TYPE;
+import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.VERSION_PROPERTY_ID;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -41,20 +52,14 @@ import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
-import org.apache.chemistry.opencmis.commons.enums.Updatability;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.BindingsObjectFactoryImpl;
-import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIntegerDefinitionImpl;
-import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringDefinitionImpl;
 import org.apache.chemistry.opencmis.commons.spi.BindingsObjectFactory;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.commons.spi.ObjectService;
 import org.apache.chemistry.opencmis.commons.spi.VersioningService;
 import org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator;
 import org.apache.chemistry.opencmis.inmemory.storedobj.impl.ContentStreamDataImpl;
-import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
-
-import static org.apache.chemistry.opencmis.inmemory.UnitTestTypeSystemCreator.*;
 
 /**
  * Utility class that fills the in-memory repository with some test objects that
@@ -346,8 +351,7 @@ public class QueryTestDataCreator {
         gc1.set(1945, 4, 8);
 
         final Map<String, Object> propertyMap1 =
-            new HashMap<String, Object>() {
-            {
+            new HashMap<String, Object>() {{
                 put(PROP_ID_STRING, "Secondary");
                 put(PROP_ID_INT, Integer.valueOf(-100));
                 put(PROP_ID_DECIMAL, Double.valueOf(-4.0E24d));
@@ -362,19 +366,18 @@ public class QueryTestDataCreator {
         assertNotNull(doc1);
         
         final Map<String, Object> propertyMap2 =
-                new HashMap<String, Object>() {
-                {
-                    put(PROP_ID_STRING, "Secondary 2");
-                    put(PROP_ID_INT, Integer.valueOf(123));
-                    put(PROP_ID_DECIMAL, Double.valueOf(1.23E24d));
-                    put(PROP_ID_BOOLEAN, false);
-                    put(SECONDARY_STRING_PROP, stringPropVal2);
-                    put(SECONDARY_INTEGER_PROP,intPropVal2);
-                    put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, SECONDARY_TYPE);     
-                }};
-            ContentStream content2 = createContent("Even still some more content.");
-            doc1 = createDocument("docwithsecondary2", rootFolderId, COMPLEX_TYPE, propertyMap2, content2);
-            assertNotNull(doc1);
+            new HashMap<String, Object>() {{
+                put(PROP_ID_STRING, "Secondary 2");
+                put(PROP_ID_INT, Integer.valueOf(123));
+                put(PROP_ID_DECIMAL, Double.valueOf(1.23E24d));
+                put(PROP_ID_BOOLEAN, false);
+                put(SECONDARY_STRING_PROP, stringPropVal2);
+                put(SECONDARY_INTEGER_PROP,intPropVal2);
+                put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, SECONDARY_TYPE);     
+            }};
+        ContentStream content2 = createContent("Even still some more content.");
+        doc1 = createDocument("docwithsecondary2", rootFolderId, COMPLEX_TYPE, propertyMap2, content2);
+        assertNotNull(doc1);
     }
     
     

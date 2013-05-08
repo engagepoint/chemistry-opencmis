@@ -19,6 +19,7 @@
 package org.apache.chemistry.opencmis.server.impl.atompub;
 
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.PAGE_SIZE;
+import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_BULK_UPDATE;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_CHANGES;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_CHECKEDOUT;
 import static org.apache.chemistry.opencmis.server.impl.atompub.AtomPubUtils.RESOURCE_CHILDREN;
@@ -56,11 +57,13 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityQuery;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.server.impl.CallContextImpl;
+import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 
 /**
  * Repository Service operations.
@@ -104,6 +107,7 @@ public final class RepositoryService {
         serviceDoc.startServiceDocument();
 
         if (infoDataList != null) {
+            CmisVersion cmisVersion = context.getCmisVersion();
             for (RepositoryInfo infoData : infoDataList) {
                 if (infoData == null) {
                     continue;
@@ -174,11 +178,14 @@ public final class RepositoryService {
                 if (supportsUnFiling || supportsMultifiling) {
                     serviceDoc.writeCollection(compileUrl(baseUrl, RESOURCE_UNFILED, null),
                             Constants.COLLECTION_UNFILED, "Unfiled Collection", Constants.MEDIATYPE_CMISATOM);
-
                 }
 
+                // - bulk update collection
+                serviceDoc.writeCollection(compileUrl(baseUrl, RESOURCE_BULK_UPDATE, null),
+                        Constants.COLLECTION_BULK_UPDATE, "Bulk Update Collection", Constants.MEDIATYPE_CMISATOM);
+
                 // add repository info
-                serviceDoc.writeRepositoryInfo(infoData);
+                serviceDoc.writeRepositoryInfo(infoData, cmisVersion);
 
                 // add links
 
@@ -286,6 +293,8 @@ public final class RepositoryService {
         UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_TYPES, null);
         selfLink.addParameter(Constants.PARAM_TYPE_ID, typeId);
         selfLink.addParameter(Constants.PARAM_PROPERTY_DEFINITIONS, includePropertyDefinitions);
+        selfLink.addParameter(Constants.PARAM_MAX_ITEMS, maxItems);
+        selfLink.addParameter(Constants.PARAM_SKIP_COUNT, skipCount);
         feed.writeSelfLink(selfLink.toString(), typeId);
 
         feed.writeViaLink(compileUrl(baseUrl, RESOURCE_TYPE, typeId));
@@ -313,7 +322,7 @@ public final class RepositoryService {
         if ((typeList != null) && (typeList.getList() != null)) {
             AtomEntry entry = new AtomEntry(feed.getWriter());
             for (TypeDefinition type : typeList.getList()) {
-                writeTypeEntry(entry, type, null, repositoryId, baseUrl, false);
+                writeTypeEntry(entry, type, null, repositoryId, baseUrl, false, context.getCmisVersion());
             }
         }
 
@@ -387,7 +396,7 @@ public final class RepositoryService {
             for (TypeDefinitionContainer container : typeTree) {
                 if ((container != null) && (container.getTypeDefinition() != null)) {
                     writeTypeEntry(entry, container.getTypeDefinition(), container.getChildren(), repositoryId,
-                            baseUrl, false);
+                            baseUrl, false, context.getCmisVersion());
                 }
             }
         }
@@ -414,7 +423,81 @@ public final class RepositoryService {
 
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeTypeEntry(entry, type, null, repositoryId, compileBaseUrl(request, repositoryId), true);
+        writeTypeEntry(entry, type, null, repositoryId, compileBaseUrl(request, repositoryId), true,
+                context.getCmisVersion());
         entry.endDocument();
+    }
+
+    /**
+     * Creates a type.
+     */
+    public static void createType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // parse entry
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
+        parser.parse(request.getInputStream());
+
+        // execute
+        TypeDefinition newType = service.createType(repositoryId, parser.getTypeDefinition(), null);
+
+        // set headers
+        UrlBuilder baseUrl = compileBaseUrl(request, repositoryId);
+
+        response.setStatus(HttpServletResponse.SC_CREATED);
+        response.setContentType(Constants.MEDIATYPE_ENTRY);
+        response.setHeader("Location", compileUrl(baseUrl, RESOURCE_TYPE, newType.getId()));
+
+        // write XML
+        AtomEntry entry = new AtomEntry();
+        entry.startDocument(response.getOutputStream(), getNamespaces(service));
+        writeTypeEntry(entry, newType, null, repositoryId, compileBaseUrl(request, repositoryId), true,
+                context.getCmisVersion());
+        entry.endDocument();
+    }
+
+    /**
+     * Updates a type.
+     */
+    public static void updateType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // parse entry
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
+        parser.parse(request.getInputStream());
+
+        // execute
+        TypeDefinition newType = service.updateType(repositoryId, parser.getTypeDefinition(), null);
+
+        // set headers
+        UrlBuilder baseUrl = compileBaseUrl(request, repositoryId);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType(Constants.MEDIATYPE_ENTRY);
+        response.setHeader("Location", compileUrl(baseUrl, RESOURCE_TYPE, newType.getId()));
+
+        // write XML
+        AtomEntry entry = new AtomEntry();
+        entry.startDocument(response.getOutputStream(), getNamespaces(service));
+        writeTypeEntry(entry, newType, null, repositoryId, compileBaseUrl(request, repositoryId), true,
+                context.getCmisVersion());
+        entry.endDocument();
+    }
+
+    /**
+     * Deletes a type.
+     */
+    public static void deleteType(CallContext context, CmisService service, String repositoryId,
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // get parameters
+        String typeId = getStringParameter(request, Constants.PARAM_ID);
+
+        // execute
+        service.deleteType(repositoryId, typeId, null);
+
+        // set headers
+        response.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
 }

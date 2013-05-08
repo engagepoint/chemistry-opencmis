@@ -39,6 +39,7 @@ import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
+import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 
 /**
  * Versioning Service operations.
@@ -54,8 +55,9 @@ public final class VersioningService {
     public static void checkOut(CallContext context, CmisService service, String repositoryId,
             HttpServletRequest request, HttpServletResponse response) throws Exception {
         // get parameters
-        AtomEntryParser parser = new AtomEntryParser(context.getTempDirectory(), context.getMemoryThreshold(),
-                context.getMaxContentSize(), context.encryptTempFiles());
+        ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
+                .get(CallContext.STREAM_FACTORY);
+        AtomEntryParser parser = new AtomEntryParser(streamFactory);
         parser.setIgnoreAtomContentSrc(true); // needed for some clients
         parser.parse(request.getInputStream());
 
@@ -89,7 +91,8 @@ public final class VersioningService {
         // write XML
         AtomEntry entry = new AtomEntry();
         entry.startDocument(response.getOutputStream(), getNamespaces(service));
-        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true);
+        writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, true,
+                context.getCmisVersion());
         entry.endDocument();
     }
 
@@ -143,7 +146,8 @@ public final class VersioningService {
             if (object == null) {
                 continue;
             }
-            writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, false);
+            writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, false,
+                    context.getCmisVersion());
         }
 
         // we are done

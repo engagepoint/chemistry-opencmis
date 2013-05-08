@@ -18,12 +18,14 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.webservices;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertExtensionHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setExtensionValues;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convert;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertExtensionHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setExtensionValues;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.xml.ws.Holder;
 
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
@@ -34,8 +36,6 @@ import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisExtensionType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.PolicyServicePort;
 import org.apache.chemistry.opencmis.commons.spi.PolicyService;
-
-import javax.xml.ws.Holder;
 
 /**
  * Policy Service Web Services client.
@@ -53,7 +53,7 @@ public class PolicyServiceImpl extends AbstractWebServicesService implements Pol
     }
 
     public void applyPolicy(String repositoryId, String policyId, String objectId, ExtensionsData extension) {
-        PolicyServicePort port = portProvider.getPolicyServicePort();
+        PolicyServicePort port = portProvider.getPolicyServicePort(getCmisVersion(repositoryId), "applyPolicy");
 
         try {
             Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
@@ -71,7 +71,7 @@ public class PolicyServiceImpl extends AbstractWebServicesService implements Pol
     }
 
     public void removePolicy(String repositoryId, String policyId, String objectId, ExtensionsData extension) {
-        PolicyServicePort port = portProvider.getPolicyServicePort();
+        PolicyServicePort port = portProvider.getPolicyServicePort(getCmisVersion(repositoryId), "removePolicy");
 
         try {
             Holder<CmisExtensionType> portExtension = convertExtensionHolder(extension);
@@ -90,7 +90,7 @@ public class PolicyServiceImpl extends AbstractWebServicesService implements Pol
 
     public List<ObjectData> getAppliedPolicies(String repositoryId, String objectId, String filter,
             ExtensionsData extension) {
-        PolicyServicePort port = portProvider.getPolicyServicePort();
+        PolicyServicePort port = portProvider.getPolicyServicePort(getCmisVersion(repositoryId), "getAppliedPolicies");
 
         try {
             List<CmisObjectType> policyList = port.getAppliedPolicies(repositoryId, objectId, filter,

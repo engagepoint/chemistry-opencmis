@@ -110,7 +110,7 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     		return NodeType.MIX_VERSIONABLE;
     	}
     	
-    	throw new RepositoryException("The repository is not support versioning.");
+    	throw new RepositoryException("The repository does not support versioning!");
     }
 
 

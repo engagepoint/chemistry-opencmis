@@ -48,6 +48,7 @@ import org.apache.chemistry.opencmis.inmemory.DataObjectCreator;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
 import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
+import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
 
 /**
  * StoredObject is the common superclass of all objects hold in the repository
@@ -75,6 +76,7 @@ public class StoredObjectImpl implements StoredObject {
     protected int fAclId;
     protected String description; // CMIS 1.1
     protected List<String> secondaryTypeIds; // CMIS 1.1
+    protected List<String> policyIds;
 
     StoredObjectImpl(ObjectStoreImpl objStore) { // visibility should be package
         GregorianCalendar now = getNow();
@@ -83,6 +85,7 @@ public class StoredObjectImpl implements StoredObject {
         fModifiedAt = now;
         fObjStore = objStore;
         secondaryTypeIds = new ArrayList<String>();
+        policyIds = null;
     }
 
     public String getId() {
@@ -145,6 +148,42 @@ public class StoredObjectImpl implements StoredObject {
         return fRepositoryId;
     }
     
+    public List<String> getAppliedPolicies() {
+        if (null == policyIds)
+            return null;
+        else
+            return Collections.unmodifiableList(policyIds);
+    }
+    
+    public void setAppliedPolicies(List<String> newPolicies) {
+        if (null == newPolicies) {
+            policyIds = null;
+        } else {
+            if (null == policyIds) {
+                policyIds = new ArrayList<String>();
+            }
+            policyIds.addAll(newPolicies);
+        }
+    }
+    
+    public void addAppliedPolicy(String policyId) {
+        if (null == policyIds) {
+            policyIds = new ArrayList<String>();
+        }
+        if (!policyIds.contains(policyId)) {
+            policyIds.add(policyId);
+        }
+    }
+
+    public void removePolicy(String policyId) {
+        if (null != policyIds && policyIds.contains(policyId)) {
+            policyIds.remove(policyId);
+            if (policyIds.isEmpty()) {
+                policyIds = null;
+            }
+        }
+    }
+    
     // CMIS 1.1:
     public void setDescription(String descr) {
         description = descr;
@@ -188,8 +227,6 @@ public class StoredObjectImpl implements StoredObject {
     public void fillProperties(Map<String, PropertyData<?>> properties, BindingsObjectFactory objFactory,
             List<String> requestedIds) {
         
-        boolean cmis11 = InMemoryServiceContext.getCallContext().getCmisVersion() != CmisVersion.CMIS_1_0;
-
         if (FilterParser.isContainedInFilter(PropertyIds.NAME, requestedIds)) {
             properties.put(PropertyIds.NAME, objFactory.createPropertyStringData(PropertyIds.NAME, getName()));
         }
@@ -228,10 +265,15 @@ public class StoredObjectImpl implements StoredObject {
                     token));
         }
         
-        if (cmis11 && FilterParser.isContainedInFilter(PropertyIds.DESCRIPTION, requestedIds)) {
+        // CMIS 1.1 properties:
+        if (FilterParser.isContainedInFilter(PropertyIds.DESCRIPTION, requestedIds)) {
             properties.put(PropertyIds.DESCRIPTION, objFactory.createPropertyStringData(PropertyIds.DESCRIPTION,
                     description));
         }
+        if (FilterParser.isContainedInFilter(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, requestedIds)) {
+            properties.put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, objFactory.createPropertyIdData(PropertyIds.SECONDARY_OBJECT_TYPE_IDS,
+                    secondaryTypeIds));
+        }            
 
         // add custom properties of type definition to the collection
         if (null != fProperties) {
@@ -439,13 +481,10 @@ public class StoredObjectImpl implements StoredObject {
 	    fAclId = aclId;
 	}
 	
-	public ObjectList getObjectRelationships(
-			Boolean includeSubRelationshipTypes,
-			RelationshipDirection relationshipDirection, String typeId,
-			String filter, Boolean includeAllowableActions,
-			BigInteger maxItems, BigInteger skipCount,
-			ExtensionsData extension, String user) {
-		return null;
+    public List<StoredObject> getObjectRelationships(RelationshipDirection relationshipDirection, String user) {
+	    
+        List<StoredObject> rels = fObjStore.getRelationships(getId(), null, relationshipDirection);
+		return rels;
 	}
 
 	public AllowableActions getAllowableActions(String user) {

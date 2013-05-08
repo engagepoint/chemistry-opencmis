@@ -18,6 +18,9 @@
  */
 package org.apache.chemistry.opencmis.inmemory.server;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
@@ -41,15 +44,19 @@ public class InMemoryAbstractServiceImpl {
 
     protected final StoreManager fStoreManager;
     protected final CmisServiceValidator validator;
+    protected final AtomLinkInfoProvider fAtomLinkProvider;
 
     protected InMemoryAbstractServiceImpl(StoreManager storeManager, CmisServiceValidator validator) {
         this.fStoreManager = storeManager;
         this.validator = validator;
+        this.fAtomLinkProvider = new AtomLinkInfoProvider(fStoreManager);
+
     }
 
     protected InMemoryAbstractServiceImpl(StoreManager storeManager) {
         this.fStoreManager = storeManager;
         this.validator = storeManager.getServiceValidator();
+        this.fAtomLinkProvider = new AtomLinkInfoProvider(fStoreManager);
     }
 
     protected TypeDefinition getTypeDefinition(String repositoryId, Properties properties) {
@@ -63,6 +70,22 @@ public class InMemoryAbstractServiceImpl {
         }
 
         return typeDefC.getTypeDefinition();
+    }
+
+    protected List<TypeDefinition> getTypeDefinition(String repositoryId, List<String> typeIds) {
+        if (null == typeIds || typeIds.isEmpty())
+            return null;
+        
+        List<TypeDefinition> result = new ArrayList<TypeDefinition>(typeIds.size());
+        for (String typeId : typeIds) {
+            TypeDefinitionContainer typeDefC = fStoreManager.getTypeById(repositoryId, typeId);
+            if (typeDefC == null) {
+                throw new CmisInvalidArgumentException("Cannot create object, a type with id " + typeId + " is unknown");
+            }
+            result.add(typeDefC.getTypeDefinition());
+        }
+
+        return result;
     }
 
     protected TypeDefinition getTypeDefinition(String repositoryId, StoredObject obj) {

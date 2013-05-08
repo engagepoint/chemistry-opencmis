@@ -18,9 +18,6 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.atompub;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertPolicyIds;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
@@ -48,6 +45,7 @@ import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.chemistry.opencmis.commons.data.PropertyId;
+import org.apache.chemistry.opencmis.commons.data.PropertyString;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
@@ -61,11 +59,10 @@ import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.MimeHelper;
 import org.apache.chemistry.opencmis.commons.impl.ReturnVersion;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateObjectIdAndChangeTokenImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ContentStreamImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.FailedToDeleteDataImpl;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisProperty;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisPropertyString;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.commons.spi.ObjectService;
 
@@ -110,12 +107,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         UrlBuilder url = new UrlBuilder(link);
         url.addParameter(Constants.PARAM_VERSIONIG_STATE, versioningState);
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-        object.setPolicyIds(convertPolicyIds(policies));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object, contentStream);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+                getCmisVersion(repositoryId), contentStream);
 
         // post the new folder object
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -152,12 +146,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
         UrlBuilder url = new UrlBuilder(link);
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-        object.setPolicyIds(convertPolicyIds(policies));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+                getCmisVersion(repositoryId));
 
         // post the new folder object
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -202,12 +193,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
         UrlBuilder url = new UrlBuilder(link);
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-        object.setPolicyIds(convertPolicyIds(policies));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+                getCmisVersion(repositoryId));
 
         // post the new folder object
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -248,12 +236,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
         UrlBuilder url = new UrlBuilder(link);
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-        object.setPolicyIds(convertPolicyIds(policies));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+                getCmisVersion(repositoryId));
 
         // post the new folder object
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -295,12 +280,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
         UrlBuilder url = new UrlBuilder(link);
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-        object.setPolicyIds(convertPolicyIds(policies));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+                getCmisVersion(repositoryId));
 
         // post the new folder object
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -337,11 +319,9 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
             url.addParameter(Constants.PARAM_CHANGE_TOKEN, changeToken.getValue());
         }
 
-        // set up object and writer
-        CmisObjectType object = new CmisObjectType();
-        object.setProperties(convert(properties));
-
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(object);
+        // set up writer
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, null),
+                getCmisVersion(repositoryId));
 
         // update
         Response resp = put(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -374,23 +354,16 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
             for (AtomElement element : entry.getElements()) {
                 if (element.getObject() instanceof AtomLink) {
                     addLink(repositoryId, entry.getId(), (AtomLink) element.getObject());
-                } else if (element.getObject() instanceof CmisObjectType) {
+                } else if (element.getObject() instanceof ObjectData) {
                     // extract new change token
                     if (changeToken != null) {
-                        object = (CmisObjectType) element.getObject();
+                        ObjectData object = (ObjectData) element.getObject();
 
                         if (object.getProperties() != null) {
-                            for (CmisProperty property : object.getProperties().getProperty()) {
-                                if (PropertyIds.CHANGE_TOKEN.equals(property.getPropertyDefinitionId())
-                                        && (property instanceof CmisPropertyString)) {
-
-                                    CmisPropertyString changeTokenProperty = (CmisPropertyString) property;
-                                    if (!changeTokenProperty.getValue().isEmpty()) {
-                                        changeToken.setValue(changeTokenProperty.getValue().get(0));
-                                    }
-
-                                    break;
-                                }
+                            Object changeTokenStr = object.getProperties().getProperties()
+                                    .get(PropertyIds.CHANGE_TOKEN);
+                            if (changeTokenStr instanceof PropertyString) {
+                                changeToken.setValue(((PropertyString) changeTokenStr).getFirstValue());
                             }
                         }
                     }
@@ -404,7 +377,60 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
     public List<BulkUpdateObjectIdAndChangeToken> bulkUpdateProperties(String repositoryId,
             List<BulkUpdateObjectIdAndChangeToken> objectIdAndChangeToken, Properties properties,
             List<String> addSecondaryTypeIds, List<String> removeSecondaryTypeIds, ExtensionsData extension) {
-        throw new CmisNotSupportedException("Not supported!");
+        // find link
+        String link = loadCollection(repositoryId, Constants.COLLECTION_BULK_UPDATE);
+
+        if (link == null) {
+            throw new CmisObjectNotFoundException("Unknown repository or bulk update properties is not supported!");
+        }
+
+        // set up writer
+        final BulkUpdateImpl bulkUpdate = new BulkUpdateImpl();
+        bulkUpdate.setObjectIdAndChangeToken(objectIdAndChangeToken);
+        bulkUpdate.setProperties(properties);
+        bulkUpdate.setAddSecondaryTypeIds(addSecondaryTypeIds);
+        bulkUpdate.setRemoveSecondaryTypeIds(removeSecondaryTypeIds);
+
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(bulkUpdate);
+
+        // post the new folder object
+        Response resp = post(new UrlBuilder(link), Constants.MEDIATYPE_ENTRY, new Output() {
+            public void write(OutputStream out) throws Exception {
+                entryWriter.write(out);
+            }
+        });
+
+        AtomFeed feed = parse(resp.getStream(), AtomFeed.class);
+        List<BulkUpdateObjectIdAndChangeToken> result = new ArrayList<BulkUpdateObjectIdAndChangeToken>(feed
+                .getEntries().size());
+
+        // get the results
+        if (!feed.getEntries().isEmpty()) {
+
+            for (AtomEntry entry : feed.getEntries()) {
+                // walk through the entry
+                // we are not interested in the links this time because they
+                // could belong to a new document version
+                for (AtomElement element : entry.getElements()) {
+                    if (element.getObject() instanceof ObjectData) {
+                        ObjectData object = (ObjectData) element.getObject();
+                        String id = object.getId();
+                        if (id != null) {
+                            String changeToken = null;
+                            PropertyData<?> changeTokenProp = object.getProperties().getProperties()
+                                    .get(PropertyIds.CHANGE_TOKEN);
+                            if (changeTokenProp instanceof PropertyString) {
+                                changeToken = ((PropertyString) changeTokenProp).getFirstValue();
+                            }
+
+                            result.add(new BulkUpdateObjectIdAndChangeTokenImpl(id, changeToken));
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     public void deleteObject(String repositoryId, String objectId, Boolean allVersions, ExtensionsData extension) {
@@ -518,7 +544,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         Response resp = read(url);
         AtomAllowableActions allowableActions = parse(resp.getStream(), AtomAllowableActions.class);
 
-        return convert(allowableActions.getAllowableActions());
+        return allowableActions.getAllowableActions();
     }
 
     public ContentStream getContentStream(String repositoryId, String objectId, String streamId, BigInteger offset,
@@ -622,7 +648,8 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         url.addParameter(Constants.PARAM_SOURCE_FOLDER_ID, sourceFolderId);
 
         // set up object and writer
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId.getValue()));
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId.getValue()),
+                getCmisVersion(repositoryId));
 
         // post move request
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
@@ -639,62 +666,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
     public void setContentStream(String repositoryId, Holder<String> objectId, Boolean overwriteFlag,
             Holder<String> changeToken, ContentStream contentStream, ExtensionsData extension) {
-        // we need an object id
-        if ((objectId == null) || (objectId.getValue() == null)) {
-            throw new CmisInvalidArgumentException("Object ID must be set!");
-        }
-
-        // we need content
-        if ((contentStream == null) || (contentStream.getStream() == null) || (contentStream.getMimeType() == null)) {
-            throw new CmisInvalidArgumentException("Content must be set!");
-        }
-
-        // find the link
-        String link = loadLink(repositoryId, objectId.getValue(), Constants.REL_EDITMEDIA, null);
-
-        if (link == null) {
-            throwLinkException(repositoryId, objectId.getValue(), Constants.REL_EDITMEDIA, null);
-        }
-
-        UrlBuilder url = new UrlBuilder(link);
-        if (changeToken != null) {
-            url.addParameter(Constants.PARAM_CHANGE_TOKEN, changeToken.getValue());
-        }
-        url.addParameter(Constants.PARAM_OVERWRITE_FLAG, overwriteFlag);
-
-        final InputStream stream = contentStream.getStream();
-
-        // Content-Disposition header for the filename
-        Map<String, String> headers = null;
-        if (contentStream.getFileName() != null) {
-            headers = Collections
-                    .singletonMap(
-                            MimeHelper.CONTENT_DISPOSITION,
-                            MimeHelper.encodeContentDisposition(MimeHelper.DISPOSITION_ATTACHMENT,
-                                    contentStream.getFileName()));
-        }
-
-        // send content
-        Response resp = put(url, contentStream.getMimeType(), headers, new Output() {
-            public void write(OutputStream out) throws Exception {
-                int b;
-                byte[] buffer = new byte[4096];
-
-                while ((b = stream.read(buffer)) > -1) {
-                    out.write(buffer, 0, b);
-                }
-            }
-        });
-
-        // check response code further
-        if ((resp.getResponseCode() != 200) && (resp.getResponseCode() != 201) && (resp.getResponseCode() != 204)) {
-            throw convertStatusCode(resp.getResponseCode(), resp.getResponseMessage(), resp.getErrorContent(), null);
-        }
-
-        objectId.setValue(null);
-        if (changeToken != null) {
-            changeToken.setValue(null);
-        }
+        setOrAppendContent(repositoryId, objectId, overwriteFlag, changeToken, contentStream, true, false, extension);
     }
 
     public void deleteContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
@@ -726,7 +698,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
 
     public void appendContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             ContentStream contentStream, boolean isLastChunk, ExtensionsData extension) {
-        throw new CmisNotSupportedException("Not supported!");
+        setOrAppendContent(repositoryId, objectId, null, changeToken, contentStream, isLastChunk, true, extension);
     }
 
     // ---- internal ----
@@ -761,6 +733,76 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
             if (newACL != null) {
                 updateAcl(repositoryId, entry.getId(), newACL, null);
             }
+        }
+    }
+
+    /**
+     * Sets or appends content.
+     */
+    private void setOrAppendContent(String repositoryId, Holder<String> objectId, Boolean overwriteFlag,
+            Holder<String> changeToken, ContentStream contentStream, boolean isLastChunk, boolean append,
+            ExtensionsData extension) {
+        // we need an object id
+        if ((objectId == null) || (objectId.getValue() == null)) {
+            throw new CmisInvalidArgumentException("Object ID must be set!");
+        }
+
+        // we need content
+        if ((contentStream == null) || (contentStream.getStream() == null) || (contentStream.getMimeType() == null)) {
+            throw new CmisInvalidArgumentException("Content must be set!");
+        }
+
+        // find the link
+        String link = loadLink(repositoryId, objectId.getValue(), Constants.REL_EDITMEDIA, null);
+
+        if (link == null) {
+            throwLinkException(repositoryId, objectId.getValue(), Constants.REL_EDITMEDIA, null);
+        }
+
+        UrlBuilder url = new UrlBuilder(link);
+        if (changeToken != null) {
+            url.addParameter(Constants.PARAM_CHANGE_TOKEN, changeToken.getValue());
+        }
+
+        if (append) {
+            url.addParameter(Constants.PARAM_APPEND, Boolean.TRUE);
+            url.addParameter(Constants.PARAM_IS_LAST_CHUNK, isLastChunk);
+        } else {
+            url.addParameter(Constants.PARAM_OVERWRITE_FLAG, overwriteFlag);
+        }
+
+        final InputStream stream = contentStream.getStream();
+
+        // Content-Disposition header for the filename
+        Map<String, String> headers = null;
+        if (contentStream.getFileName() != null) {
+            headers = Collections
+                    .singletonMap(
+                            MimeHelper.CONTENT_DISPOSITION,
+                            MimeHelper.encodeContentDisposition(MimeHelper.DISPOSITION_ATTACHMENT,
+                                    contentStream.getFileName()));
+        }
+
+        // send content
+        Response resp = put(url, contentStream.getMimeType(), headers, new Output() {
+            public void write(OutputStream out) throws Exception {
+                int b;
+                byte[] buffer = new byte[4096];
+
+                while ((b = stream.read(buffer)) > -1) {
+                    out.write(buffer, 0, b);
+                }
+            }
+        });
+
+        // check response code further
+        if ((resp.getResponseCode() != 200) && (resp.getResponseCode() != 201) && (resp.getResponseCode() != 204)) {
+            throw convertStatusCode(resp.getResponseCode(), resp.getResponseMessage(), resp.getErrorContent(), null);
+        }
+
+        objectId.setValue(null);
+        if (changeToken != null) {
+            changeToken.setValue(null);
         }
     }
 }

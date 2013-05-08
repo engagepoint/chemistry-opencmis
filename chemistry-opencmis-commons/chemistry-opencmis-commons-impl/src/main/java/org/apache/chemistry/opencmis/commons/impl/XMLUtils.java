@@ -18,12 +18,16 @@
  */
 package org.apache.chemistry.opencmis.commons.impl;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.GregorianCalendar;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -31,14 +35,38 @@ import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 public class XMLUtils {
 
-    public static final String PREFIX_XSI = "xsi";
-    public static final String PREFIX_ATOM = "atom";
-    public static final String PREFIX_CMIS = "cmis";
-    public static final String PREFIX_RESTATOM = "cmisra";
-    public static final String PREFIX_APACHE_CHEMISTY = "chemistry";
+    private static final Logger LOG = LoggerFactory.getLogger(XMLUtils.class);
+
+    private static final XMLInputFactory XML_INPUT_FACTORY = XMLInputFactory.newInstance();
+    static {
+        try {
+            XML_INPUT_FACTORY.setProperty("reuse-instance", Boolean.FALSE);
+            LOG.warn("You are using an unsupported StAX parser.");
+        } catch (IllegalArgumentException ex) {
+        }
+
+        XML_INPUT_FACTORY.setProperty(XMLInputFactory.IS_COALESCING, Boolean.FALSE);
+        XML_INPUT_FACTORY.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
+        XML_INPUT_FACTORY.setProperty(XMLInputFactory.IS_VALIDATING, Boolean.FALSE);
+    }
+
+    private static final XMLOutputFactory XML_OUTPUT_FACTORY = XMLOutputFactory.newInstance();
+    static {
+        try {
+            XML_OUTPUT_FACTORY.setProperty("reuse-instance", Boolean.FALSE);
+            LOG.warn("You are using an unsupported StAX parser.");
+        } catch (IllegalArgumentException ex) {
+        }
+
+        XML_OUTPUT_FACTORY.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
+    }
 
     // --------------
     // --- writer ---
@@ -48,51 +76,19 @@ public class XMLUtils {
      * Creates a new XML writer.
      */
     public static XMLStreamWriter createWriter(OutputStream out) throws XMLStreamException {
-        XMLOutputFactory factory = XMLOutputFactory.newInstance();
-        factory.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.TRUE);
-        return factory.createXMLStreamWriter(out, "UTF-8");
+        return XML_OUTPUT_FACTORY.createXMLStreamWriter(out, "UTF-8");
     }
 
     /**
      * Starts a XML document.
      */
     public static void startXmlDocument(XMLStreamWriter writer) throws XMLStreamException {
-        writer.setPrefix(PREFIX_XSI, XMLConstants.NAMESPACE_XSI);
-        writer.setPrefix(PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
-        writer.setPrefix(PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
-        writer.setPrefix(PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
-        writer.setPrefix(PREFIX_APACHE_CHEMISTY, XMLConstants.NAMESPACE_APACHE_CHEMISTRY);
+        writer.setPrefix(XMLConstants.PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
+        writer.setPrefix(XMLConstants.PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
+        writer.setPrefix(XMLConstants.PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
+        writer.setPrefix(XMLConstants.PREFIX_APACHE_CHEMISTY, XMLConstants.NAMESPACE_APACHE_CHEMISTRY);
 
         writer.writeStartDocument();
-    }
-
-    /**
-     * Starts an AtomPub Entry document.
-     */
-    public static void startEntryDocument(XMLStreamWriter writer, boolean hasContent) throws XMLStreamException {
-        startXmlDocument(writer);
-
-        writer.writeStartElement(XMLConstants.NAMESPACE_ATOM, "entry");
-        writer.writeNamespace(PREFIX_XSI, XMLConstants.NAMESPACE_XSI);
-        writer.writeNamespace(PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
-        writer.writeNamespace(PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
-        writer.writeNamespace(PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
-        if (hasContent) {
-            writer.writeNamespace(PREFIX_APACHE_CHEMISTY, XMLConstants.NAMESPACE_APACHE_CHEMISTRY);
-        }
-    }
-
-    /**
-     * Starts an AtomPub Feed document.
-     */
-    public static void startFeedDocument(XMLStreamWriter writer, String tag, boolean hasContent)
-            throws XMLStreamException {
-        startXmlDocument(writer);
-
-        writer.writeStartElement(XMLConstants.NAMESPACE_ATOM, "feed");
-        writer.writeNamespace(PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
-        writer.writeNamespace(PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
-        writer.writeNamespace(PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
     }
 
     /**
@@ -100,13 +96,13 @@ public class XMLUtils {
      */
     public static void endXmlDocument(XMLStreamWriter writer) throws XMLStreamException {
         writer.writeEndDocument();
-        writer.flush();
+        writer.close();
     }
 
     /**
      * Writes a String tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, String value)
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, String value)
             throws XMLStreamException {
         if (value == null) {
             return;
@@ -115,7 +111,7 @@ public class XMLUtils {
         if (namespace == null) {
             writer.writeStartElement(tag);
         } else {
-            writer.writeStartElement(namespace, tag);
+            writer.writeStartElement(prefix, tag, namespace);
         }
         writer.writeCharacters(value);
         writer.writeEndElement();
@@ -124,55 +120,55 @@ public class XMLUtils {
     /**
      * Writes an Integer tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, BigInteger value)
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, BigInteger value)
             throws XMLStreamException {
         if (value == null) {
             return;
         }
 
-        write(writer, namespace, tag, value.toString());
+        write(writer, prefix, namespace, tag, value.toString());
     }
 
     /**
      * Writes a Decimal tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, BigDecimal value)
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, BigDecimal value)
             throws XMLStreamException {
         if (value == null) {
             return;
         }
 
-        write(writer, namespace, tag, value.toString());
+        write(writer, prefix, namespace, tag, value.toString());
     }
 
     /**
      * Writes a DateTime tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, GregorianCalendar value)
-            throws XMLStreamException {
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag,
+            GregorianCalendar value) throws XMLStreamException {
         if (value == null) {
             return;
         }
 
-        write(writer, namespace, tag, DateTimeHelper.formatXmlDateTime(value));
+        write(writer, prefix, namespace, tag, DateTimeHelper.formatXmlDateTime(value));
     }
 
     /**
      * Writes a Boolean tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, Boolean value)
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, Boolean value)
             throws XMLStreamException {
         if (value == null) {
             return;
         }
 
-        write(writer, namespace, tag, value ? "true" : "false");
+        write(writer, prefix, namespace, tag, value ? "true" : "false");
     }
 
     /**
      * Writes an Enum tag.
      */
-    public static void write(XMLStreamWriter writer, String namespace, String tag, Enum<?> value)
+    public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, Enum<?> value)
             throws XMLStreamException {
         if (value == null) {
             return;
@@ -185,7 +181,7 @@ public class XMLUtils {
             throw new XMLStreamException("Cannot get enum value", e);
         }
 
-        write(writer, namespace, tag, enumValue.toString());
+        write(writer, prefix, namespace, tag, enumValue.toString());
     }
 
     // ---------------
@@ -196,10 +192,7 @@ public class XMLUtils {
      * Creates a new XML parser with OpenCMIS default settings.
      */
     public static XMLStreamReader createParser(InputStream stream) throws XMLStreamException {
-        XMLInputFactory factory = XMLInputFactory.newInstance();
-        factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.FALSE);
-        factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
-        return factory.createXMLStreamReader(stream);
+        return XML_INPUT_FACTORY.createXMLStreamReader(stream);
     }
 
     /**
@@ -207,11 +200,36 @@ public class XMLUtils {
      */
     public static boolean next(XMLStreamReader parser) throws XMLStreamException {
         if (parser.hasNext()) {
-            parser.next();
+            try {
+                parser.next();
+            } catch (XMLStreamException e) {
+                // EOF exceptions
+                return false;
+            }
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Skips a tag or subtree.
+     */
+    public static void skip(XMLStreamReader parser) throws XMLStreamException {
+        int level = 1;
+        while (next(parser)) {
+            int event = parser.getEventType();
+            if (event == XMLStreamReader.START_ELEMENT) {
+                level++;
+            } else if (event == XMLStreamReader.END_ELEMENT) {
+                level--;
+                if (level == 0) {
+                    break;
+                }
+            }
+        }
+
+        next(parser);
     }
 
     /**
@@ -240,7 +258,7 @@ public class XMLUtils {
      * Parses a tag that contains text.
      */
     public static String readText(XMLStreamReader parser, int maxLength) throws XMLStreamException {
-        StringBuilder sb = null;
+        StringBuilder sb = new StringBuilder();
 
         next(parser);
 
@@ -249,16 +267,16 @@ public class XMLUtils {
             if (event == XMLStreamReader.END_ELEMENT) {
                 break;
             } else if (event == XMLStreamReader.CHARACTERS) {
-                String s = parser.getText();
-                if (s != null) {
-                    if (sb == null) {
-                        sb = new StringBuilder();
-                    }
-
-                    if (sb.length() + s.length() > maxLength) {
+                int len = parser.getTextLength();
+                if (len > 0) {
+                    if (sb.length() + len > maxLength) {
                         throw new CmisInvalidArgumentException("String limit exceeded!");
                     }
-                    sb.append(s);
+
+                    char[] chars = parser.getTextCharacters();
+                    int offset = parser.getTextStart();
+
+                    sb.append(chars, offset, len);
                 }
             } else if (event == XMLStreamReader.START_ELEMENT) {
                 throw new RuntimeException("Unexpected tag: " + parser.getName());
@@ -271,6 +289,44 @@ public class XMLUtils {
 
         next(parser);
 
-        return sb == null ? null : sb.toString();
+        return sb.toString();
+    }
+
+    // ------------------
+    // ---- DOM stuff ---
+    // ------------------
+
+    /**
+     * Creates a new {@link DocumentBuilder} object.
+     */
+    private static DocumentBuilder newDocumentBuilder() throws ParserConfigurationException {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setNamespaceAware(true);
+        factory.setValidating(false);
+        factory.setIgnoringComments(true);
+        factory.setExpandEntityReferences(false);
+        factory.setCoalescing(false);
+
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+
+        return factory.newDocumentBuilder();
+    }
+
+    /**
+     * Creates a new DOM document.
+     */
+    public static Document newDomDocument() throws ParserConfigurationException {
+        return newDocumentBuilder().newDocument();
+    }
+
+    /**
+     * Parses a stream and returns the DOM document.
+     */
+    public static Document parseDomDocument(InputStream stream) throws ParserConfigurationException, SAXException,
+            IOException {
+        return newDocumentBuilder().parse(stream);
     }
 }

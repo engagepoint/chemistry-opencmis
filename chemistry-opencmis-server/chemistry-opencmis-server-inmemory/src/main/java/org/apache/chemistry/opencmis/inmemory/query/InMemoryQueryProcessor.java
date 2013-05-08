@@ -60,6 +60,7 @@ import org.apache.chemistry.opencmis.server.support.query.CmisQueryWalker;
 import org.apache.chemistry.opencmis.server.support.query.CmisSelector;
 import org.apache.chemistry.opencmis.server.support.query.ColumnReference;
 import org.apache.chemistry.opencmis.server.support.query.QueryObject;
+import org.apache.chemistry.opencmis.server.support.query.QueryObject.JoinSpec;
 import org.apache.chemistry.opencmis.server.support.query.QueryObject.SortSpec;
 import org.apache.chemistry.opencmis.server.support.query.QueryUtilStrict;
 import org.apache.chemistry.opencmis.server.support.query.StringUtil;
@@ -81,6 +82,7 @@ public class InMemoryQueryProcessor {
     private QueryObject queryObj;
     private Tree whereTree;
     private ObjectStoreImpl objStore;
+    private List<TypeDefinition> secondaryTypeIds;
     
     public InMemoryQueryProcessor(ObjectStoreImpl objStore) {
         this.objStore = objStore;
@@ -113,6 +115,7 @@ public class InMemoryQueryProcessor {
         CmisQueryWalker walker = queryUtil.getWalker();
         queryObj = queryUtil.getQueryObject();
         whereTree = walker.getWherePredicateTree();
+        secondaryTypeIds = queryObj.getJoinedSecondaryTypes();
         doAdditionalChecks(walker);
     }
 
@@ -144,18 +147,18 @@ public class InMemoryQueryProcessor {
         if (start > 0 || stop > 0) {
             matches = matches.subList(start, stop);
         }
+       
+        
         List<ObjectData> objDataList = new ArrayList<ObjectData>();
         Map<String, String> props = queryObj.getRequestedPropertiesByAlias();
         Map<String, String> funcs = queryObj.getRequestedFuncsByAlias();
-        TypeDefinition fromType = queryObj.getMainFromName();
         
         for (StoredObject so : matches) {
             String queryName = queryObj.getTypes().values().iterator().next();
             TypeDefinition td = queryObj.getTypeDefinitionFromQueryName(queryName);
 
-            ObjectData od = PropertyCreationHelper.getObjectDataQueryResult(td, so, user, props, funcs,
-                    fromType, includeAllowableActions, includeRelationships, renditionFilter);
-
+            ObjectData od = PropertyCreationHelper.getObjectDataQueryResult(tm, td, so, user, props, funcs,
+                    secondaryTypeIds, includeAllowableActions, includeRelationships, renditionFilter);
             objDataList.add(od);
         }
         res.setObjects(objDataList);
@@ -243,19 +246,15 @@ public class InMemoryQueryProcessor {
     private void match(StoredObject so, String user, boolean searchAllVersions) {
         // log.debug("checkMatch() for object: " + so.getId());
         // first check if type is matching...
-        String queryName = queryObj.getTypes().values().iterator().next(); // as
-                                                                           // we
-                                                                           // don't
-                                                                           // support
-                                                                           // JOINS
-                                                                           // take
-                                                                           // first
-                                                                           // type
+
+        // as we don't support joins take first type
+        String queryName = queryObj.getTypes().values().iterator().next(); 
+
         TypeDefinition td = queryObj.getTypeDefinitionFromQueryName(queryName);
-        boolean skip = so instanceof VersionedDocument; // we are only
-                                                        // interested in
-                                                        // versions not in the
-                                                        // series
+        
+        // we are only interested in versions not in the series
+        boolean skip = so instanceof VersionedDocument; 
+
         boolean typeMatches = typeMatches(td, so);
         if (!searchAllVersions && so instanceof DocumentVersion
                 && ((DocumentVersion) so).getParentDocument().getLatestVersion(false) != so) {
@@ -741,6 +740,15 @@ public class InMemoryQueryProcessor {
     private void doAdditionalChecks(CmisQueryWalker walker) {
         if (walker.getNumberOfContainsClauses() > 1)
             throw new CmisInvalidArgumentException("More than one CONTAINS clause is not allowed");
+        List<JoinSpec> joins = queryObj.getJoins();
+        if (null == secondaryTypeIds && joins.size() > 0)
+            throw new CmisInvalidArgumentException("JOINs are not supported with the exception of secondary types and a LEFT OUTER JOIN");
+        else if (null != secondaryTypeIds) {
+            for (JoinSpec join : joins) {
+                if (!join.kind.equals("LEFT"))
+                    throw new CmisInvalidArgumentException("JOINs are not supported with the exception of secondary types and a LEFT OUTER JOIN");
+            }
+        }
     }
 
     // translate SQL wildcards %, _ to Java regex syntax

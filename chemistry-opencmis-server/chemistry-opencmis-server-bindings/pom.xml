@@ -20,53 +20,12 @@
     </parent>
 
     <artifactId>chemistry-opencmis-server-bindings</artifactId>
-    <name>OpenCMIS Server Implementation WAR packaging</name>
-    <packaging>war</packaging>
+    <name>OpenCMIS Server Implementation</name>
+    <packaging>jar</packaging>
 
     <properties>
         <parentBasedir>../../</parentBasedir>
     </properties>
-
-    <build>
-        <plugins>
-            <plugin>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.4</version>
-                <executions>
-                    <execution>
-                        <id>unpack</id>
-                        <phase>pack</phase>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>${project.groupId}</groupId>
-                                    <artifactId>chemistry-opencmis-commons-impl</artifactId>
-                                    <version>${project.version}</version>
-                                    <type>jar</type>
-                                    <overWrite>true</overWrite>
-                                    <includes>wsdl/*.xsd, wsdl/*.wsdl</includes>
-                                </artifactItem>
-                            </artifactItems>
-                            <outputDirectory>${project.basedir}/src/main/webapp/WEB-INF</outputDirectory>
-                            <overWriteReleases>true</overWriteReleases>
-                            <overWriteSnapshots>true</overWriteSnapshots>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-war-plugin</artifactId>
-                <version>2.3</version>
-                <configuration>
-                  <archiveClasses>true</archiveClasses>
-                  <attachClasses>true</attachClasses>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 
     <dependencies>
         <dependency>
@@ -103,25 +62,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>maven-repository.dev.java.net</id>
-            <name>Java.net Repository for Maven 1</name>
-            <url>http://download.java.net/maven/1/</url>
-            <layout>legacy</layout>
-        </repository>
-        <repository>
-            <id>maven2-repository.dev.java.net</id>
-            <name>Java.net Repository for Maven 2</name>
-            <url>http://download.java.net/maven/2/</url>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>maven2-repository.dev.java.net</id>
-            <url>http://download.java.net/maven/2/</url>
-        </pluginRepository>
-    </pluginRepositories>
 </project>

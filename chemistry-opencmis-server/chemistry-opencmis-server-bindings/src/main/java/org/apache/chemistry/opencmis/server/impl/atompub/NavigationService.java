@@ -120,7 +120,16 @@ public final class NavigationService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_CHILDREN, folderInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_CHILDREN, folderInfo.getId());
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        selfLink.addParameter(Constants.PARAM_ORDER_BY, orderBy);
+        selfLink.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
+        selfLink.addParameter(Constants.PARAM_RELATIONSHIPS, includeRelationships);
+        selfLink.addParameter(Constants.PARAM_RENDITION_FILTER, renditionFilter);
+        selfLink.addParameter(Constants.PARAM_PATH_SEGMENT, includePathSegment);
+        selfLink.addParameter(Constants.PARAM_MAX_ITEMS, maxItems);
+        selfLink.addParameter(Constants.PARAM_SKIP_COUNT, skipCount);
+        feed.writeSelfLink(selfLink.toString(), null);
 
         feed.writeDescribedByLink(compileUrl(baseUrl, RESOURCE_TYPE, folderInfo.getTypeId()));
 
@@ -182,7 +191,7 @@ public final class NavigationService {
                     continue;
                 }
                 writeObjectEntry(service, entry, object.getObject(), null, repositoryId, object.getPathSegment(), null,
-                        baseUrl, false);
+                        baseUrl, false, context.getCmisVersion());
             }
         }
 
@@ -237,7 +246,14 @@ public final class NavigationService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_DESCENDANTS, folderInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_DESCENDANTS, folderInfo.getId());
+        selfLink.addParameter(Constants.PARAM_DEPTH, depth);
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        selfLink.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
+        selfLink.addParameter(Constants.PARAM_RELATIONSHIPS, includeRelationships);
+        selfLink.addParameter(Constants.PARAM_RENDITION_FILTER, renditionFilter);
+        selfLink.addParameter(Constants.PARAM_PATH_SEGMENT, includePathSegment);
+        feed.writeSelfLink(selfLink.toString(), null);
 
         feed.writeViaLink(compileUrl(baseUrl, RESOURCE_ENTRY, folderInfo.getId()));
 
@@ -258,7 +274,7 @@ public final class NavigationService {
                 continue;
             }
             writeObjectEntry(service, entry, container.getObject().getObject(), container.getChildren(), repositoryId,
-                    container.getObject().getPathSegment(), null, baseUrl, false);
+                    container.getObject().getPathSegment(), null, baseUrl, false, context.getCmisVersion());
         }
 
         // we are done
@@ -312,7 +328,14 @@ public final class NavigationService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_DESCENDANTS, folderInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_FOLDERTREE, folderInfo.getId());
+        selfLink.addParameter(Constants.PARAM_DEPTH, depth);
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        selfLink.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
+        selfLink.addParameter(Constants.PARAM_RELATIONSHIPS, includeRelationships);
+        selfLink.addParameter(Constants.PARAM_RENDITION_FILTER, renditionFilter);
+        selfLink.addParameter(Constants.PARAM_PATH_SEGMENT, includePathSegment);
+        feed.writeSelfLink(selfLink.toString(), null);
 
         feed.writeViaLink(compileUrl(baseUrl, RESOURCE_ENTRY, folderInfo.getId()));
 
@@ -334,7 +357,7 @@ public final class NavigationService {
                 continue;
             }
             writeObjectEntry(service, entry, container.getObject().getObject(), container.getChildren(), repositoryId,
-                    container.getObject().getPathSegment(), null, baseUrl, false);
+                    container.getObject().getPathSegment(), null, baseUrl, false, context.getCmisVersion());
         }
 
         // we are done
@@ -387,7 +410,13 @@ public final class NavigationService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_PARENTS, objectInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_PARENTS, objectInfo.getId());
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        selfLink.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
+        selfLink.addParameter(Constants.PARAM_RELATIONSHIPS, includeRelationships);
+        selfLink.addParameter(Constants.PARAM_RENDITION_FILTER, renditionFilter);
+        selfLink.addParameter(Constants.PARAM_RELATIVE_PATH_SEGMENT, includeRelativePathSegment);
+        feed.writeSelfLink(selfLink.toString(), null);
 
         // write entries
         AtomEntry entry = new AtomEntry(feed.getWriter());
@@ -396,7 +425,7 @@ public final class NavigationService {
                 continue;
             }
             writeObjectEntry(service, entry, object.getObject(), null, repositoryId, null,
-                    object.getRelativePathSegment(), baseUrl, false);
+                    object.getRelativePathSegment(), baseUrl, false, context.getCmisVersion());
         }
 
         // we are done
@@ -466,9 +495,16 @@ public final class NavigationService {
 
         feed.writeServiceLink(baseUrl.toString(), repositoryId);
 
-        feed.writeSelfLink(compileUrl(baseUrl, RESOURCE_CHECKEDOUT, folderInfo.getId()), null);
+        UrlBuilder selfLink = compileUrlBuilder(baseUrl, RESOURCE_CHECKEDOUT, folderInfo.getId());
+        selfLink.addParameter(Constants.PARAM_FILTER, filter);
+        selfLink.addParameter(Constants.PARAM_ORDER_BY, orderBy);
+        selfLink.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
+        selfLink.addParameter(Constants.PARAM_RELATIONSHIPS, includeRelationships);
+        selfLink.addParameter(Constants.PARAM_MAX_ITEMS, maxItems);
+        selfLink.addParameter(Constants.PARAM_SKIP_COUNT, skipCount);
+        feed.writeSelfLink(selfLink.toString(), null);
 
-        UrlBuilder pagingUrl = new UrlBuilder(compileUrlBuilder(baseUrl, RESOURCE_CHECKEDOUT, folderInfo.getId()));
+        UrlBuilder pagingUrl = compileUrlBuilder(baseUrl, RESOURCE_CHECKEDOUT, folderInfo.getId());
         pagingUrl.addParameter(Constants.PARAM_FILTER, filter);
         pagingUrl.addParameter(Constants.PARAM_ORDER_BY, orderBy);
         pagingUrl.addParameter(Constants.PARAM_ALLOWABLE_ACTIONS, includeAllowableActions);
@@ -484,7 +520,8 @@ public final class NavigationService {
                 if (object == null) {
                     continue;
                 }
-                writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, false);
+                writeObjectEntry(service, entry, object, null, repositoryId, null, null, baseUrl, false,
+                        context.getCmisVersion());
             }
         }
 

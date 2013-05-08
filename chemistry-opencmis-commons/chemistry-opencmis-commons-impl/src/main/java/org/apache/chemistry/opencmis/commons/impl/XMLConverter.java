@@ -22,9 +22,11 @@ import static org.apache.chemistry.opencmis.commons.impl.XMLConstants.*;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +40,7 @@ import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AclCapabilities;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
 import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
 import org.apache.chemistry.opencmis.commons.data.CreatablePropertyTypes;
@@ -92,6 +95,7 @@ import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.ContentStreamAllowed;
 import org.apache.chemistry.opencmis.commons.enums.DateTimeResolution;
 import org.apache.chemistry.opencmis.commons.enums.DecimalPrecision;
+import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.PropertyType;
 import org.apache.chemistry.opencmis.commons.enums.SupportedPermissions;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
@@ -105,6 +109,8 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlListI
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlPrincipalDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AclCapabilitiesDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AllowableActionsImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.BulkUpdateObjectIdAndChangeTokenImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ChangeEventInfoDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ChoiceImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.CreatablePropertyTypesImpl;
@@ -135,14 +141,19 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringDefi
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyUriDefinitionImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyUriImpl;
+import org.apache.chemistry.opencmis.commons.impl.dataobjects.QueryTypeImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RelationshipTypeDefinitionImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RenditionDataImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryCapabilitiesImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryInfoImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.SecondaryTypeDefinitionImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.TypeMutabilityImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class XMLConverter {
+
+    private static final Logger LOG = LoggerFactory.getLogger(XMLConverter.class);
 
     private XMLConverter() {
     }
@@ -159,29 +170,36 @@ public class XMLConverter {
 
         writer.writeStartElement(namespace, TAG_REPOSITORY_INFO);
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_ID, source.getId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_NAME, source.getName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_DESCRIPTION, source.getDescription());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_VENDOR, source.getVendorName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_PRODUCT, source.getProductName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_PRODUCT_VERSION, source.getProductVersion());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_ROOT_FOLDER_ID, source.getRootFolderId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_CHANGE_LOG_TOKEN, source.getLatestChangeLogToken());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_ID, source.getId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_NAME, source.getName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_DESCRIPTION, source.getDescription());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_VENDOR, source.getVendorName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_PRODUCT, source.getProductName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_PRODUCT_VERSION, source.getProductVersion());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_ROOT_FOLDER_ID, source.getRootFolderId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_CHANGE_LOG_TOKEN,
+                source.getLatestChangeLogToken());
         writeRepositoryCapabilities(writer, cmisVersion, source.getCapabilities());
         writeAclCapabilities(writer, cmisVersion, source.getAclCapabilities());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_CMIS_VERSION_SUPPORTED, source.getCmisVersionSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_THIN_CLIENT_URI, source.getThinClientUri());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_CHANGES_INCOMPLETE, source.getChangesIncomplete());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_CMIS_VERSION_SUPPORTED,
+                source.getCmisVersionSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_THIN_CLIENT_URI, source.getThinClientUri());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_CHANGES_INCOMPLETE,
+                source.getChangesIncomplete());
         if (source.getChangesOnType() != null) {
             for (BaseTypeId baseType : source.getChangesOnType()) {
                 if (cmisVersion == CmisVersion.CMIS_1_0 && baseType == BaseTypeId.CMIS_ITEM) {
+                    LOG.warn("Receiver only understands CMIS 1.0 but the Changes On Type list in the Repository info contains the base type Item. "
+                            + "The Item base type has been removed from the list.");
                     continue;
                 }
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_CHANGES_ON_TYPE, baseType);
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_CHANGES_ON_TYPE, baseType);
             }
         }
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_PRINCIPAL_ID_ANONYMOUS, source.getPrincipalIdAnonymous());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_REPINFO_PRINCIPAL_ID_ANYONE, source.getPrincipalIdAnyone());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_PRINCIPAL_ID_ANONYMOUS,
+                source.getPrincipalIdAnonymous());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_REPINFO_PRINCIPAL_ID_ANYONE,
+                source.getPrincipalIdAnyone());
         if (cmisVersion != CmisVersion.CMIS_1_0 && source.getExtensionFeatures() != null) {
             for (ExtensionFeature feature : source.getExtensionFeatures()) {
                 writeExtendedFeatures(writer, cmisVersion, feature);
@@ -198,37 +216,38 @@ public class XMLConverter {
             return;
         }
 
-        writer.writeStartElement(NAMESPACE_CMIS, TAG_REPINFO_CAPABILITIES);
+        writer.writeStartElement(PREFIX_CMIS, TAG_REPINFO_CAPABILITIES, NAMESPACE_CMIS);
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_ACL, source.getAclCapability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_ALL_VERSIONS_SEARCHABLE,
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_ACL, source.getAclCapability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_ALL_VERSIONS_SEARCHABLE,
                 source.isAllVersionsSearchableSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_CHANGES, source.getChangesCapability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_CONTENT_STREAM_UPDATABILITY,
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_CHANGES, source.getChangesCapability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_CONTENT_STREAM_UPDATABILITY,
                 source.getContentStreamUpdatesCapability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_GET_DESCENDANTS, source.isGetDescendantsSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_GET_FOLDER_TREE, source.isGetFolderTreeSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_GET_DESCENDANTS, source.isGetDescendantsSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_GET_FOLDER_TREE, source.isGetFolderTreeSupported());
         if (cmisVersion != CmisVersion.CMIS_1_0) {
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_ORDER_BY, source.getOrderByCapability());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_ORDER_BY, source.getOrderByCapability());
         }
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_MULTIFILING, source.isMultifilingSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_PWC_SEARCHABLE, source.isPwcSearchableSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_PWC_UPDATABLE, source.isPwcUpdatableSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_QUERY, source.getQueryCapability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_RENDITIONS, source.getRenditionsCapability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_UNFILING, source.isUnfilingSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_VERSION_SPECIFIC_FILING,
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_MULTIFILING, source.isMultifilingSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_PWC_SEARCHABLE, source.isPwcSearchableSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_PWC_UPDATABLE, source.isPwcUpdatableSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_QUERY, source.getQueryCapability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_RENDITIONS, source.getRenditionsCapability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_UNFILING, source.isUnfilingSupported());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_VERSION_SPECIFIC_FILING,
                 source.isVersionSpecificFilingSupported());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_JOIN, source.getJoinCapability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_JOIN, source.getJoinCapability());
         if (cmisVersion != CmisVersion.CMIS_1_0) {
             if (source.getCreatablePropertyTypes() != null) {
                 CreatablePropertyTypes creatablePropertyTypes = source.getCreatablePropertyTypes();
 
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_CAP_CREATABLE_PROPERTY_TYPES);
+                writer.writeStartElement(PREFIX_CMIS, TAG_CAP_CREATABLE_PROPERTY_TYPES, NAMESPACE_CMIS);
 
                 if (creatablePropertyTypes.canCreate() != null) {
                     for (PropertyType pt : creatablePropertyTypes.canCreate()) {
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE, pt);
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE,
+                                pt);
                     }
                 }
 
@@ -238,39 +257,43 @@ public class XMLConverter {
             if (source.getNewTypeSettableAttributes() != null) {
                 NewTypeSettableAttributes newTypeSettableAttributes = source.getNewTypeSettableAttributes();
 
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES);
+                writer.writeStartElement(PREFIX_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES, NAMESPACE_CMIS);
 
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_ID,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_ID,
                         newTypeSettableAttributes.canSetId());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_LOCALNAME,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_LOCALNAME,
                         newTypeSettableAttributes.canSetLocalName());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_LOCALNAMESPACE,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS,
+                        TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_LOCALNAMESPACE,
                         newTypeSettableAttributes.canSetLocalNamespace());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_DISPLAYNAME,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_DISPLAYNAME,
                         newTypeSettableAttributes.canSetDisplayName());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_QUERYNAME,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_QUERYNAME,
                         newTypeSettableAttributes.canSetQueryName());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_DESCRIPTION,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_DESCRIPTION,
                         newTypeSettableAttributes.canSetDescription());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CREATEABLE,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CREATEABLE,
                         newTypeSettableAttributes.canSetCreatable());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_FILEABLE,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_FILEABLE,
                         newTypeSettableAttributes.canSetFileable());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_QUERYABLE,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_QUERYABLE,
                         newTypeSettableAttributes.canSetQueryable());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_FULLTEXTINDEXED,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS,
+                        TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_FULLTEXTINDEXED,
                         newTypeSettableAttributes.canSetFulltextIndexed());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_INCLUDEDINSUPERTYTPEQUERY,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS,
+                        TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_INCLUDEDINSUPERTYTPEQUERY,
                         newTypeSettableAttributes.canSetIncludedInSupertypeQuery());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CONTROLABLEPOLICY,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS,
+                        TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CONTROLABLEPOLICY,
                         newTypeSettableAttributes.canSetControllablePolicy());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CONTROLABLEACL,
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS,
+                        TAG_CAP_NEW_TYPE_SETTABLE_ATTRIBUTES_CONTROLABLEACL,
                         newTypeSettableAttributes.canSetControllableAcl());
 
                 writeExtensions(writer, newTypeSettableAttributes);
                 writer.writeEndElement();
             }
-
         }
 
         writeExtensions(writer, source);
@@ -283,16 +306,18 @@ public class XMLConverter {
             return;
         }
 
-        writer.writeStartElement(NAMESPACE_CMIS, TAG_REPINFO_ACL_CAPABILITIES);
+        writer.writeStartElement(PREFIX_CMIS, TAG_REPINFO_ACL_CAPABILITIES, NAMESPACE_CMIS);
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACLCAP_SUPPORTED_PERMISSIONS, source.getSupportedPermissions());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAGACLCAP_ACL_PROPAGATION, source.getAclPropagation());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACLCAP_SUPPORTED_PERMISSIONS,
+                source.getSupportedPermissions());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAGACLCAP_ACL_PROPAGATION, source.getAclPropagation());
         if (source.getPermissions() != null) {
             for (PermissionDefinition pd : source.getPermissions()) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_ACLCAP_PERMISSIONS);
+                writer.writeStartElement(PREFIX_CMIS, TAG_ACLCAP_PERMISSIONS, NAMESPACE_CMIS);
 
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACLCAP_PERMISSION_PERMISSION, pd.getId());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACLCAP_PERMISSION_DESCRIPTION, pd.getDescription());
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACLCAP_PERMISSION_PERMISSION, pd.getId());
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACLCAP_PERMISSION_DESCRIPTION,
+                        pd.getDescription());
 
                 writeExtensions(writer, pd);
                 writer.writeEndElement();
@@ -300,12 +325,12 @@ public class XMLConverter {
         }
         if (source.getPermissionMapping() != null) {
             for (PermissionMapping pm : source.getPermissionMapping().values()) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_ACLCAP_PERMISSION_MAPPING);
+                writer.writeStartElement(PREFIX_CMIS, TAG_ACLCAP_PERMISSION_MAPPING, NAMESPACE_CMIS);
 
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACLCAP_MAPPING_KEY, pm.getKey());
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACLCAP_MAPPING_KEY, pm.getKey());
                 if (pm.getPermissions() != null) {
                     for (String perm : pm.getPermissions()) {
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACLCAP_MAPPING_PERMISSION, perm);
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACLCAP_MAPPING_PERMISSION, perm);
                     }
                 }
 
@@ -324,19 +349,19 @@ public class XMLConverter {
             return;
         }
 
-        writer.writeStartElement(NAMESPACE_CMIS, TAG_REPINFO_EXTENDED_FEATURES);
+        writer.writeStartElement(PREFIX_CMIS, TAG_REPINFO_EXTENDED_FEATURES, NAMESPACE_CMIS);
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_ID, source.getId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_URL, source.getUrl());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_COMMON_NAME, source.getCommonName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_VERSION_LABEL, source.getVersionLabel());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_DESCRIPTION, source.getDescription());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_ID, source.getId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_URL, source.getUrl());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_COMMON_NAME, source.getCommonName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_VERSION_LABEL, source.getVersionLabel());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_DESCRIPTION, source.getDescription());
         if (source.getFeatureData() != null) {
             for (Map.Entry<String, String> data : source.getFeatureData().entrySet()) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_FEATURE_DATA);
+                writer.writeStartElement(PREFIX_CMIS, TAG_FEATURE_DATA, NAMESPACE_CMIS);
 
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_DATA_KEY, data.getKey());
-                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_FEATURE_DATA_VALUE, data.getValue());
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_DATA_KEY, data.getKey());
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_FEATURE_DATA_VALUE, data.getValue());
 
                 writer.writeEndElement();
             }
@@ -356,54 +381,57 @@ public class XMLConverter {
             return;
         }
 
-        // suppress cmis:item and cmis:secondary type for CMIS 1.0 repositories
-        if (cmisVersion == CmisVersion.CMIS_1_0
-                && (source.getBaseTypeId() == BaseTypeId.CMIS_ITEM || source.getBaseTypeId() == BaseTypeId.CMIS_SECONDARY)) {
-            return;
+        if (cmisVersion == CmisVersion.CMIS_1_0) {
+            if (source.getBaseTypeId() == BaseTypeId.CMIS_ITEM) {
+                LOG.warn("Receiver only understands CMIS 1.0. It may not able to handle an Item type definition.");
+            } else if (source.getBaseTypeId() == BaseTypeId.CMIS_SECONDARY) {
+                LOG.warn("Receiver only understands CMIS 1.0. It may not able to handle a Secondary type definition.");
+            }
         }
 
         writer.writeStartElement(namespace, TAG_TYPE);
+        writer.writeNamespace(PREFIX_XSI, NAMESPACE_XSI);
 
         if (source.getBaseTypeId() == BaseTypeId.CMIS_DOCUMENT) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":" + ATTR_DOCUMENT_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_DOCUMENT_TYPE);
         } else if (source.getBaseTypeId() == BaseTypeId.CMIS_FOLDER) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":" + ATTR_FOLDER_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_FOLDER_TYPE);
         } else if (source.getBaseTypeId() == BaseTypeId.CMIS_RELATIONSHIP) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":"
-                    + ATTR_RELATIONSHIP_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_RELATIONSHIP_TYPE);
         } else if (source.getBaseTypeId() == BaseTypeId.CMIS_POLICY) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":" + ATTR_POLICY_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_POLICY_TYPE);
         } else if (source.getBaseTypeId() == BaseTypeId.CMIS_ITEM) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":" + ATTR_ITEM_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_ITEM_TYPE);
         } else if (source.getBaseTypeId() == BaseTypeId.CMIS_SECONDARY) {
-            writer.writeAttribute(NAMESPACE_XSI, "type", writer.getPrefix(NAMESPACE_CMIS) + ":" + ATTR_SECONDARY_TYPE);
+            writer.writeAttribute(PREFIX_XSI, NAMESPACE_XSI, "type", PREFIX_CMIS + ":" + ATTR_SECONDARY_TYPE);
         } else {
             throw new CmisRuntimeException("Type definition has no base type id!");
         }
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_ID, source.getId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_LOCALNAME, source.getLocalName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_LOCALNAMESPACE, source.getLocalNamespace());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_DISPLAYNAME, source.getDisplayName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_QUERYNAME, source.getQueryName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_DESCRIPTION, source.getDescription());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_BASE_ID, source.getBaseTypeId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_PARENT_ID, source.getParentTypeId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_CREATABLE, source.isCreatable());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_FILEABLE, source.isFileable());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_QUERYABLE, source.isQueryable());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_FULLTEXT_INDEXED, source.isFulltextIndexed());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_INCLUDE_IN_SUPERTYPE_QUERY, source.isIncludedInSupertypeQuery());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_CONTROLABLE_POLICY, source.isControllablePolicy());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_CONTROLABLE_ACL, source.isControllableAcl());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_ID, source.getId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_LOCALNAME, source.getLocalName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_LOCALNAMESPACE, source.getLocalNamespace());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_DISPLAYNAME, source.getDisplayName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_QUERYNAME, source.getQueryName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_DESCRIPTION, source.getDescription());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_BASE_ID, source.getBaseTypeId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_PARENT_ID, source.getParentTypeId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_CREATABLE, source.isCreatable());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_FILEABLE, source.isFileable());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_QUERYABLE, source.isQueryable());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_FULLTEXT_INDEXED, source.isFulltextIndexed());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_INCLUDE_IN_SUPERTYPE_QUERY,
+                source.isIncludedInSupertypeQuery());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_CONTROLABLE_POLICY, source.isControllablePolicy());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_CONTROLABLE_ACL, source.isControllableAcl());
         if (cmisVersion != CmisVersion.CMIS_1_0 && source.getTypeMutability() != null) {
             TypeMutability tm = source.getTypeMutability();
 
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_TYPE_MUTABILITY, NAMESPACE_CMIS);
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_CREATE, tm.canCreate());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_UPDATE, tm.canUpdate());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_DELETE, tm.canDelete());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_CREATE, tm.canCreate());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_UPDATE, tm.canUpdate());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_TYPE_MUTABILITY_DELETE, tm.canDelete());
 
             writeExtensions(writer, tm);
             writer.writeEndElement();
@@ -416,8 +444,9 @@ public class XMLConverter {
 
         if (source instanceof DocumentTypeDefinition) {
             DocumentTypeDefinition docDef = (DocumentTypeDefinition) source;
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_VERSIONABLE, docDef.isVersionable());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_CONTENTSTREAM_ALLOWED, docDef.getContentStreamAllowed());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_VERSIONABLE, docDef.isVersionable());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_CONTENTSTREAM_ALLOWED,
+                    docDef.getContentStreamAllowed());
         }
 
         if (source instanceof RelationshipTypeDefinition) {
@@ -425,14 +454,14 @@ public class XMLConverter {
             if (relDef.getAllowedSourceTypeIds() != null) {
                 for (String id : relDef.getAllowedSourceTypeIds()) {
                     if (id != null) {
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_ALLOWED_SOURCE_TYPES, id);
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_ALLOWED_SOURCE_TYPES, id);
                     }
                 }
             }
             if (relDef.getAllowedTargetTypeIds() != null) {
                 for (String id : relDef.getAllowedTargetTypeIds()) {
                     if (id != null) {
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_TYPE_ALLOWED_TARGET_TYPES, id);
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_TYPE_ALLOWED_TARGET_TYPES, id);
                     }
                 }
             }
@@ -448,49 +477,54 @@ public class XMLConverter {
             return;
         }
 
+        if (source.getPropertyType() == null) {
+            throw new CmisRuntimeException("Property type for property definition '" + source.getId() + "' is not set!");
+        }
+
         switch (source.getPropertyType()) {
         case STRING:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_STRING);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_STRING, NAMESPACE_CMIS);
             break;
         case ID:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_ID);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_ID, NAMESPACE_CMIS);
             break;
         case INTEGER:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_INTEGER);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_INTEGER, NAMESPACE_CMIS);
             break;
         case BOOLEAN:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_BOOLEAN);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_BOOLEAN, NAMESPACE_CMIS);
             break;
         case DATETIME:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_DATETIME);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_DATETIME, NAMESPACE_CMIS);
             break;
         case DECIMAL:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_DECIMAL);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_DECIMAL, NAMESPACE_CMIS);
             break;
         case HTML:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_HTML);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_HTML, NAMESPACE_CMIS);
             break;
         case URI:
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_TYPE_PROP_DEF_URI);
+            writer.writeStartElement(PREFIX_CMIS, TAG_TYPE_PROP_DEF_URI, NAMESPACE_CMIS);
             break;
         default:
             throw new CmisRuntimeException("Property defintion has no property type!");
         }
 
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_ID, source.getId());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_LOCALNAME, source.getLocalName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_LOCALNAMESPACE, source.getLocalNamespace());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_DISPLAYNAME, source.getDisplayName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_QUERYNAME, source.getQueryName());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_DESCRIPTION, source.getDescription());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_PROPERTY_TYPE, source.getPropertyType());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CARDINALITY, source.getCardinality());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_UPDATABILITY, source.getUpdatability());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_INHERITED, source.isInherited());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_REQUIRED, source.isRequired());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_QUERYABLE, source.isQueryable());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_ORDERABLE, source.isOrderable());
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_OPENCHOICE, source.isOpenChoice());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_ID, source.getId());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_LOCALNAME, source.getLocalName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_LOCALNAMESPACE,
+                source.getLocalNamespace());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_DISPLAYNAME, source.getDisplayName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_QUERYNAME, source.getQueryName());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_DESCRIPTION, source.getDescription());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_PROPERTY_TYPE, source.getPropertyType());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CARDINALITY, source.getCardinality());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_UPDATABILITY, source.getUpdatability());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_INHERITED, source.isInherited());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_REQUIRED, source.isRequired());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_QUERYABLE, source.isQueryable());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_ORDERABLE, source.isOrderable());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_OPENCHOICE, source.isOpenChoice());
 
         if (source instanceof PropertyStringDefinition) {
             PropertyStringDefinition def = (PropertyStringDefinition) source;
@@ -499,7 +533,7 @@ public class XMLConverter {
                 writeProperty(writer, new PropertyStringImpl(null, def.getDefaultValue()), true);
             }
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_LENGTH, def.getMaxLength());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_LENGTH, def.getMaxLength());
         } else if (source instanceof PropertyIdDefinition) {
             PropertyIdDefinition def = (PropertyIdDefinition) source;
 
@@ -513,8 +547,8 @@ public class XMLConverter {
                 writeProperty(writer, new PropertyIntegerImpl(null, def.getDefaultValue()), true);
             }
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_VALUE, def.getMaxValue());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MIN_VALUE, def.getMinValue());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_VALUE, def.getMaxValue());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MIN_VALUE, def.getMinValue());
         } else if (source instanceof PropertyBooleanDefinition) {
             PropertyBooleanDefinition def = (PropertyBooleanDefinition) source;
 
@@ -528,7 +562,8 @@ public class XMLConverter {
                 writeProperty(writer, new PropertyDateTimeImpl(null, def.getDefaultValue()), true);
             }
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_RESOLUTION, def.getDateTimeResolution());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_RESOLUTION,
+                    def.getDateTimeResolution());
         } else if (source instanceof PropertyDecimalDefinition) {
             PropertyDecimalDefinition def = (PropertyDecimalDefinition) source;
 
@@ -536,9 +571,9 @@ public class XMLConverter {
                 writeProperty(writer, new PropertyDecimalImpl(null, def.getDefaultValue()), true);
             }
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_VALUE, def.getMaxValue());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MIN_VALUE, def.getMinValue());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_PRECISION, def.getPrecision());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MAX_VALUE, def.getMaxValue());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_MIN_VALUE, def.getMinValue());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_PRECISION, def.getPrecision());
         } else if (source instanceof PropertyHtmlDefinition) {
             PropertyHtmlDefinition def = (PropertyHtmlDefinition) source;
 
@@ -572,7 +607,7 @@ public class XMLConverter {
             return;
         }
 
-        writer.writeStartElement(NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE);
+        writer.writeStartElement(PREFIX_CMIS, TAG_PROPERTY_TYPE_CHOICE, NAMESPACE_CMIS);
 
         if (source.getDisplayName() != null) {
             writer.writeAttribute(ATTR_PROPERTY_TYPE_CHOICE_DISPLAYNAME, source.getDisplayName());
@@ -585,27 +620,27 @@ public class XMLConverter {
             case HTML:
             case URI:
                 for (String value : (List<String>) source.getValue()) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
                 }
                 break;
             case INTEGER:
                 for (BigInteger value : (List<BigInteger>) source.getValue()) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
                 }
                 break;
             case BOOLEAN:
                 for (Boolean value : (List<Boolean>) source.getValue()) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
                 }
                 break;
             case DATETIME:
                 for (GregorianCalendar value : (List<GregorianCalendar>) source.getValue()) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
                 }
                 break;
             case DECIMAL:
                 for (BigDecimal value : (List<BigDecimal>) source.getValue()) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_TYPE_CHOICE_VALUE, value);
                 }
                 break;
             default:
@@ -629,16 +664,32 @@ public class XMLConverter {
 
     public static void writeObject(XMLStreamWriter writer, CmisVersion cmisVersion, String namespace, ObjectData source)
             throws XMLStreamException {
+        writeObject(writer, cmisVersion, false, TAG_OBJECT, namespace, source);
+    }
+
+    public static void writeObject(XMLStreamWriter writer, CmisVersion cmisVersion, boolean root, String name,
+            String namespace, ObjectData source) throws XMLStreamException {
         if (source == null) {
             return;
         }
 
-        writer.writeStartElement(namespace, TAG_OBJECT);
+        if (cmisVersion == CmisVersion.CMIS_1_0) {
+            if (source.getBaseTypeId() == BaseTypeId.CMIS_ITEM) {
+                LOG.warn("Receiver only understands CMIS 1.0. It may not be able to handle an Item object.");
+            }
+        }
+
+        if (root) {
+            writer.writeStartElement(PREFIX_CMIS, name, NAMESPACE_CMIS);
+            writer.writeNamespace(PREFIX_CMIS, NAMESPACE_CMIS);
+        } else {
+            writer.writeStartElement(namespace, name);
+        }
 
         if (source.getProperties() != null) {
             Properties properties = source.getProperties();
 
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_PROPERTIES);
+            writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_PROPERTIES, NAMESPACE_CMIS);
 
             if (properties.getPropertyList() != null) {
                 for (PropertyData<?> property : properties.getPropertyList()) {
@@ -650,86 +701,39 @@ public class XMLConverter {
             writer.writeEndElement();
         }
         if (source.getAllowableActions() != null) {
-            AllowableActions allowableActions = source.getAllowableActions();
-
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_ALLOWABLE_ACTIONS);
-
-            if (allowableActions.getAllowableActions() != null) {
-                for (Action action : allowableActions.getAllowableActions()) {
-                    if (action == Action.CAN_CREATE_ITEM && cmisVersion == CmisVersion.CMIS_1_0) {
-                        continue;
-                    }
-                    XMLUtils.write(writer, NAMESPACE_CMIS, action.value(), Boolean.TRUE);
-                }
-            }
-
-            writeExtensions(writer, allowableActions);
-            writer.writeEndElement();
+            writeAllowableActions(writer, cmisVersion, false, source.getAllowableActions());
         }
         if (source.getRelationships() != null) {
             for (ObjectData rel : source.getRelationships()) {
                 if (rel != null) {
-                    writeObject(writer, cmisVersion, NAMESPACE_CMIS, rel);
+                    writeObject(writer, cmisVersion, false, TAG_OBJECT_RELATIONSHIP, NAMESPACE_CMIS, rel);
                 }
             }
         }
         if (source.getChangeEventInfo() != null) {
             ChangeEventInfo info = source.getChangeEventInfo();
 
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_CHANGE_EVENT_INFO);
+            writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_CHANGE_EVENT_INFO, NAMESPACE_CMIS);
 
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CHANGE_EVENT_TYPE, info.getChangeType());
-            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_CHANGE_EVENT_TIME, info.getChangeTime());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CHANGE_EVENT_TYPE, info.getChangeType());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_CHANGE_EVENT_TIME, info.getChangeTime());
 
             writeExtensions(writer, info);
             writer.writeEndElement();
         }
         if (source.getAcl() != null) {
-            Acl acl = source.getAcl();
-
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_ACL);
-
-            if (acl.getAces() != null) {
-                for (Ace ace : acl.getAces()) {
-                    if (ace != null) {
-                        writer.writeStartElement(NAMESPACE_CMIS, TAG_ACL_PERMISSISONS);
-
-                        if (ace.getPrincipal() != null) {
-                            Principal principal = ace.getPrincipal();
-
-                            writer.writeStartElement(NAMESPACE_CMIS, TAG_ACE_PRINCIPAL);
-
-                            XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACE_PRINCIPAL_ID, principal.getId());
-
-                            writeExtensions(writer, principal);
-                            writer.writeEndElement();
-                        }
-                        if (ace.getPermissions() != null) {
-                            for (String perm : ace.getPermissions()) {
-                                XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACE_PERMISSIONS, perm);
-                            }
-                        }
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_ACE_IS_DIRECT, ace.isDirect());
-
-                        writeExtensions(writer, ace);
-                        writer.writeEndElement();
-                    }
-                }
-            }
-
-            writeExtensions(writer, acl);
-            writer.writeEndElement();
+            writeAcl(writer, cmisVersion, false, source.getAcl());
         }
-        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_OBJECT_EXACT_ACL, source.isExactAcl());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_OBJECT_EXACT_ACL, source.isExactAcl());
         if (source.getPolicyIds() != null) {
             PolicyIdList pids = source.getPolicyIds();
 
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_POLICY_IDS);
+            writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_POLICY_IDS, NAMESPACE_CMIS);
 
             if (pids.getPolicyIds() != null) {
                 for (String id : pids.getPolicyIds()) {
                     if (id != null) {
-                        XMLUtils.write(writer, NAMESPACE_CMIS, TAG_POLICY_ID, id);
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_POLICY_ID, id);
                     }
                 }
             }
@@ -740,16 +744,17 @@ public class XMLConverter {
         if (source.getRenditions() != null) {
             for (RenditionData rend : source.getRenditions()) {
                 if (rend != null) {
-                    writer.writeStartElement(NAMESPACE_CMIS, TAG_OBJECT_RENDITION);
+                    writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_RENDITION, NAMESPACE_CMIS);
 
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_STREAM_ID, rend.getStreamId());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_MIMETYPE, rend.getMimeType());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_LENGTH, rend.getBigLength());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_KIND, rend.getKind());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_TITLE, rend.getTitle());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_HEIGHT, rend.getBigHeight());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_WIDTH, rend.getBigWidth());
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_RENDITION_DOCUMENT_ID, rend.getRenditionDocumentId());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_STREAM_ID, rend.getStreamId());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_MIMETYPE, rend.getMimeType());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_LENGTH, rend.getBigLength());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_KIND, rend.getKind());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_TITLE, rend.getTitle());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_HEIGHT, rend.getBigHeight());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_WIDTH, rend.getBigWidth());
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_RENDITION_DOCUMENT_ID,
+                            rend.getRenditionDocumentId());
 
                     writeExtensions(writer, rend);
                     writer.writeEndElement();
@@ -769,24 +774,24 @@ public class XMLConverter {
         }
 
         if (isDefaultValue) {
-            writer.writeStartElement(NAMESPACE_CMIS, TAG_PROPERTY_TYPE_DEAULT_VALUE);
+            writer.writeStartElement(PREFIX_CMIS, TAG_PROPERTY_TYPE_DEAULT_VALUE, NAMESPACE_CMIS);
         } else {
             if (source instanceof PropertyString) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_STRING);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_STRING, NAMESPACE_CMIS);
             } else if (source instanceof PropertyId) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_ID);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_ID, NAMESPACE_CMIS);
             } else if (source instanceof PropertyInteger) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_INTEGER);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_INTEGER, NAMESPACE_CMIS);
             } else if (source instanceof PropertyBoolean) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_BOOLEAN);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_BOOLEAN, NAMESPACE_CMIS);
             } else if (source instanceof PropertyDateTime) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_DATETIME);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_DATETIME, NAMESPACE_CMIS);
             } else if (source instanceof PropertyDecimal) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_DECIMAL);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_DECIMAL, NAMESPACE_CMIS);
             } else if (source instanceof PropertyHtml) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_HTML);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_HTML, NAMESPACE_CMIS);
             } else if (source instanceof PropertyUri) {
-                writer.writeStartElement(NAMESPACE_CMIS, TAG_PROP_URI);
+                writer.writeStartElement(PREFIX_CMIS, TAG_PROP_URI, NAMESPACE_CMIS);
             } else {
                 throw new CmisRuntimeException("Invalid property!");
             }
@@ -794,6 +799,9 @@ public class XMLConverter {
 
         if (source.getId() != null) {
             writer.writeAttribute(ATTR_PROPERTY_ID, source.getId());
+        }
+        if (source.getDisplayName() != null) {
+            writer.writeAttribute(ATTR_PROPERTY_DISPLAYNAME, source.getDisplayName());
         }
         if (source.getLocalName() != null) {
             writer.writeAttribute(ATTR_PROPERTY_LOCALNAME, source.getLocalName());
@@ -807,40 +815,197 @@ public class XMLConverter {
             List<String> values = (List<String>) source.getValues();
             if (values != null) {
                 for (String value : values) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
                 }
             }
         } else if (source instanceof PropertyInteger) {
             List<BigInteger> values = ((PropertyInteger) source).getValues();
             if (values != null) {
                 for (BigInteger value : values) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
                 }
             }
         } else if (source instanceof PropertyBoolean) {
             List<Boolean> values = ((PropertyBoolean) source).getValues();
             if (values != null) {
                 for (Boolean value : values) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
                 }
             }
         } else if (source instanceof PropertyDateTime) {
             List<GregorianCalendar> values = ((PropertyDateTime) source).getValues();
             if (values != null) {
                 for (GregorianCalendar value : values) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
                 }
             }
         } else if (source instanceof PropertyDecimal) {
             List<BigDecimal> values = ((PropertyDecimal) source).getValues();
             if (values != null) {
                 for (BigDecimal value : values) {
-                    XMLUtils.write(writer, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_PROPERTY_VALUE, value);
                 }
             }
         }
 
         writeExtensions(writer, source);
+        writer.writeEndElement();
+    }
+
+    public static void writeAllowableActions(XMLStreamWriter writer, CmisVersion cmisVersion, boolean root,
+            AllowableActions source) throws XMLStreamException {
+        if (source == null) {
+            return;
+        }
+
+        if (root) {
+            writer.writeStartElement(PREFIX_CMIS, "allowableActions", NAMESPACE_CMIS);
+            writer.writeNamespace(PREFIX_CMIS, NAMESPACE_CMIS);
+        } else {
+            writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_ALLOWABLE_ACTIONS, NAMESPACE_CMIS);
+        }
+
+        if (source.getAllowableActions() != null) {
+            for (Action action : Action.values()) {
+                if (source.getAllowableActions().contains(action)) {
+                    if (action == Action.CAN_CREATE_ITEM && cmisVersion == CmisVersion.CMIS_1_0) {
+                        LOG.warn("Receiver only understands CMIS 1.0 but the Allowable Actions contain the canCreateItem action. "
+                                + "The canCreateItem action has been removed from the Allowable Actions.");
+                        continue;
+                    }
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, action.value(), Boolean.TRUE);
+                }
+            }
+        }
+
+        writeExtensions(writer, source);
+        writer.writeEndElement();
+    }
+
+    public static void writeAcl(XMLStreamWriter writer, CmisVersion cmisVersion, boolean root, Acl source)
+            throws XMLStreamException {
+        if (source == null) {
+            return;
+        }
+
+        if (root) {
+            writer.writeStartElement(PREFIX_CMIS, "acl", NAMESPACE_CMIS);
+            writer.writeNamespace(PREFIX_CMIS, NAMESPACE_CMIS);
+        } else {
+            writer.writeStartElement(PREFIX_CMIS, TAG_OBJECT_ACL, NAMESPACE_CMIS);
+        }
+
+        if (source.getAces() != null) {
+            for (Ace ace : source.getAces()) {
+                if (ace != null) {
+                    writer.writeStartElement(PREFIX_CMIS, TAG_ACL_PERMISSISONS, NAMESPACE_CMIS);
+
+                    if (ace.getPrincipal() != null) {
+                        Principal principal = ace.getPrincipal();
+
+                        writer.writeStartElement(PREFIX_CMIS, TAG_ACE_PRINCIPAL, NAMESPACE_CMIS);
+
+                        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACE_PRINCIPAL_ID, principal.getId());
+
+                        writeExtensions(writer, principal);
+                        writer.writeEndElement();
+                    }
+                    if (ace.getPermissions() != null) {
+                        for (String perm : ace.getPermissions()) {
+                            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACE_PERMISSIONS, perm);
+                        }
+                    }
+                    XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_ACE_IS_DIRECT, ace.isDirect());
+
+                    writeExtensions(writer, ace);
+                    writer.writeEndElement();
+                }
+            }
+        }
+
+        writeExtensions(writer, source);
+        writer.writeEndElement();
+    }
+
+    // -------------
+    // --- query ---
+    // -------------
+
+    public static void writeQuery(XMLStreamWriter writer, CmisVersion cmisVersion, QueryTypeImpl source)
+            throws XMLStreamException {
+        if (source == null) {
+            return;
+        }
+
+        writer.writeStartElement(NAMESPACE_CMIS, TAG_QUERY);
+        writer.writeNamespace(PREFIX_CMIS, NAMESPACE_CMIS);
+
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_STATEMENT, source.getStatement());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_SEARCHALLVERSIONS, source.getSearchAllVersions());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_INCLUDEALLOWABLEACTIONS,
+                source.getIncludeAllowableActions());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_INCLUDERELATIONSHIPS,
+                source.getIncludeRelationships());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_RENDITIONFILTER, source.getRenditionFilter());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_MAXITEMS, source.getMaxItems());
+        XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_QUERY_SKIPCOUNT, source.getSkipCount());
+
+        writeExtensions(writer, source);
+        writer.writeEndElement();
+    }
+
+    // -------------------
+    // --- bulk update ---
+    // -------------------
+
+    public static void writeBulkUpdate(XMLStreamWriter writer, String namespace, BulkUpdateImpl bulkUpdate)
+            throws XMLStreamException {
+        if (bulkUpdate == null || bulkUpdate.getObjectIdAndChangeToken() == null) {
+            return;
+        }
+
+        writer.writeStartElement(namespace, TAG_BULK_UPDATE);
+
+        for (BulkUpdateObjectIdAndChangeToken idAndToken : bulkUpdate.getObjectIdAndChangeToken()) {
+            if (idAndToken == null) {
+                continue;
+            }
+
+            writer.writeStartElement(PREFIX_CMIS, TAG_BULK_UPDATE_ID_AND_TOKEN, NAMESPACE_CMIS);
+
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_IDANDTOKEN_ID, idAndToken.getId());
+            XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_IDANDTOKEN_CHANGETOKEN, idAndToken.getChangeToken());
+
+            writeExtensions(writer, idAndToken);
+            writer.writeEndElement();
+        }
+
+        if (bulkUpdate.getProperties() != null) {
+            Properties properties = bulkUpdate.getProperties();
+            writer.writeStartElement(PREFIX_CMIS, TAG_BULK_UPDATE_PROPERTIES, NAMESPACE_CMIS);
+
+            if (properties.getPropertyList() != null) {
+                for (PropertyData<?> property : properties.getPropertyList()) {
+                    writeProperty(writer, property, false);
+                }
+            }
+
+            writeExtensions(writer, properties);
+            writer.writeEndElement();
+        }
+
+        if (bulkUpdate.getAddSecondaryTypeIds() != null) {
+            for (String id : bulkUpdate.getAddSecondaryTypeIds()) {
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_BULK_UPDATE_ADD_SECONDARY_TYPES, id);
+            }
+        }
+
+        if (bulkUpdate.getRemoveSecondaryTypeIds() != null) {
+            for (String id : bulkUpdate.getRemoveSecondaryTypeIds()) {
+                XMLUtils.write(writer, PREFIX_CMIS, NAMESPACE_CMIS, TAG_BULK_UPDATE_REMOVE_SECONDARY_TYPES, id);
+            }
+        }
+
         writer.writeEndElement();
     }
 
@@ -853,39 +1018,70 @@ public class XMLConverter {
             return;
         }
 
+        LinkedList<String> ns = new LinkedList<String>();
+
         if (source.getExtensions() != null) {
             for (CmisExtensionElement element : source.getExtensions()) {
                 if (element == null) {
                     continue;
                 }
 
-                writeExtensionElement(writer, element);
+                writeExtensionElement(writer, element, ns);
             }
         }
     }
 
-    private static void writeExtensionElement(XMLStreamWriter writer, CmisExtensionElement source)
+    private static void writeExtensionElement(XMLStreamWriter writer, CmisExtensionElement source, LinkedList<String> ns)
             throws XMLStreamException {
-        if (source == null) {
+        if (source == null || source.getName() == null) {
             return;
         }
 
-        if (source.getValue() != null) {
-            XMLUtils.write(writer, source.getNamespace(), source.getName(), source.getValue());
-        } else {
-            if (source.getNamespace() == null) {
-                writer.writeStartElement(source.getName());
-            } else {
-                writer.writeStartElement(source.getNamespace(), source.getName());
-            }
+        boolean addedNamespace = false;
 
-            if (source.getChildren() != null) {
-                for (CmisExtensionElement child : source.getChildren()) {
-                    writeExtensionElement(writer, child);
+        if (source.getNamespace() != null) {
+            String prefix = writer.getPrefix(source.getNamespace());
+            if (prefix == null) {
+                int p = ns.indexOf(source.getNamespace());
+
+                if (p == -1) {
+                    prefix = "e" + (ns.size() + 1);
+                    ns.add(source.getNamespace());
+                    addedNamespace = true;
+                } else {
+                    prefix = "e" + (p + 1);
                 }
             }
 
-            writer.writeEndElement();
+            writer.writeStartElement(prefix, source.getName(), source.getNamespace());
+
+            if (addedNamespace) {
+                writer.writeNamespace(prefix, source.getNamespace());
+            }
+        } else {
+            writer.writeStartElement(source.getName());
+        }
+
+        if (source.getAttributes() != null) {
+            for (Map.Entry<String, String> attr : source.getAttributes().entrySet()) {
+                writer.writeAttribute(attr.getKey(), attr.getValue());
+            }
+        }
+
+        if (source.getValue() != null) {
+            writer.writeCharacters(source.getValue());
+        } else {
+            if (source.getChildren() != null) {
+                for (CmisExtensionElement child : source.getChildren()) {
+                    writeExtensionElement(writer, child, ns);
+                }
+            }
+        }
+
+        writer.writeEndElement();
+
+        if (addedNamespace) {
+            ns.removeLast();
         }
     }
 
@@ -903,6 +1099,22 @@ public class XMLConverter {
 
     public static ObjectData convertObject(XMLStreamReader parser) throws XMLStreamException {
         return OBJECT_PARSER.walk(parser);
+    }
+
+    public static QueryTypeImpl convertQuery(XMLStreamReader parser) throws XMLStreamException {
+        return QUERY_PARSER.walk(parser);
+    }
+
+    public static AllowableActions convertAllowableActions(XMLStreamReader parser) throws XMLStreamException {
+        return ALLOWABLE_ACTIONS_PARSER.walk(parser);
+    }
+
+    public static Acl convertAcl(XMLStreamReader parser) throws XMLStreamException {
+        return ACL_PARSER.walk(parser);
+    }
+
+    public static BulkUpdateImpl convertBulkUpdate(XMLStreamReader parser) throws XMLStreamException {
+        return BULK_UPDATE_PARSER.walk(parser);
     }
 
     // ------------------------------
@@ -1125,7 +1337,7 @@ public class XMLConverter {
                 if (isTag(name, TAG_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE)) {
                     Set<PropertyType> ptSet = target.canCreate();
                     if (ptSet == null) {
-                        ptSet = new HashSet<PropertyType>();
+                        ptSet = EnumSet.noneOf(PropertyType.class);
                         target.setCanCreate(ptSet);
                     }
 
@@ -1221,7 +1433,6 @@ public class XMLConverter {
     private static final XMLWalker<AclCapabilitiesDataImpl> ACL_CAPABILITIES_PARSER = new XMLWalker<AclCapabilitiesDataImpl>() {
         @Override
         protected AclCapabilitiesDataImpl prepareTarget(XMLStreamReader parser, QName name) throws XMLStreamException {
-
             return new AclCapabilitiesDataImpl();
         }
 
@@ -1275,7 +1486,7 @@ public class XMLConverter {
                 throws XMLStreamException {
             if (isCmisNamespace(name)) {
                 if (isTag(name, TAG_ACLCAP_PERMISSION_PERMISSION)) {
-                    target.setPermission(readText(parser));
+                    target.setId(readText(parser));
                     return true;
                 }
 
@@ -1409,6 +1620,8 @@ public class XMLConverter {
                     result = new FolderTypeDefinitionImpl();
                 } else if (typeAttr.endsWith(ATTR_RELATIONSHIP_TYPE)) {
                     result = new RelationshipTypeDefinitionImpl();
+                    ((RelationshipTypeDefinitionImpl) result).setAllowedSourceTypes(new ArrayList<String>());
+                    ((RelationshipTypeDefinitionImpl) result).setAllowedTargetTypes(new ArrayList<String>());
                 } else if (typeAttr.endsWith(ATTR_POLICY_TYPE)) {
                     result = new PolicyTypeDefinitionImpl();
                 } else if (typeAttr.endsWith(ATTR_ITEM_TYPE)) {
@@ -1729,7 +1942,7 @@ public class XMLConverter {
                     }
 
                     if (isTag(name, TAG_PROPERTY_TYPE_CHOICE)) {
-                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyStringDefinitionImpl) target);
+                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyIdDefinitionImpl) target);
                         return true;
                     }
                 } else if (target instanceof PropertyBooleanDefinitionImpl) {
@@ -1820,7 +2033,7 @@ public class XMLConverter {
                     }
 
                     if (isTag(name, TAG_PROPERTY_TYPE_CHOICE)) {
-                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyStringDefinitionImpl) target);
+                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyHtmlDefinitionImpl) target);
                         return true;
                     }
                 } else if (target instanceof PropertyUriDefinitionImpl) {
@@ -1831,7 +2044,7 @@ public class XMLConverter {
                     }
 
                     if (isTag(name, TAG_PROPERTY_TYPE_CHOICE)) {
-                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyStringDefinitionImpl) target);
+                        CHOICE_STRING_PARSER.addToChoiceList(parser, (PropertyUriDefinitionImpl) target);
                         return true;
                     }
                 }
@@ -2096,12 +2309,15 @@ public class XMLConverter {
 
                     Set<Action> actions = target.getAllowableActions();
                     if (actions == null) {
-                        actions = new HashSet<Action>();
+                        actions = EnumSet.noneOf(Action.class);
                         target.setAllowableActions(actions);
                     }
 
-                    actions.add(action);
+                    if (Boolean.TRUE.equals(readBoolean(parser))) {
+                        actions.add(action);
+                    }
 
+                    return true;
                 } catch (IllegalArgumentException e) {
                     // extension tag -> ignore
                 }
@@ -2409,4 +2625,127 @@ public class XMLConverter {
             target.setValues(addToList(target.getValues(), readText(parser)));
         }
     }
+
+    // --------------------
+    // --- query parser ---
+    // --------------------
+
+    private static final XMLWalker<QueryTypeImpl> QUERY_PARSER = new XMLWalker<QueryTypeImpl>() {
+        @Override
+        protected QueryTypeImpl prepareTarget(XMLStreamReader parser, QName name) throws XMLStreamException {
+            return new QueryTypeImpl();
+        }
+
+        @Override
+        protected boolean read(XMLStreamReader parser, QName name, QueryTypeImpl target) throws XMLStreamException {
+            if (isCmisNamespace(name)) {
+                if (isTag(name, TAG_QUERY_STATEMENT)) {
+                    target.setStatement(readText(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_SEARCHALLVERSIONS)) {
+                    target.setSearchAllVersions(readBoolean(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_INCLUDEALLOWABLEACTIONS)) {
+                    target.setIncludeAllowableActions(readBoolean(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_INCLUDERELATIONSHIPS)) {
+                    target.setIncludeRelationships(readEnum(parser, IncludeRelationships.class));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_RENDITIONFILTER)) {
+                    target.setRenditionFilter(readText(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_MAXITEMS)) {
+                    target.setMaxItems(readInteger(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_QUERY_SKIPCOUNT)) {
+                    target.setSkipCount(readInteger(parser));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    };
+
+    // --------------------------
+    // --- bulk update parser ---
+    // --------------------------
+
+    private static final XMLWalker<BulkUpdateImpl> BULK_UPDATE_PARSER = new XMLWalker<BulkUpdateImpl>() {
+        @Override
+        protected BulkUpdateImpl prepareTarget(XMLStreamReader parser, QName name) throws XMLStreamException {
+            return new BulkUpdateImpl();
+        }
+
+        @Override
+        protected boolean read(XMLStreamReader parser, QName name, BulkUpdateImpl target) throws XMLStreamException {
+            if (isCmisNamespace(name)) {
+                if (isTag(name, TAG_BULK_UPDATE_ID_AND_TOKEN)) {
+                    target.setObjectIdAndChangeToken(addToList(target.getObjectIdAndChangeToken(),
+                            ID_AND_TOKEN_PARSER.walk(parser)));
+                    return true;
+                }
+
+                if (isTag(name, TAG_BULK_UPDATE_PROPERTIES)) {
+                    target.setProperties(PROPERTIES_PARSER.walk(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_BULK_UPDATE_ADD_SECONDARY_TYPES)) {
+                    target.setAddSecondaryTypeIds(addToList(target.getAddSecondaryTypeIds(), readText(parser)));
+                    return true;
+                }
+
+                if (isTag(name, TAG_BULK_UPDATE_REMOVE_SECONDARY_TYPES)) {
+                    target.setRemoveSecondaryTypeIds(addToList(target.getRemoveSecondaryTypeIds(), readText(parser)));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    };
+
+    private static final XMLWalker<BulkUpdateObjectIdAndChangeTokenImpl> ID_AND_TOKEN_PARSER = new XMLWalker<BulkUpdateObjectIdAndChangeTokenImpl>() {
+        @Override
+        protected BulkUpdateObjectIdAndChangeTokenImpl prepareTarget(XMLStreamReader parser, QName name)
+                throws XMLStreamException {
+            return new BulkUpdateObjectIdAndChangeTokenImpl();
+        }
+
+        @Override
+        protected boolean read(XMLStreamReader parser, QName name, BulkUpdateObjectIdAndChangeTokenImpl target)
+                throws XMLStreamException {
+            if (isCmisNamespace(name)) {
+                if (isTag(name, TAG_IDANDTOKEN_ID)) {
+                    target.setId(readText(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_IDANDTOKEN_NEWID)) {
+                    target.setNewId(readText(parser));
+                    return true;
+                }
+
+                if (isTag(name, TAG_IDANDTOKEN_CHANGETOKEN)) {
+                    target.setChangeToken(readText(parser));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    };
 }

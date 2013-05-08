@@ -18,18 +18,15 @@
  */
 package org.apache.chemistry.opencmis.server.impl.atompub;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-
-import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
-import org.apache.chemistry.opencmis.commons.impl.JaxBHelper;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisTypeDefinitionType;
+import org.apache.chemistry.opencmis.commons.impl.XMLConstants;
+import org.apache.chemistry.opencmis.commons.impl.XMLConverter;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
 
 /**
@@ -38,6 +35,8 @@ import org.apache.chemistry.opencmis.commons.server.ObjectInfo;
 public class AtomEntry extends AtomDocumentBase {
 
     private static final String DEFAULT_AUTHOR = "unknown";
+
+    // private boolean contentTagAdded;
 
     /**
      * Creates an Atom entry document.
@@ -56,31 +55,46 @@ public class AtomEntry extends AtomDocumentBase {
      * Opens the entry tag.
      */
     public void startEntry(boolean isRoot) throws XMLStreamException {
-        getWriter().writeStartElement(Constants.NAMESPACE_ATOM, "entry");
+        XMLStreamWriter xsw = getWriter();
+
+        xsw.writeStartElement(XMLConstants.PREFIX_ATOM, "entry", XMLConstants.NAMESPACE_ATOM);
 
         if (isRoot) {
-            writeNamespace(Constants.NAMESPACE_ATOM);
-            writeNamespace(Constants.NAMESPACE_CMIS);
-            writeNamespace(Constants.NAMESPACE_RESTATOM);
-            writeNamespace(Constants.NAMESPACE_APP);
+            xsw.writeNamespace(XMLConstants.PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
+            xsw.writeNamespace(XMLConstants.PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
+            xsw.writeNamespace(XMLConstants.PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
+            xsw.writeNamespace(XMLConstants.PREFIX_APP, XMLConstants.NAMESPACE_APP);
+
             writeAllCustomNamespace();
         }
+
+        // contentTagAdded = false;
     }
 
     /**
      * Closes the entry tag.
      */
     public void endEntry() throws XMLStreamException {
+        // if (!contentTagAdded) {
+        // writeEmptyContent();
+        // }
+
         getWriter().writeEndElement();
+    }
+
+    /**
+     * Writes an entry self link.
+     */
+    public void writeSelfLink(String href, String id) throws XMLStreamException {
+        writeSelfLink(href, Constants.MEDIATYPE_ENTRY, id);
     }
 
     /**
      * Writes an object.
      */
     public void writeObject(ObjectData object, ObjectInfo info, String contentSrc, String contentType,
-            String pathSegment, String relativePathSegment) throws XMLStreamException, JAXBException {
-        CmisObjectType objectJaxb = convert(object);
-        if (objectJaxb == null) {
+            String pathSegment, String relativePathSegment, CmisVersion cmisVersion) throws XMLStreamException {
+        if (object == null) {
             return;
         }
 
@@ -92,7 +106,8 @@ public class AtomEntry extends AtomDocumentBase {
 
         writeContent(contentSrc, contentType);
 
-        JaxBHelper.marshal(JaxBHelper.CMIS_EXTRA_OBJECT_FACTORY.createObject(objectJaxb), getWriter(), true);
+        XMLConverter.writeObject(getWriter(), cmisVersion, false, XMLConstants.TAG_OBJECT,
+                XMLConstants.NAMESPACE_RESTATOM, object);
 
         writePathSegment(pathSegment);
         writeRelativePathSegment(relativePathSegment);
@@ -101,9 +116,8 @@ public class AtomEntry extends AtomDocumentBase {
     /**
      * Writes a delete object.
      */
-    public void writeDeletedObject(ObjectData object) throws XMLStreamException, JAXBException {
-        CmisObjectType objectJaxb = convert(object);
-        if (objectJaxb == null) {
+    public void writeDeletedObject(ObjectData object, CmisVersion cmisVersion) throws XMLStreamException {
+        if (object == null) {
             return;
         }
 
@@ -115,17 +129,15 @@ public class AtomEntry extends AtomDocumentBase {
         writeTitle(object.getId());
         writeUpdated(now);
 
-        JaxBHelper.marshal(JaxBHelper.CMIS_EXTRA_OBJECT_FACTORY.createObject(objectJaxb), getWriter(), true);
+        XMLConverter.writeObject(getWriter(), cmisVersion, false, XMLConstants.TAG_OBJECT,
+                XMLConstants.NAMESPACE_RESTATOM, object);
     }
 
     /**
      * Writes a type.
-     * 
-     * @throws JAXBException
      */
-    public void writeType(TypeDefinition type) throws XMLStreamException, JAXBException {
-        CmisTypeDefinitionType typeJaxb = convert(type);
-        if (typeJaxb == null) {
+    public void writeType(TypeDefinition type, CmisVersion cmisVersion) throws XMLStreamException {
+        if (type == null) {
             return;
         }
 
@@ -136,7 +148,7 @@ public class AtomEntry extends AtomDocumentBase {
         writeTitle(type.getDisplayName());
         writeUpdated(now);
 
-        JaxBHelper.marshal(JaxBHelper.CMIS_EXTRA_OBJECT_FACTORY.createTypeDefinition(typeJaxb), getWriter(), true);
+        XMLConverter.writeTypeDefinition(getWriter(), cmisVersion, XMLConstants.NAMESPACE_RESTATOM, type);
     }
 
     /**
@@ -148,7 +160,7 @@ public class AtomEntry extends AtomDocumentBase {
         }
 
         XMLStreamWriter xsw = getWriter();
-        xsw.writeStartElement(Constants.NAMESPACE_ATOM, "content");
+        xsw.writeStartElement(XMLConstants.PREFIX_ATOM, "content", XMLConstants.NAMESPACE_ATOM);
 
         xsw.writeAttribute("src", src);
         if (type != null) {
@@ -156,5 +168,18 @@ public class AtomEntry extends AtomDocumentBase {
         }
 
         xsw.writeEndElement();
+
+        // contentTagAdded = true;
+    }
+
+    /**
+     * Writes an empty content tag for Atom spec compliance.
+     */
+    public void writeEmptyContent() throws XMLStreamException {
+        XMLStreamWriter xsw = getWriter();
+        xsw.writeStartElement(XMLConstants.PREFIX_ATOM, "content", XMLConstants.NAMESPACE_ATOM);
+        xsw.writeEndElement();
+
+        // contentTagAdded = true;
     }
 }

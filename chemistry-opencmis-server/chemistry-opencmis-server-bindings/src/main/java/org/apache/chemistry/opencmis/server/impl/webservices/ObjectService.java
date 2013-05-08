@@ -18,11 +18,11 @@
  */
 package org.apache.chemistry.opencmis.server.impl.webservices;
 
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convert;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertExtensionHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.convertHolder;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setExtensionValues;
-import static org.apache.chemistry.opencmis.commons.impl.Converter.setHolderValue;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convert;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertExtensionHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.convertHolder;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setExtensionValues;
+import static org.apache.chemistry.opencmis.commons.impl.WSConverter.setHolderValue;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -34,16 +34,21 @@ import javax.xml.ws.Holder;
 import javax.xml.ws.WebServiceContext;
 import javax.xml.ws.soap.MTOM;
 
+import org.apache.chemistry.opencmis.commons.data.BulkUpdateObjectIdAndChangeToken;
 import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
+import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisAccessControlListType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisAllowableActionsType;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisBulkUpdateType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisContentStreamType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisException;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisExtensionType;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectIdAndChangeTokenType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisObjectType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisPropertiesType;
 import org.apache.chemistry.opencmis.commons.impl.jaxb.CmisRenditionType;
@@ -190,6 +195,30 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
         }
     }
 
+    public void createItem(String repositoryId, CmisPropertiesType properties, String folderId,
+            CmisAccessControlListType addAces, CmisAccessControlListType removeAces,
+            Holder<CmisExtensionType> extension, Holder<String> objectId) throws CmisException {
+        CmisService service = null;
+        try {
+            service = getService(wsContext, repositoryId);
+
+            ExtensionsData extData = convertExtensionHolder(extension);
+
+            String id = service.createItem(repositoryId, convert(properties), folderId, null, convert(addAces, null),
+                    convert(removeAces, null), extData);
+
+            if (objectId != null) {
+                objectId.value = id;
+            }
+
+            setExtensionValues(extData, extension);
+        } catch (Exception e) {
+            throw convertException(e);
+        } finally {
+            closeService(service);
+        }
+    }
+
     public void deleteContentStream(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             Holder<CmisExtensionType> extension) throws CmisException {
         CmisService service = null;
@@ -249,10 +278,12 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
     public CmisAllowableActionsType getAllowableActions(String repositoryId, String objectId,
             CmisExtensionType extension) throws CmisException {
         CmisService service = null;
+        CmisVersion cmisVersion = null;
         try {
             service = getService(wsContext, repositoryId);
+            cmisVersion = getCmisVersion(wsContext);
 
-            return convert(service.getAllowableActions(repositoryId, objectId, convert(extension)));
+            return convert(service.getAllowableActions(repositoryId, objectId, convert(extension)), cmisVersion);
         } catch (Exception e) {
             throw convertException(e);
         } finally {
@@ -280,12 +311,14 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
             Boolean includeAllowableActions, EnumIncludeRelationships includeRelationships, String renditionFilter,
             Boolean includePolicyIds, Boolean includeAcl, CmisExtensionType extension) throws CmisException {
         CmisService service = null;
+        CmisVersion cmisVersion = null;
         try {
             service = getService(wsContext, repositoryId);
+            cmisVersion = getCmisVersion(wsContext);
 
             return convert(service.getObject(repositoryId, objectId, filter, includeAllowableActions,
                     convert(IncludeRelationships.class, includeRelationships), renditionFilter, includePolicyIds,
-                    includeAcl, convert(extension)));
+                    includeAcl, convert(extension)), cmisVersion);
         } catch (Exception e) {
             throw convertException(e);
         } finally {
@@ -297,12 +330,14 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
             Boolean includeAllowableActions, EnumIncludeRelationships includeRelationships, String renditionFilter,
             Boolean includePolicyIds, Boolean includeAcl, CmisExtensionType extension) throws CmisException {
         CmisService service = null;
+        CmisVersion cmisVersion = null;
         try {
             service = getService(wsContext, repositoryId);
+            cmisVersion = getCmisVersion(wsContext);
 
             return convert(service.getObjectByPath(repositoryId, path, filter, includeAllowableActions,
                     convert(IncludeRelationships.class, includeRelationships), renditionFilter, includePolicyIds,
-                    includeAcl, convert(extension)));
+                    includeAcl, convert(extension)), cmisVersion);
         } catch (Exception e) {
             throw convertException(e);
         } finally {
@@ -393,6 +428,30 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
         }
     }
 
+    public void appendContentStream(String repositoryId, Holder<String> objectId, Boolean isLastChunk,
+            Holder<String> changeToken, CmisContentStreamType contentStream, Holder<CmisExtensionType> extension)
+            throws CmisException {
+        CmisService service = null;
+        try {
+            service = getService(wsContext, repositoryId);
+
+            org.apache.chemistry.opencmis.commons.spi.Holder<String> objectIdHolder = convertHolder(objectId);
+            org.apache.chemistry.opencmis.commons.spi.Holder<String> changeTokenHolder = convertHolder(changeToken);
+            ExtensionsData extData = convertExtensionHolder(extension);
+
+            service.appendContentStream(repositoryId, objectIdHolder, changeTokenHolder, convert(contentStream),
+                    isLastChunk, extData);
+
+            setHolderValue(objectIdHolder, objectId);
+            setHolderValue(changeTokenHolder, changeToken);
+            setExtensionValues(extData, extension);
+        } catch (Exception e) {
+            throw convertException(e);
+        } finally {
+            closeService(service);
+        }
+    }
+
     public void updateProperties(String repositoryId, Holder<String> objectId, Holder<String> changeToken,
             CmisPropertiesType properties, Holder<CmisExtensionType> extension) throws CmisException {
         CmisService service = null;
@@ -407,6 +466,50 @@ public class ObjectService extends AbstractService implements ObjectServicePort 
 
             setHolderValue(objectIdHolder, objectId);
             setHolderValue(changeTokenHolder, changeToken);
+            setExtensionValues(extData, extension);
+        } catch (Exception e) {
+            throw convertException(e);
+        } finally {
+            closeService(service);
+        }
+    }
+
+    public void bulkUpdateProperties(String repositoryId, CmisBulkUpdateType bulkUpdateData,
+            Holder<CmisExtensionType> extension, Holder<CmisObjectIdAndChangeTokenType> objectIdAndChangeToken)
+            throws CmisException {
+        CmisService service = null;
+        try {
+            service = getService(wsContext, repositoryId);
+
+            ExtensionsData extData = convertExtensionHolder(extension);
+
+            List<BulkUpdateObjectIdAndChangeToken> objectIdsAndChangeTokens = null;
+            Properties properties = null;
+            List<String> addSecondaryTypeIds = null;
+            List<String> removeSecondaryTypeIds = null;
+            if (bulkUpdateData != null) {
+                if (!bulkUpdateData.getObjectIdAndChangeToken().isEmpty()) {
+                    objectIdsAndChangeTokens = new ArrayList<BulkUpdateObjectIdAndChangeToken>();
+                    for (CmisObjectIdAndChangeTokenType idAndToken : bulkUpdateData.getObjectIdAndChangeToken()) {
+                        objectIdsAndChangeTokens.add(convert(idAndToken));
+                    }
+                }
+                properties = convert(bulkUpdateData.getProperties());
+                if (!bulkUpdateData.getAddSecondaryTypeIds().isEmpty()) {
+                    addSecondaryTypeIds = bulkUpdateData.getAddSecondaryTypeIds();
+                }
+                if (!bulkUpdateData.getRemoveSecondaryTypeIds().isEmpty()) {
+                    removeSecondaryTypeIds = bulkUpdateData.getRemoveSecondaryTypeIds();
+                }
+            }
+
+            List<BulkUpdateObjectIdAndChangeToken> result = service.bulkUpdateProperties(repositoryId,
+                    objectIdsAndChangeTokens, properties, addSecondaryTypeIds, removeSecondaryTypeIds, extData);
+
+            if (objectIdAndChangeToken != null) {
+                // TODO: fix
+            }
+
             setExtensionValues(extData, extension);
         } catch (Exception e) {
             throw convertException(e);
