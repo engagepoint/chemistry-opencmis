@@ -95,8 +95,8 @@
                             <wsdlFiles>
                                 <wsdlFile>CMISWS-Service.wsdl</wsdlFile>
                             </wsdlFiles>
-                            <wsdlLocation>*</wsdlLocation>
                             <packageName>org.apache.chemistry.opencmis.commons.impl.jaxb</packageName>
+                            <destdir />
                             <sourceDestDir>${project.basedir}/target/generated</sourceDestDir>
                             <extension>true</extension>
                             <target>2.1</target>
