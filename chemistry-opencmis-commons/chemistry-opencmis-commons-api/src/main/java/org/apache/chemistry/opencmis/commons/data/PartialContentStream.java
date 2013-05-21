@@ -16,30 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.chemistry.opencmis.commons.spi;
-
-import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
+package org.apache.chemistry.opencmis.commons.data;
 
 /**
- * MultiFiling Service interface.
+ * Content stream that indicates that this stream may not represent the complete
+ * document content. (Client only.)
  * 
- * <p>
- * <em>
- * See the CMIS 1.0 and CMIS 1.1 specifications for details on the operations, parameters,
- * exceptions and the domain model.
- * </em>
- * </p>
+ * Note that if the client provides an offset and/or a length that cover the
+ * whole document content, the server might report this as partial content.
  */
-public interface MultiFilingService {
+public interface PartialContentStream extends ContentStream {
 
-    /**
-     * Adds an existing fileable non-folder object to a folder.
-     */
-    void addObjectToFolder(String repositoryId, String objectId, String folderId, Boolean allVersions,
-            ExtensionsData extension);
-
-    /**
-     * Removes an existing fileable non-folder object from a folder.
-     */
-    void removeObjectFromFolder(String repositoryId, String objectId, String folderId, ExtensionsData extension);
 }

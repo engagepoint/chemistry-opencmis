@@ -16,12 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.chemistry.opencmis.client.api;
+package org.apache.chemistry.opencmis.commons.impl.dataobjects;
+
+import java.io.InputStream;
+import java.math.BigInteger;
+
+import org.apache.chemistry.opencmis.commons.data.PartialContentStream;
 
 /**
+ * Implementation of the {@link PartialContentStream} interface.
  */
-public interface ExtensionHandler {
+public class PartialContentStreamImpl extends ContentStreamImpl implements PartialContentStream {
 
-    void handleExtension(String context);
+    public PartialContentStreamImpl() {
+    }
+
+    public PartialContentStreamImpl(String filename, BigInteger length, String mimetype, InputStream stream) {
+        super(filename, length, mimetype, stream);
+    }
+
+    public PartialContentStreamImpl(String filename, String mimetype, String string) {
+        super(filename, mimetype, string);
+    }
+
+    private static final long serialVersionUID = 1L;
 
 }
