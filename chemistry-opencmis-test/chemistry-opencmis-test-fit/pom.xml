@@ -193,6 +193,7 @@
             	<service.factory.class>org.modeshape.jcr.JcrRepositoryFactory</service.factory.class>
             	<repository>test</repository>
             	<default.documentType>cmis:document</default.documentType>
+		<forkMode>never</forkMode>
             </properties>
 	        <dependencies>
 		        <dependency>
