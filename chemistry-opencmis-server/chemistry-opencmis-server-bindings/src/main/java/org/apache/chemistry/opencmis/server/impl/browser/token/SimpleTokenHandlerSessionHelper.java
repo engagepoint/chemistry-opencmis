@@ -224,21 +224,21 @@ public class SimpleTokenHandlerSessionHelper {
             return false;
         }
 
-        final String parameter = getToken(request);
+        String token = getToken(request);
 
-        if (parameter == null) {
+        if (token == null) {
             return false;
         }
 
-        final String path = ATTR_CMIS_TOKEN + parameter;
+        String tokenKey = ATTR_CMIS_TOKEN + token;
 
-        Long creationTimestamp = (Long) hs.getAttribute(path);
-        if (creationTimestamp != null) {
+        Long tokenCreationTimestamp = (Long) hs.getAttribute(tokenKey);
+        if (tokenCreationTimestamp != null) {
             // if the token exists, remove it
-            hs.removeAttribute(path);
+            hs.removeAttribute(tokenKey);
 
             // PARANOIA: don't accept tokens that are older than 8 hours
-            return System.currentTimeMillis() - creationTimestamp < 8 * 60 * 60 * 1000;
+            return System.currentTimeMillis() - tokenCreationTimestamp < 8 * 60 * 60 * 1000;
         }
 
         return false;
