@@ -18,7 +18,9 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.webservices;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Constructor;
 import java.math.BigInteger;
@@ -76,7 +78,6 @@ import org.apache.chemistry.opencmis.commons.impl.jaxb.VersioningServicePort;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -123,13 +124,13 @@ public abstract class AbstractPortProvider {
         ACL_SERVICE("ACLService", false, ACLService.class, ACLServicePort.class,
                 SessionParameter.WEBSERVICES_ACL_SERVICE, SessionParameter.WEBSERVICES_ACL_SERVICE_ENDPOINT);
 
-        private String name;
-        private QName qname;
-        private boolean handlesContent;
-        private Class<? extends Service> serviceClass;
-        private Class<?> portClass;
-        private String wsdlKey;
-        private String endpointKey;
+        private final String name;
+        private final QName qname;
+        private final boolean handlesContent;
+        private final Class<? extends Service> serviceClass;
+        private final Class<?> portClass;
+        private final String wsdlKey;
+        private final String endpointKey;
 
         CmisWebSerivcesService(String localname, boolean handlesContent, Class<? extends Service> serviceClass,
                 Class<?> port11Class, String wsdlKey, String endpointKey) {
@@ -172,18 +173,18 @@ public abstract class AbstractPortProvider {
     }
 
     static class CmisServiceHolder {
-        private CmisWebSerivcesService service;
+        private final CmisWebSerivcesService service;
         private SoftReference<Service> serviceObject;
-        private URL endpointUrl;
+        private final URL endpointUrl;
 
-        public CmisServiceHolder(CmisWebSerivcesService service, URL endpointUrl) throws Exception {
+        public CmisServiceHolder(final CmisWebSerivcesService service, final URL endpointUrl) throws Exception {
             this.service = service;
             this.endpointUrl = endpointUrl;
             this.serviceObject = new SoftReference<Service>(createServiceObject());
         }
 
         private Service createServiceObject() throws Exception {
-            Constructor<? extends Service> serviceConstructor = service.getServiceClass().getConstructor(
+            final Constructor<? extends Service> serviceConstructor = service.getServiceClass().getConstructor(
                     new Class<?>[] { URL.class, QName.class });
             return serviceConstructor.newInstance(new Object[] { null, service.getQName() });
         }
@@ -216,8 +217,8 @@ public abstract class AbstractPortProvider {
     protected boolean useClientCompression;
     protected String acceptLanguage;
 
-    private ReentrantLock portObjectLock = new ReentrantLock();
-    private EnumMap<CmisWebSerivcesService, LinkedList<SoftReference<BindingProvider>>> portObjectCache = new EnumMap<CmisWebSerivcesService, LinkedList<SoftReference<BindingProvider>>>(
+    private final ReentrantLock portObjectLock = new ReentrantLock();
+    private final EnumMap<CmisWebSerivcesService, LinkedList<SoftReference<BindingProvider>>> portObjectCache = new EnumMap<CmisWebSerivcesService, LinkedList<SoftReference<BindingProvider>>>(
             CmisWebSerivcesService.class);
 
     public BindingSession getSession() {
@@ -227,10 +228,10 @@ public abstract class AbstractPortProvider {
     public void setSession(BindingSession session) {
         this.session = session;
 
-        Object compression = session.get(SessionParameter.COMPRESSION);
+        final Object compression = session.get(SessionParameter.COMPRESSION);
         useCompression = (compression != null) && Boolean.parseBoolean(compression.toString());
 
-        Object clientCompression = session.get(SessionParameter.CLIENT_COMPRESSION);
+        final Object clientCompression = session.get(SessionParameter.CLIENT_COMPRESSION);
         useClientCompression = (clientCompression != null) && Boolean.parseBoolean(clientCompression.toString());
 
         if (session.get(CmisBindingsHelper.ACCEPT_LANGUAGE) instanceof String) {
@@ -396,7 +397,7 @@ public abstract class AbstractPortProvider {
     // ---- internal ----
 
     @SuppressWarnings("unchecked")
-    protected BindingProvider getPortObject(CmisWebSerivcesService service) {
+    protected BindingProvider getPortObject(final CmisWebSerivcesService service) {
         Map<CmisWebSerivcesService, CmisServiceHolder> serviceMap = (Map<CmisWebSerivcesService, CmisServiceHolder>) session
                 .get(SpiSessionParameter.SERVICES);
 
@@ -451,7 +452,7 @@ public abstract class AbstractPortProvider {
     /**
      * Creates a service object.
      */
-    protected CmisServiceHolder initServiceObject(CmisWebSerivcesService service) {
+    protected CmisServiceHolder initServiceObject(final CmisWebSerivcesService service) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Initializing Web Service " + service.getServiceName() + "...");
         }
@@ -499,32 +500,57 @@ public abstract class AbstractPortProvider {
     /**
      * Reads the URL and extracts the endpoint URL of the given service.
      */
-    private URL getEndpointUrlFromWsdl(String wsdlUrl, CmisWebSerivcesService service) {
-        HttpInvoker hi = CmisBindingsHelper.getHttpInvoker(session);
-        Response wsdlResponse = hi.invokeGET(new UrlBuilder(wsdlUrl), session);
+    private URL getEndpointUrlFromWsdl(final String wsdlUrl, final CmisWebSerivcesService service) {
+        InputStream wsdlStream;
+        URL url;
 
-        if (wsdlResponse.getResponseCode() != 200) {
-            throw new CmisConnectionException("Cannot access WSDL: " + wsdlUrl, BigInteger.ZERO,
-                    wsdlResponse.getErrorContent());
+        // check the WSDL URL
+        try {
+            url = new URL(wsdlUrl);
+        } catch (MalformedURLException e) {
+            throw new CmisConnectionException("Invalid WSDL URL: " + wsdlUrl, e);
         }
 
-        try {
-            Document doc = XMLUtils.parseDomDocument(wsdlResponse.getStream());
+        // check protocol
+        if (url.getProtocol().equalsIgnoreCase("http") || url.getProtocol().equalsIgnoreCase("https")) {
+            // HTTP URL -> use HttpInvoker to enable authentication
+            HttpInvoker hi = CmisBindingsHelper.getHttpInvoker(session);
+            Response wsdlResponse = hi.invokeGET(new UrlBuilder(wsdlUrl), session);
 
-            NodeList serivceList = doc.getElementsByTagName("service");
+            if (wsdlResponse.getResponseCode() != 200) {
+                throw new CmisConnectionException("Cannot access WSDL: " + wsdlUrl, BigInteger.ZERO,
+                        wsdlResponse.getErrorContent());
+            } else {
+                wsdlStream = wsdlResponse.getStream();
+            }
+        } else {
+            // non-HTTP URL -> just open the stream
+            try {
+                wsdlStream = url.openStream();
+            } catch (IOException e) {
+                throw new CmisConnectionException("Cannot access WSDL: " + wsdlUrl, e);
+            }
+        }
+
+        // parse the WSDL
+        try {
+            final Document doc = XMLUtils.parseDomDocument(new BufferedInputStream(wsdlStream, 16 * 1024));
+
+            NodeList serivceList = doc.getElementsByTagNameNS("http://schemas.xmlsoap.org/wsdl/", "service");
             for (int i = 0; i < serivceList.getLength(); i++) {
                 Element serviceNode = (Element) serivceList.item(i);
 
-                Attr attr = serviceNode.getAttributeNode("name");
-                if (attr == null) {
+                String name = serviceNode.getAttribute("name");
+                if (name == null) {
                     continue;
                 }
 
-                if (!service.getQName().getLocalPart().equals(attr.getValue())) {
+                if (!service.getQName().getLocalPart().equals(name)) {
                     continue;
                 }
 
-                NodeList portList = ((Element) serviceNode).getElementsByTagName("port");
+                NodeList portList = ((Element) serviceNode).getElementsByTagNameNS("http://schemas.xmlsoap.org/wsdl/",
+                        "port");
                 if (portList.getLength() < 1) {
                     throw new CmisRuntimeException("This service has no ports: " + service.getServiceName());
                 }
@@ -538,13 +564,13 @@ public abstract class AbstractPortProvider {
 
                 Element address = (Element) addressList.item(0);
 
-                attr = address.getAttributeNode("location");
-                if (attr == null) {
+                String location = address.getAttribute("location");
+                if (location == null) {
                     throw new CmisRuntimeException("This service has no endpoint address: " + service.getServiceName());
                 }
 
                 try {
-                    return new URL(attr.getValue());
+                    return new URL(location);
                 } catch (MalformedURLException e) {
                     throw new CmisRuntimeException("This service provides an invalid endpoint address: "
                             + service.getServiceName());
@@ -561,7 +587,7 @@ public abstract class AbstractPortProvider {
             throw new CmisRuntimeException("Cannot read this WSDL: " + wsdlUrl, ioe);
         } finally {
             try {
-                wsdlResponse.getStream().close();
+                wsdlStream.close();
             } catch (IOException ioe) {
                 // ignore, there is nothing we can do
             }
@@ -623,7 +649,7 @@ public abstract class AbstractPortProvider {
     /**
      * Creates a simple port object from a CmisServiceHolder object.
      */
-    protected BindingProvider createPortObjectFromServiceHolder(CmisServiceHolder serviceHolder,
+    protected BindingProvider createPortObjectFromServiceHolder(final CmisServiceHolder serviceHolder,
             WebServiceFeature... features) throws Exception {
         portObjectLock.lock();
         try {
