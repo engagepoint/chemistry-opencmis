@@ -36,6 +36,7 @@ public class JcrVersion extends JcrVersionBase {
     private static final Pattern VERSION_LABEL_PATTERN = Pattern.compile("(\\d+)(\\.(\\d+))?.*");
     private static final int GROUP_MAJOR = 1;
     private static final int GROUP_MINOR = 3;
+    private static final String JCR_UUID = "jcr:uuid";
 
     private final Version version;
 
@@ -61,7 +62,9 @@ public class JcrVersion extends JcrVersionBase {
     
     @Override
     protected String getObjectId() throws RepositoryException {
-        return getVersionSeriesId();
+        return version.hasProperty(JCR_UUID)
+                ? version.getProperty(JCR_UUID).getString()
+                : getVersionSeriesId();
     }
 
     @Override

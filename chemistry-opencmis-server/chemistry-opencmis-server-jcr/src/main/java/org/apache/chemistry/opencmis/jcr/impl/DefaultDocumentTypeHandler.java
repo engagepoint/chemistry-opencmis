@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implements JcrDocumentTypeHandler {
 
     private static final Logger log = LoggerFactory.getLogger(JcrFolder.class);
+    private static final String JCR_VERSIONABLE_UUID = "jcr:versionableUuid";
 
     public String getTypeId() {
         return BaseTypeId.CMIS_DOCUMENT.value();
@@ -92,24 +93,30 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     }
 
     public JcrDocument getJcrNode(Node node) throws RepositoryException {
-        VersionManager versionManager = node.getSession().getWorkspace().getVersionManager();
-        Version version = versionManager.getBaseVersion(node.getPath());
-        return new JcrVersion(node, version, typeManager, pathManager, typeHandlerManager);
+        if (node instanceof Version) {
+            Node nodeByIdentifier = node.getParent().getSession().getNodeByIdentifier(node.getParent().getProperty(JCR_VERSIONABLE_UUID).getString());
+            // todo make sure node is a specific version
+            return new JcrVersion(nodeByIdentifier, (Version) node, typeManager, pathManager, typeHandlerManager);
+        } else {
+            VersionManager versionManager = node.getSession().getWorkspace().getVersionManager();
+            Version version = versionManager.getBaseVersion(node.getPath());
+            return new JcrVersion(node, version, typeManager, pathManager, typeHandlerManager);
+        }
     }
 
     public boolean canHandle(Node node) throws RepositoryException {
         return node.isNodeType(NodeType.NT_FILE) && node.isNodeType(supportedVersioningType(node));
     }
-    
+
     protected String supportedVersioningType(Node node) throws RepositoryException {
     	if (Util.supportOption(node, Repository.OPTION_SIMPLE_VERSIONING_SUPPORTED)) {
     		return NodeType.MIX_SIMPLE_VERSIONABLE;
     	}
-    	
+
     	if(Util.supportOption(node, Repository.OPTION_VERSIONING_SUPPORTED)) {
     		return NodeType.MIX_VERSIONABLE;
     	}
-    	
+
     	throw new RepositoryException("The repository does not support versioning!");
     }
 

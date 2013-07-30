@@ -19,13 +19,7 @@
 package org.apache.chemistry.opencmis.jcr;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.GregorianCalendar;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import javax.jcr.Credentials;
 import javax.jcr.ItemNotFoundException;
@@ -46,19 +40,8 @@ import javax.jcr.query.QueryManager;
 import javax.jcr.query.QueryResult;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
-import org.apache.chemistry.opencmis.commons.data.AllowableActions;
-import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
-import org.apache.chemistry.opencmis.commons.data.ContentStream;
-import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
-import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
-import org.apache.chemistry.opencmis.commons.data.ObjectData;
-import org.apache.chemistry.opencmis.commons.data.ObjectInFolderContainer;
-import org.apache.chemistry.opencmis.commons.data.ObjectInFolderData;
-import org.apache.chemistry.opencmis.commons.data.ObjectInFolderList;
-import org.apache.chemistry.opencmis.commons.data.ObjectList;
-import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
+import org.apache.chemistry.opencmis.commons.data.*;
 import org.apache.chemistry.opencmis.commons.data.Properties;
-import org.apache.chemistry.opencmis.commons.data.RepositoryInfo;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
@@ -1029,8 +1012,7 @@ public class JcrRepository {
                 return typeHandlerManager.create(versionNode.getPwc().getNode());
             }
             else {
-               JcrVersion version = versionNode.getVersion(((JcrVersion) versionNode).getVersionName());
-               return typeHandlerManager.create(version.getNode());
+                return typeHandlerManager.create(node);
             }
 
         }
