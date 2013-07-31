@@ -95,7 +95,6 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     public JcrDocument getJcrNode(Node node) throws RepositoryException {
         if (node instanceof Version) {
             Node nodeByIdentifier = node.getParent().getSession().getNodeByIdentifier(node.getParent().getProperty(JCR_VERSIONABLE_UUID).getString());
-            // todo make sure node is a specific version
             return new JcrVersion(nodeByIdentifier, (Version) node, typeManager, pathManager, typeHandlerManager);
         } else {
             VersionManager versionManager = node.getSession().getWorkspace().getVersionManager();
@@ -105,7 +104,17 @@ public class DefaultDocumentTypeHandler extends AbstractJcrTypeHandler implement
     }
 
     public boolean canHandle(Node node) throws RepositoryException {
-        return node.isNodeType(NodeType.NT_FILE) && node.isNodeType(supportedVersioningType(node));
+        Node targetNode = node;
+
+        if (node.isNodeType(NodeType.NT_VERSION)) // other type or nt:version
+            try {
+                if (node.getParent() != null && node.getParent().hasProperty(JCR_VERSIONABLE_UUID))
+                    targetNode = node.getParent().getSession().getNodeByIdentifier(node.getParent().getProperty(JCR_VERSIONABLE_UUID).getString());
+            } catch (Throwable t) {
+                log.error("Error when checking canHandle for the version node", t);
+            }
+
+        return targetNode.isNodeType(NodeType.NT_FILE) && targetNode.isNodeType(supportedVersioningType(node));
     }
 
     protected String supportedVersioningType(Node node) throws RepositoryException {
