@@ -26,6 +26,7 @@ import org.apache.chemistry.opencmis.server.support.query.CmisQueryWalker;
 import org.apache.chemistry.opencmis.server.support.query.QueryObject;
 import org.apache.chemistry.opencmis.server.support.query.QueryObject.SortSpec;
 import org.apache.chemistry.opencmis.server.support.query.QueryUtil;
+import org.apache.jackrabbit.util.ISO9075;
 
 import java.util.List;
 
@@ -91,7 +92,8 @@ public abstract class QueryTranslator {
         String elementTest = buildElementTest(fromType);
         String predicates = buildPredicates(fromType, getCondition(parseResult));
         String orderByClause = buildOrderByClause(fromType, queryObject.getOrderBys());
-        return "/jcr:root" + pathExpression + elementTest + predicates + orderByClause;
+        String pathExpressionEncoded = ISO9075.encodePath(pathExpression);
+        return "/jcr:root" + pathExpressionEncoded + elementTest + predicates + orderByClause;
     }
 
     //------------------------------------------< protected >---
