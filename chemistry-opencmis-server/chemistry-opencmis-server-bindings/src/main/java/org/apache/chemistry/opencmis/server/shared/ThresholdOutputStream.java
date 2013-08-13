@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.Key;
+import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -49,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * InputStream isn't required!
  */
 public class ThresholdOutputStream extends OutputStream {
-
+    static final SecureRandom random = new SecureRandom();
     private static final Logger LOG = LoggerFactory.getLogger(ThresholdOutputStream.class);
 
     private static final int MAX_GROW = 10 * 1024 * 1024; // 10 MiB
@@ -139,7 +140,7 @@ public class ThresholdOutputStream extends OutputStream {
 
         if (bufSize + nextBufferSize > memoryThreshold) {
             if (tmpStream == null) {
-                tempFile = File.createTempFile("opencmis", null, tempDir);
+                tempFile = File.createTempFile("opencmis-" + random.nextLong(), null, tempDir);
                 if (encrypt) {
 
                     Cipher cipher;

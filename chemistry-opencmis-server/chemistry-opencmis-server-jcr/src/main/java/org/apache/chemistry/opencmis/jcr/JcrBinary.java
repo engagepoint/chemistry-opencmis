@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.security.SecureRandom;
 
 /**
  * <code>JcrBinary</code> implements the JCR <code>Binary</code> interface.
@@ -37,7 +38,7 @@ import java.io.RandomAccessFile;
  * Apache Jackrabbit's jcr-commons module. 
  */
 public class JcrBinary implements Binary {
-
+    static final SecureRandom random = new SecureRandom();
     /**
      * empty array
      */
@@ -87,7 +88,7 @@ public class JcrBinary implements Binary {
                     // threshold for keeping data in memory exceeded;
                     // create temp file and spool buffer contents
 
-                    spoolFile = File.createTempFile("bin", null, null);
+                    spoolFile = File.createTempFile("bin-" + random.nextLong(), null, null);
                     out = new FileOutputStream(spoolFile);
                     out.write(buffer, 0, len);
                     out.write(spoolBuffer, 0, read);
