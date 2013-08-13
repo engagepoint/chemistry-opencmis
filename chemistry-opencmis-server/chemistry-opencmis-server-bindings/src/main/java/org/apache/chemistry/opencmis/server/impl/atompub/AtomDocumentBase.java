@@ -31,6 +31,7 @@ import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.DateTimeHelper;
 import org.apache.chemistry.opencmis.commons.impl.XMLConstants;
 import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
+import org.owasp.esapi.ESAPI;
 
 /**
  * Atom base class.
@@ -169,7 +170,8 @@ public abstract class AtomDocumentBase extends XMLDocumentBase {
             xsw.writeAttribute("type", type);
         }
         if (id != null) {
-            xsw.writeAttribute(XMLConstants.NAMESPACE_RESTATOM, "id", id);
+            xsw.writeAttribute(XMLConstants.NAMESPACE_RESTATOM, "id",
+                    ESAPI.encoder().encodeForHTML(id));
         }
 
         xsw.writeEndElement();

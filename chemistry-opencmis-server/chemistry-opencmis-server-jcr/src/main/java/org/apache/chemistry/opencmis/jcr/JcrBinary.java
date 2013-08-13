@@ -28,17 +28,17 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.security.SecureRandom;
 
 /**
  * <code>JcrBinary</code> implements the JCR <code>Binary</code> interface.
  * This is mostly a copy from org.apache.jackrabbit.value.BinaryImpl in
- * Apache Jackrabbit's jcr-commons module. 
+ * Apache Jackrabbit's jcr-commons module.
  */
 public class JcrBinary implements Binary {
     static final SecureRandom random = new SecureRandom();
+
     /**
      * empty array
      */
@@ -71,17 +71,17 @@ public class JcrBinary implements Binary {
      * @throws IOException if an error occurs while reading from the stream or
      *      writing to the temporary file
      */
-    public JcrBinary(InputStream in) throws IOException {
+    public JcrBinary(final InputStream in) throws IOException {
         byte[] spoolBuffer = new byte[0x2000];
         int read;
         int len = 0;
-        OutputStream out = null;
+        FileOutputStream binary = null;
         File spoolFile = null;
         try {
             while ((read = in.read(spoolBuffer)) > 0) {
-                if (out != null) {
+                if (binary != null) {
                     // spool to temp file
-                    out.write(spoolBuffer, 0, read);
+                    binary.write(spoolBuffer, 0, read);
                     len += read;
                 }
                 else if (len + read > MAX_BUFFER_SIZE) {
@@ -89,9 +89,9 @@ public class JcrBinary implements Binary {
                     // create temp file and spool buffer contents
 
                     spoolFile = File.createTempFile("bin-" + random.nextLong(), null, null);
-                    out = new FileOutputStream(spoolFile);
-                    out.write(buffer, 0, len);
-                    out.write(spoolBuffer, 0, read);
+                    binary = new FileOutputStream(spoolFile);
+                    binary.write(buffer, 0, len);
+                    binary.write(spoolBuffer, 0, read);
                     buffer = null;
                     len += read;
                 }
@@ -107,8 +107,8 @@ public class JcrBinary implements Binary {
         }
         finally {
             in.close();
-            if (out != null) {
-                out.close();
+            if (binary != null) {
+                binary.close();
             }
         }
 
@@ -118,7 +118,7 @@ public class JcrBinary implements Binary {
 
     /**
      * Creates a new <code>JcrBinary</code> instance from a <code>byte[]</code> array.
-     * 
+     *
      * @param buffer byte array to be represented as a <code>JcrBinary</code> instance
      */
     public JcrBinary(byte[] buffer) {
