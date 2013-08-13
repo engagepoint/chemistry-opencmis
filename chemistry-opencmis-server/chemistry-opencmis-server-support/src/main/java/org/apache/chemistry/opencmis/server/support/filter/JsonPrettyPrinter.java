@@ -78,8 +78,8 @@ public class JsonPrettyPrinter  {
             sb.append(indentStr);
         }
     }
-    
-    public static void main(String[] args) {
+    // TODO: EngagePoint Content Veracode security violation fix for unused functionality
+    public static void main1(String[] args) {
         args = new String[2];
         args[0] = "[0,{\"1\":{\"2\":{\"3\":{\"4\":[5,{\"6\":7}]}}}}]";
         args[1] = "{\"abc\":{\"def\":{\"ghi\":{\"jkl\":[5,{\"mno\":7}]}}}}";

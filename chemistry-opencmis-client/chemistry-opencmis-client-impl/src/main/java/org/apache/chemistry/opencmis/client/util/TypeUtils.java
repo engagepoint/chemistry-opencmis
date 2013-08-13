@@ -101,6 +101,7 @@ public class TypeUtils {
         Writer writer = new BufferedWriter(new OutputStreamWriter(stream, "UTF-8"));
         JSONConverter.convert(type).writeJSONString(writer);
         writer.flush();
+        writer.close();
     }
 
     /**

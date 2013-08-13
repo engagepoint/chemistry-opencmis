@@ -34,7 +34,9 @@ import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisServiceFactory;
 import org.apache.chemistry.opencmis.server.impl.CallContextImpl;
 import org.apache.chemistry.opencmis.server.impl.CmisRepositoryContextListener;
-import org.apache.chemistry.opencmis.server.impl.browser.BrowserCallContextImpl;
+
+// TODO: EngagePoint Content Veracode security violation fix for unused functionality
+// import org.apache.chemistry.opencmis.server.impl.browser.BrowserCallContextImpl;
 
 public abstract class AbstractCmisHttpServlet extends HttpServlet {
 
@@ -132,8 +134,9 @@ public abstract class AbstractCmisHttpServlet extends HttpServlet {
         CallContextImpl context = null;
 
         if (CallContext.BINDING_BROWSER.equals(binding)) {
-            context = new BrowserCallContextImpl(binding, cmisVersion, repositoryId, servletContext, request, response,
-                    factory, streamFactory);
+            // TODO: EngagePoint Content Veracode security violation fix for unused functionality
+//            context = new BrowserCallContextImpl(binding, cmisVersion, repositoryId, servletContext, request, response,
+//                    factory, streamFactory);
         } else {
             context = new CallContextImpl(binding, cmisVersion, repositoryId, servletContext, request, response,
                     factory, streamFactory);
