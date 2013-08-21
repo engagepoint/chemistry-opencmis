@@ -29,32 +29,32 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.Policy;
 
 public class PolicyImpl extends StoredObjectImpl implements Policy {
 
-    PolicyImpl(ObjectStoreImpl objStore) {
-        super(objStore);
+    public PolicyImpl() {
+        super();
     }
 
     private String policyText;
-    
 
     public void setPolicyText(String text) {
         policyText = text;
     }
-    
+
+    @Override
     public String getPolicyText() {
         return policyText;
     }
-    
+
     @Override
     public void fillProperties(Map<String, PropertyData<?>> properties, BindingsObjectFactory objFactory,
             List<String> requestedIds) {
 
-       super.fillProperties(properties, objFactory, requestedIds);
-        
+        super.fillProperties(properties, objFactory, requestedIds);
+
         if (FilterParser.isContainedInFilter(PropertyIds.POLICY_TEXT, requestedIds)) {
-            properties.put(PropertyIds.POLICY_TEXT, objFactory.createPropertyStringData(
-                    PropertyIds.POLICY_TEXT, policyText) );
+            properties.put(PropertyIds.POLICY_TEXT,
+                    objFactory.createPropertyStringData(PropertyIds.POLICY_TEXT, policyText));
         }
-        
+
     }
 
 }

@@ -42,7 +42,7 @@ import org.apache.chemistry.opencmis.commons.server.CmisService;
  */
 public class AclService {
 
-    public static abstract class AclServiceCall extends AbstractAtomPubServiceCall {
+    public abstract static class AclServiceCall extends AbstractAtomPubServiceCall {
         protected void writeAclXML(Acl acl, CmisVersion cmisVersion, OutputStream out) throws XMLStreamException {
             XMLStreamWriter writer = XMLUtils.createWriter(out);
             XMLUtils.startXmlDocument(writer);
@@ -57,6 +57,12 @@ public class AclService {
     public static class GetAcl extends AclServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             Boolean onlyBasicPermissions = getBooleanParameter(request, Constants.PARAM_ONLY_BASIC_PERMISSIONS);
@@ -83,6 +89,7 @@ public class AclService {
     public static class ApplyAcl extends AclServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+           
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             AclPropagation aclPropagation = getEnumParameter(request, Constants.PARAM_ACL_PROPAGATION,
@@ -95,7 +102,7 @@ public class AclService {
                 XMLUtils.findNextStartElemenet(parser);
                 aces = XMLConverter.convertAcl(parser);
             } catch (XMLStreamException e) {
-                throw new CmisInvalidArgumentException("Invalid request!");
+                throw new CmisInvalidArgumentException("Invalid request!", e);
             } finally {
                 if (parser != null) {
                     try {

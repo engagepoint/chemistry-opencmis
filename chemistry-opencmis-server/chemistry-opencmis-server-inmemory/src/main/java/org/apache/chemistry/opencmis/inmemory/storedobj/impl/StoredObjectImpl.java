@@ -22,7 +22,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -34,30 +33,26 @@ import java.util.Map.Entry;
 import java.util.TimeZone;
 
 import org.apache.chemistry.opencmis.commons.PropertyIds;
-import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
-import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
-import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.chemistry.opencmis.commons.data.RenditionData;
-import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
-import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.spi.BindingsObjectFactory;
 import org.apache.chemistry.opencmis.inmemory.DataObjectCreator;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
-import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
-import org.apache.chemistry.opencmis.inmemory.types.PropertyCreationHelper;
 
 /**
  * StoredObject is the common superclass of all objects hold in the repository
  * Documents, Folders, Relationships and Policies
- *
+ * 
  * @author Jens
  */
 public class StoredObjectImpl implements StoredObject {
 
+    private static final int BUFFER_SIZE = 65536;
+    private static final String UNKNOWN_USER = "unknown";
     public static final String RENDITION_MIME_TYPE_JPEG = "image/jpeg";
     public static final String RENDITION_MIME_TYPE_PNG = "image/png";
     public static final String RENDITION_SUFFIX = "-rendition";
@@ -72,89 +67,114 @@ public class StoredObjectImpl implements StoredObject {
     protected GregorianCalendar fModifiedAt;
     protected String fRepositoryId;
     protected Map<String, PropertyData<?>> fProperties;
-    protected final ObjectStoreImpl fObjStore;
     protected int fAclId;
     protected String description; // CMIS 1.1
     protected List<String> secondaryTypeIds; // CMIS 1.1
     protected List<String> policyIds;
 
-    StoredObjectImpl(ObjectStoreImpl objStore) { // visibility should be package
+    StoredObjectImpl() { // visibility should be package
         GregorianCalendar now = getNow();
         now.setTime(new Date());
         fCreatedAt = now;
         fModifiedAt = now;
-        fObjStore = objStore;
         secondaryTypeIds = new ArrayList<String>();
         policyIds = null;
     }
 
+    @Override
     public String getId() {
         return fId;
     }
 
+    @Override
+    public void setId(String id) {
+        fId = id;
+    }
+
+    @Override
     public String getName() {
         return fName;
     }
 
+    @Override
     public void setName(String name) {
         fName = name;
     }
 
+    @Override
     public String getTypeId() {
         return fTypeId;
     }
 
+    @Override
     public void setTypeId(String type) {
         fTypeId = type;
     }
 
+    @Override
     public String getCreatedBy() {
         return fCreatedBy;
     }
 
+    @Override
     public void setCreatedBy(String createdBy) {
         this.fCreatedBy = createdBy;
     }
 
+    @Override
     public String getModifiedBy() {
         return fModifiedBy;
     }
 
+    @Override
     public void setModifiedBy(String modifiedBy) {
         this.fModifiedBy = modifiedBy;
     }
 
+    @Override
     public GregorianCalendar getCreatedAt() {
         return fCreatedAt;
     }
 
+    @Override
     public void setCreatedAt(GregorianCalendar createdAt) {
         this.fCreatedAt = createdAt;
     }
 
+    @Override
     public GregorianCalendar getModifiedAt() {
         return fModifiedAt;
     }
 
+    @Override
     public void setModifiedAtNow() {
         this.fModifiedAt = getNow();
     }
 
+    @Override
+    public void setModifiedAt(GregorianCalendar cal) {
+        this.fModifiedAt = cal;
+    }
+
+    @Override
     public void setRepositoryId(String repositoryId) {
         fRepositoryId = repositoryId;
     }
 
+    @Override
     public String getRepositoryId() {
         return fRepositoryId;
     }
-    
+
+    @Override
     public List<String> getAppliedPolicies() {
-        if (null == policyIds)
+        if (null == policyIds) {
             return null;
-        else
+        } else {
             return Collections.unmodifiableList(policyIds);
+        }
     }
-    
+
     public void setAppliedPolicies(List<String> newPolicies) {
         if (null == newPolicies) {
             policyIds = null;
@@ -165,7 +185,8 @@ public class StoredObjectImpl implements StoredObject {
             policyIds.addAll(newPolicies);
         }
     }
-    
+
+    @Override
     public void addAppliedPolicy(String policyId) {
         if (null == policyIds) {
             policyIds = new ArrayList<String>();
@@ -175,6 +196,7 @@ public class StoredObjectImpl implements StoredObject {
         }
     }
 
+    @Override
     public void removePolicy(String policyId) {
         if (null != policyIds && policyIds.contains(policyId)) {
             policyIds.remove(policyId);
@@ -183,50 +205,55 @@ public class StoredObjectImpl implements StoredObject {
             }
         }
     }
-    
+
     // CMIS 1.1:
+    @Override
     public void setDescription(String descr) {
         description = descr;
     }
-    
+
     // CMIS 1.1:
+    @Override
     public String getDescription() {
         return description;
     }
 
+    @Override
     public List<String> getSecondaryTypeIds() {
         return Collections.unmodifiableList(secondaryTypeIds);
     }
 
+    @Override
     public void setProperties(Map<String, PropertyData<?>> props) {
         fProperties = props;
     }
 
+    @Override
     public Map<String, PropertyData<?>> getProperties() {
         return fProperties;
     }
 
+    @Override
     public String getChangeToken() {
         GregorianCalendar lastModified = getModifiedAt();
         String token = Long.valueOf(lastModified.getTimeInMillis()).toString();
         return token;
     }
 
-    public void rename(String newName) {
-        setName(newName);
-    }
-
+    @Override
     public void createSystemBasePropertiesWhenCreated(Map<String, PropertyData<?>> properties, String user) {
         addSystemBaseProperties(properties, user, true);
     }
 
+    @Override
     public void updateSystemBasePropertiesWhenModified(Map<String, PropertyData<?>> properties, String user) {
         addSystemBaseProperties(properties, user, false);
     }
 
+    @Override
     public void fillProperties(Map<String, PropertyData<?>> properties, BindingsObjectFactory objFactory,
             List<String> requestedIds) {
-        
+
         if (FilterParser.isContainedInFilter(PropertyIds.NAME, requestedIds)) {
             properties.put(PropertyIds.NAME, objFactory.createPropertyStringData(PropertyIds.NAME, getName()));
         }
@@ -234,46 +261,41 @@ public class StoredObjectImpl implements StoredObject {
             properties.put(PropertyIds.OBJECT_ID, objFactory.createPropertyIdData(PropertyIds.OBJECT_ID, getId()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.OBJECT_TYPE_ID, requestedIds)) {
-            properties.put(PropertyIds.OBJECT_TYPE_ID, objFactory.createPropertyIdData(PropertyIds.OBJECT_TYPE_ID,
-                    getTypeId()));
+            properties.put(PropertyIds.OBJECT_TYPE_ID,
+                    objFactory.createPropertyIdData(PropertyIds.OBJECT_TYPE_ID, getTypeId()));
         }
-        // set the base type id outside becaus it requires the type definition
-        // if (FilterParser.isContainedInFilter(PropertyIds.CMIS_BASE_TYPE_ID,
-        // requestedIds)) {
-        // properties.add(objFactory.createPropertyIdData(PropertyIds.
-        // CMIS_BASE_TYPE_ID, getBaseTypeId()));
-        // }
+        // set the base type id PropertyIds.CMIS_BASE_TYPE_ID outside because it requires the type definition
         if (FilterParser.isContainedInFilter(PropertyIds.CREATED_BY, requestedIds)) {
-            properties.put(PropertyIds.CREATED_BY, objFactory.createPropertyStringData(PropertyIds.CREATED_BY,
-                    getCreatedBy()));
+            properties.put(PropertyIds.CREATED_BY,
+                    objFactory.createPropertyStringData(PropertyIds.CREATED_BY, getCreatedBy()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.CREATION_DATE, requestedIds)) {
-            properties.put(PropertyIds.CREATION_DATE, objFactory.createPropertyDateTimeData(PropertyIds.CREATION_DATE,
-                    getCreatedAt()));
+            properties.put(PropertyIds.CREATION_DATE,
+                    objFactory.createPropertyDateTimeData(PropertyIds.CREATION_DATE, getCreatedAt()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.LAST_MODIFIED_BY, requestedIds)) {
-            properties.put(PropertyIds.LAST_MODIFIED_BY, objFactory.createPropertyStringData(
-                    PropertyIds.LAST_MODIFIED_BY, getModifiedBy()));
+            properties.put(PropertyIds.LAST_MODIFIED_BY,
+                    objFactory.createPropertyStringData(PropertyIds.LAST_MODIFIED_BY, getModifiedBy()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.LAST_MODIFICATION_DATE, requestedIds)) {
-            properties.put(PropertyIds.LAST_MODIFICATION_DATE, objFactory.createPropertyDateTimeData(
-                    PropertyIds.LAST_MODIFICATION_DATE, getModifiedAt()));
+            properties.put(PropertyIds.LAST_MODIFICATION_DATE,
+                    objFactory.createPropertyDateTimeData(PropertyIds.LAST_MODIFICATION_DATE, getModifiedAt()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.CHANGE_TOKEN, requestedIds)) {
             String token = getChangeToken();
-            properties.put(PropertyIds.CHANGE_TOKEN, objFactory.createPropertyStringData(PropertyIds.CHANGE_TOKEN,
-                    token));
+            properties.put(PropertyIds.CHANGE_TOKEN,
+                    objFactory.createPropertyStringData(PropertyIds.CHANGE_TOKEN, token));
         }
-        
+
         // CMIS 1.1 properties:
         if (FilterParser.isContainedInFilter(PropertyIds.DESCRIPTION, requestedIds)) {
-            properties.put(PropertyIds.DESCRIPTION, objFactory.createPropertyStringData(PropertyIds.DESCRIPTION,
-                    description));
+            properties.put(PropertyIds.DESCRIPTION,
+                    objFactory.createPropertyStringData(PropertyIds.DESCRIPTION, description));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, requestedIds)) {
-            properties.put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, objFactory.createPropertyIdData(PropertyIds.SECONDARY_OBJECT_TYPE_IDS,
-                    secondaryTypeIds));
-        }            
+            properties.put(PropertyIds.SECONDARY_OBJECT_TYPE_IDS,
+                    objFactory.createPropertyIdData(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, secondaryTypeIds));
+        }
 
         // add custom properties of type definition to the collection
         if (null != fProperties) {
@@ -283,18 +305,18 @@ public class StoredObjectImpl implements StoredObject {
                 }
             }
         }
-        
+
     }
 
     // ///////////////////////////////////////////
     // private helper methods
 
+    @Override
     public void setCustomProperties(Map<String, PropertyData<?>> properties) {
-        properties = new HashMap<String, PropertyData<?>>(properties); // get a
-        // writable
-        // collection
-        removeAllSystemProperties(properties);
-        setProperties(properties);
+        Map<String, PropertyData<?>> propertiesNew = new HashMap<String, PropertyData<?>>(properties); 
+        // get a writablecollection
+        removeAllSystemProperties(propertiesNew);
+        setProperties(propertiesNew);
     }
 
     private static GregorianCalendar getNow() {
@@ -310,26 +332,29 @@ public class StoredObjectImpl implements StoredObject {
     @SuppressWarnings("unchecked")
     private void addSystemBaseProperties(Map<String, PropertyData<?>> properties, String user, boolean isCreated) {
         if (user == null) {
-            user = "unknown";
+            user = UNKNOWN_USER;
         }
 
         // Note that initial creation and modification date is set in
         // constructor.
         setModifiedBy(user);
-        if (null != properties.get(PropertyIds.DESCRIPTION))
-            setDescription((String)properties.get(PropertyIds.DESCRIPTION).getFirstValue());
-        
-        if (null != properties.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS)) {
-            secondaryTypeIds.clear();
-            secondaryTypeIds.addAll((List<String>)properties.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS).getValues());
+        if (null != properties) {
+           if (null != properties.get(PropertyIds.DESCRIPTION)) {
+            setDescription((String) properties.get(PropertyIds.DESCRIPTION)
+                       .getFirstValue());
         }
-        
+
+           if (null != properties.get(PropertyIds.SECONDARY_OBJECT_TYPE_IDS)) {
+               secondaryTypeIds.clear();
+               secondaryTypeIds.addAll((List<String>) properties.get(
+                       PropertyIds.SECONDARY_OBJECT_TYPE_IDS).getValues());
+           }
+       }
         if (isCreated) {
             setCreatedBy(user);
             setName((String) properties.get(PropertyIds.NAME).getFirstValue());
             setTypeId((String) properties.get(PropertyIds.OBJECT_TYPE_ID).getFirstValue());
         } else {
-            setModifiedBy(user);
             setModifiedAtNow();
         }
     }
@@ -352,7 +377,7 @@ public class StoredObjectImpl implements StoredObject {
      * CMIS_NAME CMIS_OBJECT_ID CMIS_OBJECT_TYPE_ID CMIS_BASE_TYPE_ID
      * CMIS_CREATED_BY CMIS_CREATION_DATE CMIS_LAST_MODIFIED_BY
      * CMIS_LAST_MODIFICATION_DATE CMIS_CHANGE_TOKEN
-     *
+     * 
      * // ---- document ---- CMIS_IS_IMMUTABLE CMIS_IS_LATEST_VERSION
      * CMIS_IS_MAJOR_VERSION CMIS_IS_LATEST_MAJOR_VERSION CMIS_VERSION_LABEL
      * CMIS_VERSION_SERIES_ID CMIS_IS_VERSION_SERIES_CHECKED_OUT
@@ -360,12 +385,12 @@ public class StoredObjectImpl implements StoredObject {
      * CMIS_CHECKIN_COMMENT CMIS_CONTENT_STREAM_LENGTH
      * CMIS_CONTENT_STREAM_MIME_TYPE CMIS_CONTENT_STREAM_FILE_NAME
      * CMIS_CONTENT_STREAM_ID
-     *
+     * 
      * // ---- folder ---- CMIS_PARENT_ID CMIS_ALLOWED_CHILD_OBJECT_TYPE_IDS
      * CMIS_PATH
-     *
+     * 
      * // ---- relationship ---- CMIS_SOURCE_ID CMIS_TARGET_ID
-     *
+     * 
      * // ---- policy ---- CMIS_POLICY_TEXT
      */
     private static void removeAllSystemProperties(Map<String, PropertyData<?>> properties) {
@@ -463,83 +488,75 @@ public class StoredObjectImpl implements StoredObject {
         }
     }
 
-    public void persist() {
-        // in-memory implementation does not need to to anything to persist,
-        // but after this call the id should be set.
-        fId = fObjStore.storeObject(this);
+    @Override
+    public int getAclId() {
+        return fAclId;
     }
 
-	public Acl getAcl() {
-	    return fObjStore.getAcl(fAclId);
-	}
+    public void setAclId(int aclId) {
+        fAclId = aclId;
+    }
 
-	public int getAclId() {
-	    return fAclId;
-	}
-	
-	public void setAclId(int aclId) {
-	    fAclId = aclId;
-	}
-	
-    public List<StoredObject> getObjectRelationships(RelationshipDirection relationshipDirection, String user) {
-	    
-        List<StoredObject> rels = fObjStore.getRelationships(getId(), null, relationshipDirection);
-		return rels;
-	}
+    @Override
+    public AllowableActions getAllowableActions(String user) {
+        AllowableActions actions = DataObjectCreator.fillAllowableActions(this, user);
+        return actions;
+    }
 
-	public AllowableActions getAllowableActions(String user) {
-		AllowableActions actions = DataObjectCreator.fillAllowableActions(this, user);
-		return actions;
-	}
-
+    @Override
     public List<RenditionData> getRenditions(String renditionFilter, long maxItems, long skipCount) {
         return null;
     }
 
+    @Override
     public ContentStream getRenditionContent(String streamId, long offset, long length) {
         return null;
     }
 
+    @Override
     public boolean hasRendition(String user) {
         return false;
     }
-    
-    protected  ContentStream getIconFromResourceDir(String name) throws IOException {
+
+    protected ContentStream getIconFromResourceDir(String name) throws IOException {
+
+        InputStream imageStream = StoredObjectImpl.class.getResourceAsStream(name);
+        ByteArrayOutputStream ba = new ByteArrayOutputStream();
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int noBytesRead = 0;
+
+        try {
+            while ((noBytesRead = imageStream.read(buffer)) >= 0) {
+                ba.write(buffer, 0, noBytesRead);
+            }
+        } finally {
+            IOUtils.closeQuietly(ba);
+            IOUtils.closeQuietly(imageStream);
+        }
         
-        InputStream imageStream = this.getClass().getResourceAsStream(name);
         ContentStreamDataImpl content = new ContentStreamDataImpl(0);
         content.setFileName(name);
         content.setMimeType("image/png");
-
-        ByteArrayOutputStream ba = new ByteArrayOutputStream();
-        byte[] buffer = new byte [65536];
-        int noBytesRead = 0;
-
-        while ((noBytesRead = imageStream.read(buffer)) >=0 ) {
-            ba.write(buffer, 0, noBytesRead);
-        }
-        
         content.setContent(new ByteArrayInputStream(ba.toByteArray()));
         return content;
     }
-    
+
     protected boolean testRenditionFilterForImage(String[] formats) {
-        if (formats.length == 1 && null != formats[0] && formats[0].equals("cmis:none"))
+        if (formats.length == 1 && null != formats[0] && formats[0].equals("cmis:none")) {
             return false;
-        else
-            return arrayContainsString(formats, "*")  || arrayContainsString(formats, "image/*") 
-                || arrayContainsString(formats, "image/jpeg") ;
+        } else {
+            return arrayContainsString(formats, "*") || arrayContainsString(formats, "image/*")
+                    || arrayContainsString(formats, "image/jpeg");
+        }
     }
-    
+
     private boolean arrayContainsString(String[] formats, String val) {
         for (String s : formats) {
-            if (val.equals(s))
-                return true;            
+            if (val.equals(s)) {
+                return true;
+            }
         }
         return false;
     }
-
-
-
 
 }

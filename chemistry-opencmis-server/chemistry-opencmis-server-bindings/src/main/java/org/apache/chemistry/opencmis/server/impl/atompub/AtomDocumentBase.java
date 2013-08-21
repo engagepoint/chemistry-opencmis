@@ -18,9 +18,7 @@
  */
 package org.apache.chemistry.opencmis.server.impl.atompub;
 
-import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.net.URLEncoder;
 import java.util.GregorianCalendar;
 
 import javax.xml.stream.XMLStreamException;
@@ -29,6 +27,7 @@ import javax.xml.stream.XMLStreamWriter;
 import org.apache.chemistry.opencmis.commons.impl.Base64;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
 import org.apache.chemistry.opencmis.commons.impl.DateTimeHelper;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.XMLConstants;
 import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
 
@@ -48,11 +47,7 @@ public abstract class AtomDocumentBase extends XMLDocumentBase {
             return ID_DUMMY;
         }
 
-        try {
-            return ID_PREFIX + Base64.encodeBytes(input.getBytes("UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-            return ID_DUMMY;
-        }
+        return ID_PREFIX + Base64.encodeBytes(IOUtils.getUTF8Bytes(input));
     }
 
     /**
@@ -176,11 +171,8 @@ public abstract class AtomDocumentBase extends XMLDocumentBase {
     }
 
     public void writeServiceLink(String href, String repositoryId) throws XMLStreamException {
-        try {
-            writeLink(Constants.REL_SERVICE, href + "?repositoryId=" + URLEncoder.encode(repositoryId, "UTF-8"),
-                    Constants.MEDIATYPE_SERVICE, null);
-        } catch (UnsupportedEncodingException e) {
-        }
+        writeLink(Constants.REL_SERVICE, href + "?repositoryId=" + IOUtils.encodeURL(repositoryId),
+                Constants.MEDIATYPE_SERVICE, null);
     }
 
     public void writeSelfLink(String href, String type, String id) throws XMLStreamException {

@@ -19,10 +19,8 @@
 package org.apache.chemistry.opencmis.server.impl.browser;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.GregorianCalendar;
@@ -46,6 +44,7 @@ import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.impl.Base64;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.TypeCache;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlEntryImpl;
@@ -180,7 +179,7 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
             return "cmis%";
         }
 
-        return "cmis_" + Base64.encodeBytes(token.getBytes()).replace('=', '%');
+        return "cmis_" + Base64.encodeBytes(IOUtils.getUTF8Bytes(token)).replace('=', '%');
     }
 
     /**
@@ -204,11 +203,7 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
     public void setCookie(HttpServletRequest request, HttpServletResponse response, String repositoryId, String token,
             String value, int expiry) {
         if (token != null && token.length() > 0) {
-            String cookieValue = value;
-            try {
-                cookieValue = URLEncoder.encode(value, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-            }
+            String cookieValue = IOUtils.encodeURL(value);
 
             Cookie transactionCookie = new Cookie(getCookieName(token), cookieValue);
             transactionCookie.setMaxAge(expiry);
@@ -349,12 +344,8 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
             break;
         case BOOLEAN:
             List<Boolean> boolValues = new ArrayList<Boolean>(strValues.size());
-            try {
-                for (String s : strValues) {
-                    boolValues.add(Boolean.valueOf(s));
-                }
-            } catch (NumberFormatException e) {
-                throw new CmisInvalidArgumentException(propDef.getId() + " value is not a boolean value!");
+            for (String s : strValues) {
+                boolValues.add(Boolean.valueOf(s));
             }
             propertyData = new PropertyBooleanImpl(propDef.getId(), boolValues);
             break;
@@ -365,7 +356,7 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
                     intValues.add(new BigInteger(s));
                 }
             } catch (NumberFormatException e) {
-                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an integer value!");
+                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an integer value!", e);
             }
             propertyData = new PropertyIntegerImpl(propDef.getId(), intValues);
             break;
@@ -376,7 +367,7 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
                     decValues.add(new BigDecimal(s));
                 }
             } catch (NumberFormatException e) {
-                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an integer value!");
+                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an integer value!", e);
             }
             propertyData = new PropertyDecimalImpl(propDef.getId(), decValues);
             break;
@@ -389,7 +380,7 @@ public abstract class AbstractBrowserServiceCall extends AbstractServiceCall {
                     calValues.add(cal);
                 }
             } catch (NumberFormatException e) {
-                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an datetime value!");
+                throw new CmisInvalidArgumentException(propDef.getId() + " value is not an datetime value!", e);
             }
             propertyData = new PropertyDateTimeImpl(propDef.getId(), calValues);
             break;

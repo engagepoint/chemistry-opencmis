@@ -78,6 +78,12 @@ public class ObjectService {
     public static class Create extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String folderId = getStringParameter(request, Constants.PARAM_ID);
             String sourceFolderId = getStringParameter(request, Constants.PARAM_SOURCE_FOLDER_ID);
@@ -149,6 +155,12 @@ public class ObjectService {
     public static class CreateRelationship extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
                     .get(CallContext.STREAM_FACTORY);
@@ -190,6 +202,12 @@ public class ObjectService {
     public static class DeleteObject extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             Boolean allVersions = getBooleanParameter(request, Constants.PARAM_ALL_VERSIONS);
@@ -208,6 +226,12 @@ public class ObjectService {
     public static class DeleteContentStream extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             String changeToken = getStringParameter(request, Constants.PARAM_CHANGE_TOKEN);
@@ -227,6 +251,12 @@ public class ObjectService {
     public static class SetOrAppendContentStream extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             String changeToken = getStringParameter(request, Constants.PARAM_CHANGE_TOKEN);
@@ -276,6 +306,12 @@ public class ObjectService {
     public static class DeleteTree extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String folderId = getStringParameter(request, Constants.PARAM_ID);
             Boolean allVersions = getBooleanParameter(request, Constants.PARAM_ALL_VERSIONS);
@@ -314,6 +350,12 @@ public class ObjectService {
     public static class GetObject extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             ReturnVersion returnVersion = getEnumParameter(request, Constants.PARAM_RETURN_VERSION, ReturnVersion.class);
@@ -367,6 +409,12 @@ public class ObjectService {
     public static class GetObjectByPath extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String path = getStringParameter(request, Constants.PARAM_PATH);
             String filter = getStringParameter(request, Constants.PARAM_FILTER);
@@ -411,6 +459,12 @@ public class ObjectService {
     public static class GetAllowableActions extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
 
@@ -439,6 +493,12 @@ public class ObjectService {
     public static class GetContentStream extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             String streamId = getStringParameter(request, Constants.PARAM_STREAM_ID);
@@ -497,6 +557,12 @@ public class ObjectService {
     public static class UpdateProperties extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String objectId = getStringParameter(request, Constants.PARAM_ID);
             Boolean checkin = getBooleanParameter(request, Constants.PARAM_CHECK_IN);
@@ -519,10 +585,25 @@ public class ObjectService {
                     closeContentStream(contentStream);
                 }
             } else {
-                String changeToken = extractChangeToken(parser.getProperties());
+                Properties properties = parser.getProperties();
+                String changeToken = null;
+                if (properties != null) {
+                    changeToken = extractChangeToken(properties);
+                    if (changeToken != null) {
+                        properties = new PropertiesImpl(properties);
+                        ((PropertiesImpl) properties).removeProperty(PropertyIds.CHANGE_TOKEN);
+                    }
+                }
+
+                if (changeToken == null) {
+                    // not required by the CMIS specification
+                    // -> keep for backwards compatibility with older OpenCMIS
+                    // clients
+                    changeToken = getStringParameter(request, Constants.PARAM_CHANGE_TOKEN);
+                }
 
                 service.updateProperties(repositoryId, objectIdHolder, changeToken == null ? null : new Holder<String>(
-                        changeToken), parser.getProperties(), null);
+                        changeToken), properties, null);
             }
 
             ObjectInfo objectInfo = service.getObjectInfo(repositoryId, objectIdHolder.getValue());
@@ -565,12 +646,12 @@ public class ObjectService {
                 return null;
             }
 
-            PropertyData<?> changeLogProperty = propertiesMap.get(PropertyIds.CHANGE_TOKEN);
-            if (!(changeLogProperty instanceof PropertyString)) {
+            PropertyData<?> changeTokenProperty = propertiesMap.get(PropertyIds.CHANGE_TOKEN);
+            if (!(changeTokenProperty instanceof PropertyString)) {
                 return null;
             }
 
-            return ((PropertyString) changeLogProperty).getFirstValue();
+            return ((PropertyString) changeTokenProperty).getFirstValue();
         }
     }
 
@@ -580,6 +661,12 @@ public class ObjectService {
     public static class BulkUpdateProperties extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             ThresholdOutputStreamFactory streamFactory = (ThresholdOutputStreamFactory) context
                     .get(CallContext.STREAM_FACTORY);
             AtomEntryParser parser = new AtomEntryParser(streamFactory);

@@ -18,9 +18,12 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.atompub;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.xml.stream.XMLStreamException;
 
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.client.bindings.spi.atompub.objects.AtomElement;
@@ -78,7 +81,7 @@ public class VersioningServiceImpl extends AbstractAtomPubService implements Ver
 
         // post move request
         Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
-            public void write(OutputStream out) throws Exception {
+            public void write(OutputStream out) throws XMLStreamException, IOException {
                 entryWriter.write(out);
             }
         });
@@ -154,12 +157,12 @@ public class VersioningServiceImpl extends AbstractAtomPubService implements Ver
         url.addParameter(Constants.PARAM_CHECK_IN, "true");
 
         // set up writer
-        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, policies),
+        final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, null, policies),
                 getCmisVersion(repositoryId), contentStream);
 
         // update
         Response resp = put(url, Constants.MEDIATYPE_ENTRY, new Output() {
-            public void write(OutputStream out) throws Exception {
+            public void write(OutputStream out) throws XMLStreamException, IOException {
                 entryWriter.write(out);
             }
         });

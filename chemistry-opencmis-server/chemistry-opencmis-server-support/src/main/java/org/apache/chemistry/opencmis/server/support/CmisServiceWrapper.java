@@ -1,5 +1,3 @@
-package org.apache.chemistry.opencmis.server.support;
-
 /*
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -20,6 +18,7 @@ package org.apache.chemistry.opencmis.server.support;
  * under the License.
  *
  */
+package org.apache.chemistry.opencmis.server.support;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -85,10 +84,10 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
 
         this.service = service;
 
-        setDefaultTypesMaxItems(defaultTypesMaxItems);
-        setDefaultTypesDepth(defaultTypesDepth);
-        setDefaultMaxItems(defaultMaxItems);
-        setDefaultDepth(defaultDepth);
+        this.defaultTypesMaxItems = defaultTypesMaxItems;
+        this.defaultTypesDepth = defaultTypesDepth;
+        this.defaultMaxItems = defaultMaxItems;
+        this.defaultDepth = defaultDepth;
     }
 
     // --- wrapper operations ---

@@ -33,12 +33,11 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.inmemory.TypeManagerImpl;
 import org.apache.chemistry.opencmis.server.support.query.CalendarHelper;
 import org.apache.chemistry.opencmis.server.support.query.CmisQlStrictLexer;
-import org.apache.chemistry.opencmis.server.support.query.QueryObject;
 import org.apache.chemistry.opencmis.server.support.query.TextSearchLexer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProcessQueryTest extends AbstractQueryTest {
 
@@ -414,12 +413,12 @@ public class ProcessQueryTest extends AbstractQueryTest {
     @Before
     public void setUp() {
         tm = new TypeManagerImpl();
-        tm.initTypeSystem(null); // create CMIS default types
+        tm.initTypeSystem(null, true); // create CMIS default types
 
         // create some types for testing
         List<TypeDefinition> typeDefs = super.createTypes();
         for (TypeDefinition typeDef : typeDefs) {
-            tm.addTypeDefinition(typeDef);
+            tm.addTypeDefinition(typeDef, true);
         }
 
         // initialize query object with type manager

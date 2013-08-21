@@ -18,9 +18,7 @@
  */
 package org.apache.chemistry.opencmis.commons.impl;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URLEncoder;
 
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
@@ -89,7 +87,7 @@ public class UrlBuilder {
         urlPart.append("://");
         urlPart.append(host);
         if (port > 0) {
-            urlPart.append(":").append(port);
+            urlPart.append(':').append(port);
         }
         if (path != null) {
             urlPart.append(path);
@@ -124,10 +122,7 @@ public class UrlBuilder {
         }
         queryPart.append(name);
         queryPart.append('=');
-        try {
-            queryPart.append(URLEncoder.encode(valueStr, "UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-        }
+        queryPart.append(IOUtils.encodeURL(valueStr));
 
         return this;
     }
@@ -186,7 +181,7 @@ public class UrlBuilder {
         return this;
     }
 
-    public static final char[] RFC7232_RESERVED = ";?:@&=+$,[]".toCharArray();
+    private static final char[] RFC7232_RESERVED = ";?:@&=+$,[]".toCharArray();
 
     public static String quoteURIPathComponent(String s, boolean quoteSlash) {
         if (s.length() == 0) {

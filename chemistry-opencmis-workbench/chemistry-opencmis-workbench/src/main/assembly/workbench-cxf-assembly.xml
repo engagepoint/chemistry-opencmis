@@ -56,19 +56,34 @@
             <scope>runtime</scope>
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <excludes>
+                <exclude>com.sun.xml.ws:jaxws-rt</exclude>
                 <exclude>junit:junit</exclude>
                 <exclude>org.apache.felix:org.osgi.core</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>
             <outputDirectory>/lib</outputDirectory>
-            <useProjectArtifact></useProjectArtifact>
+            <useProjectArtifact>false</useProjectArtifact>
             <unpack>false</unpack>
             <scope>provided</scope>
-            <useTransitiveFiltering>true</useTransitiveFiltering>
+            <useTransitiveFiltering>false</useTransitiveFiltering>
+            <includes>
+                <include>org.apache.cxf:*</include>
+            </includes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory>/lib</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
+            <unpack>false</unpack>
+            <scope>provided</scope>
+            <useTransitiveFiltering>false</useTransitiveFiltering>
             <excludes>
-                <exclude>com.sun.xml.ws:jaxws-rt</exclude>
-                <exclude>org.apache:apache-jar-resource-bundle</exclude>
+                <exclude>org.codehaus.woodstox:wstx-asl:*</exclude>
+                <exclude>org.apache.axis2:*</exclude>
+                <exclude>org.apache.ws.commons.axiom:*</exclude>
+                <exclude>org.apache.woden:*</exclude>
+                <exclude>javax.servlet:*</exclude>
+                <exclude>commons-fileupload:*</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

@@ -23,9 +23,7 @@ import static org.apache.chemistry.opencmis.commons.impl.XMLConstants.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -151,7 +149,7 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.TypeMutabilityImpl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class XMLConverter {
+public final class XMLConverter {
 
     private static final Logger LOG = LoggerFactory.getLogger(XMLConverter.class);
 
@@ -1335,13 +1333,7 @@ public class XMLConverter {
                 throws XMLStreamException {
             if (isCmisNamespace(name)) {
                 if (isTag(name, TAG_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE)) {
-                    Set<PropertyType> ptSet = target.canCreate();
-                    if (ptSet == null) {
-                        ptSet = EnumSet.noneOf(PropertyType.class);
-                        target.setCanCreate(ptSet);
-                    }
-
-                    ptSet.add(readEnum(parser, PropertyType.class));
+                    target.canCreate().add(readEnum(parser, PropertyType.class));
                     return true;
                 }
             }
@@ -1457,13 +1449,9 @@ public class XMLConverter {
                 }
 
                 if (isTag(name, TAG_ACLCAP_PERMISSION_MAPPING)) {
-                    Map<String, PermissionMapping> mapping = target.getPermissionMapping();
-                    if (mapping == null) {
-                        mapping = new HashMap<String, PermissionMapping>();
-                        target.setPermissionMappingData(mapping);
-                    }
-
                     PermissionMapping pm = PERMISSION_MAPPING_PARSER.walk(parser);
+
+                    Map<String, PermissionMapping> mapping = target.getPermissionMapping();
                     mapping.put(pm.getKey(), pm);
 
                     return true;
@@ -1561,13 +1549,9 @@ public class XMLConverter {
                 }
 
                 if (isTag(name, TAG_FEATURE_DATA)) {
-                    Map<String, String> featureData = target.getFeatureData();
-                    if (featureData == null) {
-                        featureData = new HashMap<String, String>();
-                        target.setFeatureData(featureData);
-                    }
-
                     String[] data = FEATURE_DATA_PARSER.walk(parser);
+
+                    Map<String, String> featureData = target.getFeatureData();
                     featureData.put(data[0], data[1]);
 
                     return true;
@@ -2135,7 +2119,7 @@ public class XMLConverter {
         }
     };
 
-    private static abstract class ChoiceXMLWalker<T> extends XMLWalker<ChoiceImpl<T>> {
+    private abstract static class ChoiceXMLWalker<T> extends XMLWalker<ChoiceImpl<T>> {
 
         public void addToChoiceList(XMLStreamReader parser, AbstractPropertyDefinition<T> propDef)
                 throws XMLStreamException {
@@ -2308,10 +2292,6 @@ public class XMLConverter {
                     Action action = Action.fromValue(name.getLocalPart());
 
                     Set<Action> actions = target.getAllowableActions();
-                    if (actions == null) {
-                        actions = EnumSet.noneOf(Action.class);
-                        target.setAllowableActions(actions);
-                    }
 
                     if (Boolean.TRUE.equals(readBoolean(parser))) {
                         actions.add(action);
@@ -2576,7 +2556,7 @@ public class XMLConverter {
         }
     };
 
-    private static abstract class PropertyXMLWalker<T extends AbstractPropertyData<?>> extends XMLWalker<T> {
+    private abstract static class PropertyXMLWalker<T extends AbstractPropertyData<?>> extends XMLWalker<T> {
 
         protected abstract T createTarget(XMLStreamReader parser, QName name);
 
@@ -2618,7 +2598,7 @@ public class XMLConverter {
 
     };
 
-    private static abstract class PropertyStringXMLWalker<T extends AbstractPropertyData<String>> extends
+    private abstract static class PropertyStringXMLWalker<T extends AbstractPropertyData<String>> extends
             PropertyXMLWalker<T> {
         @Override
         protected void addValue(XMLStreamReader parser, T target) throws XMLStreamException {

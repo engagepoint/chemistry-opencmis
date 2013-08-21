@@ -35,14 +35,12 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
@@ -85,12 +83,14 @@ import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.MimeTypes;
 import org.apache.chemistry.opencmis.workbench.model.ClientModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClientHelper {
+public final class ClientHelper {
 
     public static final Color LINK_COLOR = new Color(105, 29, 21);
     public static final Color LINK_SELECTED_COLOR = new Color(255, 255, 255);
@@ -295,8 +295,8 @@ public class ClientHelper {
     public static File createTempFile(String filename) {
         String tempDir = System.getProperty("java.io.tmpdir");
         File clientTempDir = new File(tempDir, "cmisworkbench");
-        if (!clientTempDir.exists()) {
-            clientTempDir.mkdirs();
+        if (!clientTempDir.exists() && !clientTempDir.mkdirs()) {
+            throw new CmisRuntimeException("Could not create directory for temp file!");
         }
         clientTempDir.deleteOnExit();
 
@@ -306,10 +306,10 @@ public class ClientHelper {
         return tempFile;
     }
 
-    public static File createTempFileFromDocument(CmisObject object, String streamId) throws Exception {
+    public static File createTempFileFromDocument(CmisObject object, String streamId) throws IOException {
         ContentStream content = getContentStream(object, streamId);
         if (content == null) {
-            throw new Exception("No content!");
+            throw new IllegalArgumentException("No content!");
         }
 
         String filename = content.getFileName();
@@ -352,18 +352,8 @@ public class ClientHelper {
             }
 
         } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Exception e) {
-                }
-            }
-            if (out != null) {
-                try {
-                    out.close();
-                } catch (Exception e) {
-                }
-            }
+            IOUtils.closeQuietly(in);
+            IOUtils.closeQuietly(out);
         }
     }
 
@@ -403,7 +393,7 @@ public class ClientHelper {
 
         for (int col = 0; col < cols; col++) {
             if (col > 0) {
-                sb.append(",");
+                sb.append(',');
             }
 
             sb.append(formatCSVValue(table.getModel().getColumnName(col)));
@@ -414,7 +404,7 @@ public class ClientHelper {
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
                 if (col > 0) {
-                    sb.append(",");
+                    sb.append(',');
                 }
 
                 Object value = table.getModel().getValueAt(row, col);
@@ -452,16 +442,16 @@ public class ClientHelper {
             return sb.toString();
         } else if (value instanceof Collection<?>) {
             StringBuffer sb = new StringBuffer();
-            sb.append("[");
+            sb.append('[');
 
             for (Object v : (Collection<?>) value) {
                 if (sb.length() > 1) {
-                    sb.append(",");
+                    sb.append(',');
                 }
                 sb.append(formatCSVValue(v));
             }
 
-            sb.append("]");
+            sb.append(']');
 
             return sb.toString();
         } else if (value instanceof ObjectId) {
@@ -478,7 +468,7 @@ public class ClientHelper {
             return ClientHelper.class.getResource(path).toURI();
         } catch (URISyntaxException e) {
             // not very likely
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
             return null;
         }
     }
@@ -497,11 +487,7 @@ public class ClientHelper {
 
         final String result = readStreamAndRemoveHeader(stream);
 
-        try {
-            stream.close();
-        } catch (IOException e) {
-            // ignore
-        }
+        IOUtils.closeQuietly(stream);
 
         return result;
     }
@@ -512,35 +498,8 @@ public class ClientHelper {
         }
 
         try {
-            final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
-            final StringBuilder sb = new StringBuilder();
-            String s;
-            boolean header = true;
-
-            while ((s = reader.readLine()) != null) {
-                // remove header
-                if (header) {
-                    String st = s.trim();
-                    if (st.length() == 0) {
-                        header = false;
-                        continue;
-                    }
-
-                    char c = st.charAt(0);
-                    header = (c == '/') || (c == '*') || (c == '#');
-                    if (header) {
-                        continue;
-                    }
-                }
-
-                sb.append(s);
-                sb.append("\n");
-            }
-
-            reader.close();
-
-            return sb.toString();
-        } catch (Exception e) {
+            return IOUtils.readAllLinesAndRemoveHeader(stream);
+        } catch (IOException e1) {
             return "";
         }
     }
@@ -622,10 +581,7 @@ public class ClientHelper {
             LOG.error("Cannot read library file: " + propertiesFile);
             return null;
         } finally {
-            try {
-                stream.close();
-            } catch (IOException ioe) {
-            }
+            IOUtils.closeQuietly(stream);
         }
     }
 
@@ -786,6 +742,10 @@ public class ClientHelper {
 
         @Override
         public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+
             if (!(obj instanceof FileEntry)) {
                 return false;
             }

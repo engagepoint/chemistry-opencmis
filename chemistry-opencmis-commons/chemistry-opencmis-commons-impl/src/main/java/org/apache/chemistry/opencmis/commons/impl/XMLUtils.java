@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-public class XMLUtils {
+public final class XMLUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(XMLUtils.class);
 
@@ -50,6 +50,7 @@ public class XMLUtils {
             XML_INPUT_FACTORY.setProperty("reuse-instance", Boolean.FALSE);
             LOG.warn("You are using an unsupported StAX parser.");
         } catch (IllegalArgumentException ex) {
+            // expected for Woodstox
         }
 
         XML_INPUT_FACTORY.setProperty(XMLInputFactory.IS_COALESCING, Boolean.FALSE);
@@ -63,9 +64,13 @@ public class XMLUtils {
             XML_OUTPUT_FACTORY.setProperty("reuse-instance", Boolean.FALSE);
             LOG.warn("You are using an unsupported StAX parser.");
         } catch (IllegalArgumentException ex) {
+            // expected for Woodstox
         }
 
         XML_OUTPUT_FACTORY.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
+    }
+
+    private XMLUtils() {
     }
 
     // --------------
@@ -76,6 +81,8 @@ public class XMLUtils {
      * Creates a new XML writer.
      */
     public static XMLStreamWriter createWriter(OutputStream out) throws XMLStreamException {
+        assert out != null;
+
         return XML_OUTPUT_FACTORY.createXMLStreamWriter(out, "UTF-8");
     }
 
@@ -83,6 +90,8 @@ public class XMLUtils {
      * Starts a XML document.
      */
     public static void startXmlDocument(XMLStreamWriter writer) throws XMLStreamException {
+        assert writer != null;
+
         writer.setPrefix(XMLConstants.PREFIX_ATOM, XMLConstants.NAMESPACE_ATOM);
         writer.setPrefix(XMLConstants.PREFIX_CMIS, XMLConstants.NAMESPACE_CMIS);
         writer.setPrefix(XMLConstants.PREFIX_RESTATOM, XMLConstants.NAMESPACE_RESTATOM);
@@ -95,6 +104,8 @@ public class XMLUtils {
      * Ends a XML document.
      */
     public static void endXmlDocument(XMLStreamWriter writer) throws XMLStreamException {
+        assert writer != null;
+
         writer.writeEndDocument();
         writer.close();
     }
@@ -104,6 +115,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, String value)
             throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -122,6 +135,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, BigInteger value)
             throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -134,6 +149,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, BigDecimal value)
             throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -146,6 +163,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag,
             GregorianCalendar value) throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -158,6 +177,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, Boolean value)
             throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -170,6 +191,8 @@ public class XMLUtils {
      */
     public static void write(XMLStreamWriter writer, String prefix, String namespace, String tag, Enum<?> value)
             throws XMLStreamException {
+        assert writer != null;
+
         if (value == null) {
             return;
         }
@@ -199,6 +222,8 @@ public class XMLUtils {
      * Moves the parser to the next element.
      */
     public static boolean next(XMLStreamReader parser) throws XMLStreamException {
+        assert parser != null;
+
         if (parser.hasNext()) {
             try {
                 parser.next();
@@ -216,6 +241,8 @@ public class XMLUtils {
      * Skips a tag or subtree.
      */
     public static void skip(XMLStreamReader parser) throws XMLStreamException {
+        assert parser != null;
+
         int level = 1;
         while (next(parser)) {
             int event = parser.getEventType();
@@ -239,6 +266,8 @@ public class XMLUtils {
      *         <code>false</code> otherwise
      */
     public static boolean findNextStartElemenet(XMLStreamReader parser) throws XMLStreamException {
+        assert parser != null;
+
         while (true) {
             int event = parser.getEventType();
 
@@ -258,6 +287,9 @@ public class XMLUtils {
      * Parses a tag that contains text.
      */
     public static String readText(XMLStreamReader parser, int maxLength) throws XMLStreamException {
+        assert parser != null;
+        assert maxLength >= 0;
+
         StringBuilder sb = new StringBuilder();
 
         next(parser);
@@ -266,7 +298,7 @@ public class XMLUtils {
             int event = parser.getEventType();
             if (event == XMLStreamReader.END_ELEMENT) {
                 break;
-            } else if (event == XMLStreamReader.CHARACTERS) {
+            } else if (event == XMLStreamReader.CHARACTERS || event == XMLStreamReader.CDATA) {
                 int len = parser.getTextLength();
                 if (len > 0) {
                     if (sb.length() + len > maxLength) {
@@ -279,7 +311,7 @@ public class XMLUtils {
                     sb.append(chars, offset, len);
                 }
             } else if (event == XMLStreamReader.START_ELEMENT) {
-                throw new RuntimeException("Unexpected tag: " + parser.getName());
+                throw new XMLStreamException("Unexpected tag: " + parser.getName());
             }
 
             if (!next(parser)) {

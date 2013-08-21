@@ -26,7 +26,6 @@ import org.apache.chemistry.opencmis.commons.data.ExtensionsData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
-import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.RelationshipDirection;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
@@ -82,7 +81,7 @@ public class InMemoryRelationshipServiceImpl extends InMemoryAbstractServiceImpl
         List<ObjectData> odList = new ArrayList<ObjectData>();
 
         for (StoredObject rel : rels) {
-            ObjectData od = PropertyCreationHelper.getObjectData(tm, rel, filter, user, includeAllowableActions,
+            ObjectData od = PropertyCreationHelper.getObjectData(tm, objStore, rel, filter, user, includeAllowableActions,
                     IncludeRelationships.NONE, null, false, false, extension);
             odList.add(od);
         }

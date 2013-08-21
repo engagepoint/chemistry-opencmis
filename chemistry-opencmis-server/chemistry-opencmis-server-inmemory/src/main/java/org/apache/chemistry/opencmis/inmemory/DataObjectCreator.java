@@ -18,9 +18,7 @@
  */
 package org.apache.chemistry.opencmis.inmemory;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -29,7 +27,6 @@ import org.apache.chemistry.opencmis.commons.data.Acl;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
 import org.apache.chemistry.opencmis.commons.data.ChangeEventInfo;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
-import org.apache.chemistry.opencmis.commons.data.ObjectList;
 import org.apache.chemistry.opencmis.commons.data.PolicyIdList;
 import org.apache.chemistry.opencmis.commons.enums.Action;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
@@ -44,6 +41,7 @@ import org.apache.chemistry.opencmis.inmemory.storedobj.api.Content;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Filing;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Item;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Policy;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.Relationship;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
@@ -56,9 +54,7 @@ import org.apache.chemistry.opencmis.server.support.TypeManager;
  * @author Jens A collection of utility functions to fill the data objects used
  *         as return values for the service object calls
  */
-public class DataObjectCreator {
-
-    public static BigInteger MINUS_ONE = BigInteger.valueOf(-1L);
+public final class DataObjectCreator {
 
     // Utility class
     private DataObjectCreator() {
@@ -77,7 +73,7 @@ public class DataObjectCreator {
         boolean canCheckIn = false;
         boolean isVersioned = so instanceof Version || so instanceof VersionedDocument;
         boolean hasContent = so instanceof Content && ((Content) so).hasContent();
-        boolean isRootFolder = isFolder && ((Folder) so).getParent() == null;
+        boolean isRootFolder = isFolder && ((Folder) so).getParentId() == null;
         boolean hasRendition = so.hasRendition(user);
         boolean canGetAcl = user != null && (isDocument || isFolder || isItem);
         boolean canSetAcl = canGetAcl;
@@ -121,8 +117,9 @@ public class DataObjectCreator {
 
             set.add(Action.CAN_CREATE_DOCUMENT);
             set.add(Action.CAN_CREATE_FOLDER);
-            if (cmis11)
+            if (cmis11) {
                 set.add(Action.CAN_CREATE_ITEM);
+            }
             set.add(Action.CAN_GET_CHILDREN);
         }
 
@@ -147,22 +144,27 @@ public class DataObjectCreator {
                 set.add(Action.CAN_ADD_OBJECT_TO_FOLDER);
                 set.add(Action.CAN_REMOVE_OBJECT_FROM_FOLDER);
             }
-            if (isDocument)
+            if (isDocument) {
                 if (isVersioned) {
-                    if (canCheckIn)
+                    if (canCheckIn) {
                         set.add(Action.CAN_SET_CONTENT_STREAM);
-                } else
+                    }
+                } else {
                     set.add(Action.CAN_SET_CONTENT_STREAM);
+                }
+            }
         }
 
         if (hasRendition) {
             set.add(Action.CAN_GET_RENDITIONS);
         }
 
-        if (canSetAcl)
+        if (canSetAcl) {
             set.add(Action.CAN_APPLY_ACL);
-        if (canGetAcl)
+        }
+        if (canGetAcl) {
             set.add(Action.CAN_GET_ACL);
+        }
 
         allowableActions.setAllowableActions(set);
         return allowableActions;
@@ -171,7 +173,6 @@ public class DataObjectCreator {
     public static Acl fillACL(StoredObject so) {
         AccessControlListImpl acl = new AccessControlListImpl();
         List<Ace> aces = new ArrayList<Ace>();
-        // TODO to be completed if ACLs are implemented
         acl.setAces(aces);
         return acl;
     }
@@ -183,9 +184,9 @@ public class DataObjectCreator {
         return polIds;
     }
 
-    public static List<ObjectData> fillRelationships(TypeManager tm, IncludeRelationships includeRelationships,
-            StoredObject so, String user) {
-        return getRelationships(tm, includeRelationships, so, user);
+    public static List<ObjectData> fillRelationships(TypeManager tm, ObjectStore objStore,
+            IncludeRelationships includeRelationships, StoredObject so, String user) {
+        return getRelationships(tm, objStore, includeRelationships, so, user);
     }
 
     public static ChangeEventInfo fillChangeEventInfo(StoredObject so) {
@@ -194,20 +195,21 @@ public class DataObjectCreator {
         return changeEventInfo;
     }
 
-    public static List<ObjectData> getRelationships(TypeManager tm, IncludeRelationships includeRelationships,
+    public static List<ObjectData> getRelationships(TypeManager tm, ObjectStore objStore, IncludeRelationships includeRelationships,
             StoredObject spo, String user) {
         if (includeRelationships != IncludeRelationships.NONE) {
             RelationshipDirection relationshipDirection = RelationshipDirection.SOURCE;
             // source is default
-            if (includeRelationships == IncludeRelationships.TARGET)
+            if (includeRelationships == IncludeRelationships.TARGET) {
                 relationshipDirection = RelationshipDirection.TARGET;
-            else if (includeRelationships == IncludeRelationships.BOTH)
+            } else if (includeRelationships == IncludeRelationships.BOTH) {
                 relationshipDirection = RelationshipDirection.EITHER;
+            }
             
-            List<StoredObject>  relationships = spo.getObjectRelationships(relationshipDirection, user);
+            List<StoredObject> relationships = objStore.getRelationships(spo.getId(), null, relationshipDirection); 
             List<ObjectData> res = new ArrayList<ObjectData>(relationships.size());
             for (StoredObject so : relationships) {
-                ObjectData od = PropertyCreationHelper.getObjectData(tm, so, null, user, false,
+                ObjectData od = PropertyCreationHelper.getObjectData(tm, objStore, so, null, user, false,
                         IncludeRelationships.NONE, null, false, false, null);
                 res.add(od);
             }

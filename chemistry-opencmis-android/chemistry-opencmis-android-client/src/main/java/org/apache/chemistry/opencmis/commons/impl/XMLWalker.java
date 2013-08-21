@@ -50,12 +50,13 @@ public abstract class XMLWalker<T> {
             int event = parser.getEventType();
             if (event == XmlPullParser.START_TAG) {
                 QName name = new QName(parser.getNamespace(), parser.getName());
-                if (!read(parser, name, result))
+                if (!read(parser, name, result)) {
                     if (result instanceof ExtensionsData) {
                         handleExtension(parser, (ExtensionsData) result);
                     } else {
                         skip(parser);
                     }
+                }
             } else if (event == XmlPullParser.END_TAG) {
                 break;
             } else {
@@ -98,7 +99,8 @@ public abstract class XMLWalker<T> {
         extensions.add(handleExtensionLevel(parser, 0));
     }
 
-    private CmisExtensionElement handleExtensionLevel(final XmlPullParser parser, final int level) throws XmlPullParserException {
+    private CmisExtensionElement handleExtensionLevel(final XmlPullParser parser, final int level)
+            throws XmlPullParserException {
         QName name = new QName(parser.getNamespace(), parser.getName());
         Map<String, String> attributes = null;
         StringBuilder sb = new StringBuilder();
@@ -173,9 +175,6 @@ public abstract class XMLWalker<T> {
 
     protected Boolean readBoolean(final XmlPullParser parser) throws XmlPullParserException {
         String value = readText(parser);
-        if (value == null) {
-            return null;
-        }
 
         if ("true".equals(value) || "1".equals(value)) {
             return Boolean.TRUE;
@@ -190,10 +189,7 @@ public abstract class XMLWalker<T> {
 
     protected BigInteger readInteger(final XmlPullParser parser) throws XmlPullParserException {
         String value = readText(parser);
-        if (value == null) {
-            return null;
-        }
-
+        
         try {
             return new BigInteger(value);
         } catch (NumberFormatException e) {
@@ -203,9 +199,6 @@ public abstract class XMLWalker<T> {
 
     protected BigDecimal readDecimal(final XmlPullParser parser) throws XmlPullParserException {
         String value = readText(parser);
-        if (value == null) {
-            return null;
-        }
 
         try {
             return new BigDecimal(value);
@@ -216,9 +209,6 @@ public abstract class XMLWalker<T> {
 
     protected GregorianCalendar readDateTime(final XmlPullParser parser) throws XmlPullParserException {
         String value = readText(parser);
-        if (value == null) {
-            return null;
-        }
 
         GregorianCalendar result = DateTimeHelper.parseXmlDateTime(value);
         if (result == null) {
@@ -229,11 +219,9 @@ public abstract class XMLWalker<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public <E extends Enum<E>> E readEnum(final XmlPullParser parser, final Class<E> clazz) throws XmlPullParserException {
+    public <E extends Enum<E>> E readEnum(final XmlPullParser parser, final Class<E> clazz)
+            throws XmlPullParserException {
         String value = readText(parser);
-        if (value == null) {
-            return null;
-        }
 
         try {
             Method m = clazz.getMethod("fromValue", String.class);

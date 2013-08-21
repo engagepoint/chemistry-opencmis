@@ -27,57 +27,59 @@ import java.util.Map.Entry;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
-import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisStorageException;
 import org.apache.chemistry.opencmis.commons.spi.BindingsObjectFactory;
 import org.apache.chemistry.opencmis.inmemory.ConfigConstants;
 import org.apache.chemistry.opencmis.inmemory.ConfigurationSettings;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
-import org.apache.chemistry.opencmis.inmemory.server.InMemoryServiceContext;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
-import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.MultiFiling;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
 
 /**
  * A class representing a single version of a document
- *
+ * 
  * @author Jens
- *
+ * 
  */
-public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVersion {
+public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVersion, MultiFiling {
 
-    private final Long MAX_CONTENT_SIZE_KB = ConfigurationSettings.getConfigurationValueAsLong(ConfigConstants.MAX_CONTENT_SIZE_KB);
+    private static final Long MAX_CONTENT_SIZE_KB = ConfigurationSettings
+            .getConfigurationValueAsLong(ConfigConstants.MAX_CONTENT_SIZE_KB);
 
     private ContentStreamDataImpl fContent;
-    private final VersionedDocument fContainer; // the document this version belongs
-    // to
+    private final VersionedDocumentImpl fContainer; // the document this version
+                                                    // belongs to
     private String fComment; // checkin comment
-    boolean fIsMajor;
-    boolean fIsPwc; // true if this is the PWC
-    String label;
+    private boolean fIsMajor;
+    private boolean fIsPwc; // true if this is the PWC
 
     public DocumentVersionImpl(String repositoryId, VersionedDocument container, ContentStream content,
-            VersioningState verState, ObjectStoreImpl objStore) {
-        super(objStore);
+            VersioningState verState) {
+        super();
         setRepositoryId(repositoryId);
-        fContainer = container;
-        setContent(content, false);
+        fContainer = (VersionedDocumentImpl) container;
+        setContentIntern(content);
         fIsMajor = verState == VersioningState.MAJOR || verState == null;
         fIsPwc = verState == VersioningState.CHECKEDOUT;
         fProperties = new HashMap<String, PropertyData<?>>();
         // copy user properties from latest version
-        DocumentVersionImpl src = (DocumentVersionImpl)container.getLatestVersion(false);
+        DocumentVersionImpl src = (DocumentVersionImpl) container.getLatestVersion(false);
         if (null != src && null != src.fProperties) {
             for (Entry<String, PropertyData<?>> prop : src.fProperties.entrySet()) {
                 fProperties.put(prop.getKey(), prop.getValue());
             }
         }
-
-        label = createVersionLabel();
     }
 
+    @Override
     public void setContent(ContentStream content, boolean mustPersist) {
+        setContentIntern(content);
+    }
+
+    private void setContentIntern(ContentStream content) {
         if (null == content) {
             fContent = null;
         } else {
@@ -88,37 +90,39 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
             try {
                 fContent.setContent(content.getStream());
             } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException("Failed to get content from InputStream", e);
+                throw new CmisRuntimeException("Failed to get content from InputStream", e);
             }
         }
     }
 
+    @Override
     public void appendContent(ContentStream content) {
         if (null == content) {
             return;
-        } if (null == fContent) {
+        }
+        if (null == fContent) {
             setContent(content, true);
         } else {
             try {
                 fContent.appendContent(content.getStream());
             } catch (IOException e) {
-                e.printStackTrace();
                 throw new CmisStorageException("Failed to append content: IO Exception", e);
             }
         }
     }
 
+    @Override
     public void setCheckinComment(String comment) {
         fComment = comment;
     }
 
+    @Override
     public String getCheckinComment() {
         return fComment;
     }
 
     private String createVersionLabel() {
-        int majorNo = 1;
+        int majorNo = 0;
         int minorNo = 0;
         List<DocumentVersion> allVersions = fContainer.getAllVersions();
         for (DocumentVersion ver : allVersions) {
@@ -132,23 +136,27 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
                 break;
             }
         }
-        String label = "V " + majorNo + "." + minorNo;
+        String label = majorNo + "." + minorNo;
         return label;
     }
 
+    @Override
     public boolean isMajor() {
         return fIsMajor && !isPwc();
     }
 
+    @Override
     public boolean isPwc() {
         return fIsPwc;
     }
 
+    @Override
     public void commit(boolean isMajor) {
         fIsPwc = false; // unset working copy flag
         fIsMajor = isMajor;
     }
 
+    @Override
     public ContentStream getContent(long offset, long length) {
         if (offset <= 0 && length < 0) {
             return fContent;
@@ -157,16 +165,27 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
         }
     }
 
+    @Override
     public VersionedDocument getParentDocument() {
         return fContainer;
     }
 
     private boolean isLatestVersion() {
         List<DocumentVersion> allVers = fContainer.getAllVersions();
+        boolean hasPwc = null != fContainer.getPwc();
         boolean isLatestVersion;
-        isLatestVersion = allVers.get(allVers.size() - 1).equals(this);
-        if (isPwc())
-        	isLatestVersion = false; // CMIS 1.1 forbids it for PWC
+        if (hasPwc) {
+            // CMIS 1.1 forbids it for PWC
+            isLatestVersion = allVers.size() > 1 && allVers.get(allVers.size() - 2).equals(this);
+        } else {
+            isLatestVersion = allVers.get(allVers.size() - 1).equals(this);
+        }
+        if (hasPwc) {
+            // CMIS 1.1 forbids it for PWC
+            isLatestVersion = allVers.size() > 1 && allVers.get(allVers.size() - 2).equals(this);
+        } else {
+            isLatestVersion = allVers.get(allVers.size() - 1).equals(this);
+        }
         return isLatestVersion;
     }
 
@@ -184,14 +203,9 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
             }
         }
 
-        boolean isLatestMajorVersion = latestMajor == this && !isPwc(); // CMIS 1.1 forbids it for PWC
+        boolean isLatestMajorVersion = latestMajor == this;
         return isLatestMajorVersion;
     }
-
-    // public void persist() {
-    // if (null==fId)
-    // fId = UUID.randomUUID().toString();
-    // }
 
     @Override
     public void fillProperties(Map<String, PropertyData<?>> properties, BindingsObjectFactory objFactory,
@@ -208,67 +222,76 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
         // and set some properties specific to the version
         super.fillProperties(properties, objFactory, requestedIds);
 
-
         if (FilterParser.isContainedInFilter(PropertyIds.IS_IMMUTABLE, requestedIds)) {
-            properties.put(PropertyIds.IS_IMMUTABLE, objFactory.createPropertyBooleanData(PropertyIds.IS_IMMUTABLE,
-                    false));
+            properties.put(PropertyIds.IS_IMMUTABLE,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_IMMUTABLE, false));
         }
 
         // fill the version related properties
         if (FilterParser.isContainedInFilter(PropertyIds.IS_LATEST_VERSION, requestedIds)) {
-            properties.put(PropertyIds.IS_LATEST_VERSION, objFactory.createPropertyBooleanData(
-                    PropertyIds.IS_LATEST_VERSION, isLatestVersion()));
+            properties.put(PropertyIds.IS_LATEST_VERSION,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_LATEST_VERSION, isLatestVersion()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.IS_MAJOR_VERSION, requestedIds)) {
-            properties.put(PropertyIds.IS_MAJOR_VERSION, objFactory.createPropertyBooleanData(
-                    PropertyIds.IS_MAJOR_VERSION, fIsMajor));
+            properties.put(PropertyIds.IS_MAJOR_VERSION,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_MAJOR_VERSION, fIsMajor));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.IS_LATEST_MAJOR_VERSION, requestedIds)) {
-            properties.put(PropertyIds.IS_LATEST_MAJOR_VERSION, objFactory.createPropertyBooleanData(
-                    PropertyIds.IS_LATEST_MAJOR_VERSION, isLatestMajorVersion()));
+            properties.put(PropertyIds.IS_LATEST_MAJOR_VERSION,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_LATEST_MAJOR_VERSION, isLatestMajorVersion()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.VERSION_SERIES_ID, requestedIds)) {
-            properties.put(PropertyIds.VERSION_SERIES_ID, objFactory.createPropertyIdData(
-                    PropertyIds.VERSION_SERIES_ID, fContainer.getId()));
+            properties.put(PropertyIds.VERSION_SERIES_ID,
+                    objFactory.createPropertyIdData(PropertyIds.VERSION_SERIES_ID, fContainer.getId()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.IS_VERSION_SERIES_CHECKED_OUT, requestedIds)) {
-            properties.put(PropertyIds.IS_VERSION_SERIES_CHECKED_OUT, objFactory.createPropertyBooleanData(
-                    PropertyIds.IS_VERSION_SERIES_CHECKED_OUT, fContainer.isCheckedOut()));
+            properties.put(
+                    PropertyIds.IS_VERSION_SERIES_CHECKED_OUT,
+                    objFactory.createPropertyBooleanData(PropertyIds.IS_VERSION_SERIES_CHECKED_OUT,
+                            fContainer.isCheckedOut()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.VERSION_SERIES_CHECKED_OUT_BY, requestedIds)) {
-            properties.put(PropertyIds.VERSION_SERIES_CHECKED_OUT_BY, objFactory.createPropertyStringData(
-                    PropertyIds.VERSION_SERIES_CHECKED_OUT_BY, fContainer.getCheckedOutBy()));
+            properties.put(
+                    PropertyIds.VERSION_SERIES_CHECKED_OUT_BY,
+                    objFactory.createPropertyStringData(PropertyIds.VERSION_SERIES_CHECKED_OUT_BY,
+                            fContainer.getCheckedOutBy()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.VERSION_SERIES_CHECKED_OUT_ID, requestedIds)) {
-            properties.put(PropertyIds.VERSION_SERIES_CHECKED_OUT_ID, objFactory.createPropertyIdData(
-                    PropertyIds.VERSION_SERIES_CHECKED_OUT_ID, pwc == null ? null : pwc.getId()));
+            properties.put(
+                    PropertyIds.VERSION_SERIES_CHECKED_OUT_ID,
+                    objFactory.createPropertyIdData(PropertyIds.VERSION_SERIES_CHECKED_OUT_ID,
+                            pwc == null ? null : pwc.getId()));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.CHECKIN_COMMENT, requestedIds)) {
-            properties.put(PropertyIds.CHECKIN_COMMENT, objFactory.createPropertyStringData(
-                    PropertyIds.CHECKIN_COMMENT, fComment));
+            properties.put(PropertyIds.CHECKIN_COMMENT,
+                    objFactory.createPropertyStringData(PropertyIds.CHECKIN_COMMENT, fComment));
         }
         if (FilterParser.isContainedInFilter(PropertyIds.VERSION_LABEL, requestedIds)) {
-            properties.put(PropertyIds.VERSION_LABEL, objFactory.createPropertyStringData(PropertyIds.VERSION_LABEL,
-                    getVersionLabel()));
+            properties.put(PropertyIds.VERSION_LABEL,
+                    objFactory.createPropertyStringData(PropertyIds.VERSION_LABEL, getVersionLabel()));
         }
 
         // Set the content related properties
         if (null != fContent) {
             if (FilterParser.isContainedInFilter(PropertyIds.CONTENT_STREAM_FILE_NAME, requestedIds)) {
-                properties.put(PropertyIds.CONTENT_STREAM_FILE_NAME, objFactory.createPropertyStringData(
-                        PropertyIds.CONTENT_STREAM_FILE_NAME, fContent.getFileName()));
+                properties.put(
+                        PropertyIds.CONTENT_STREAM_FILE_NAME,
+                        objFactory.createPropertyStringData(PropertyIds.CONTENT_STREAM_FILE_NAME,
+                                fContent.getFileName()));
             }
             if (FilterParser.isContainedInFilter(PropertyIds.CONTENT_STREAM_ID, requestedIds)) {
-                properties.put(PropertyIds.CONTENT_STREAM_ID, objFactory.createPropertyStringData(
-                        PropertyIds.CONTENT_STREAM_ID, (String) null));
+                properties.put(PropertyIds.CONTENT_STREAM_ID,
+                        objFactory.createPropertyStringData(PropertyIds.CONTENT_STREAM_ID, (String) null));
             }
             if (FilterParser.isContainedInFilter(PropertyIds.CONTENT_STREAM_LENGTH, requestedIds)) {
                 properties.put(PropertyIds.CONTENT_STREAM_LENGTH, objFactory.createPropertyIntegerData(
                         PropertyIds.CONTENT_STREAM_LENGTH, fContent.getBigLength()));
             }
             if (FilterParser.isContainedInFilter(PropertyIds.CONTENT_STREAM_MIME_TYPE, requestedIds)) {
-                properties.put(PropertyIds.CONTENT_STREAM_MIME_TYPE, objFactory.createPropertyStringData(
-                        PropertyIds.CONTENT_STREAM_MIME_TYPE, fContent.getMimeType()));
+                properties.put(
+                        PropertyIds.CONTENT_STREAM_MIME_TYPE,
+                        objFactory.createPropertyStringData(PropertyIds.CONTENT_STREAM_MIME_TYPE,
+                                fContent.getMimeType()));
             }
         }
 
@@ -277,56 +300,52 @@ public class DocumentVersionImpl extends StoredObjectImpl implements DocumentVer
             properties.put(PropertyIds.IS_PRIVATE_WORKING_COPY,
                     objFactory.createPropertyBooleanData(PropertyIds.IS_PRIVATE_WORKING_COPY, isPwc()));
         }
-        
-        
+
     }
 
     @Override
     public int getAclId() {
-        return ((StoredObjectImpl)fContainer).getAclId();
-    }    
+        return ((StoredObjectImpl) fContainer).getAclId();
+    }
 
     @Override
     public void setAclId(int id) {
-        ((StoredObjectImpl)fContainer).setAclId(id);
-    }    
-    
-    public List<Folder> getParents(String user) {
-        return fContainer.getParents(user);
+        ((StoredObjectImpl) fContainer).setAclId(id);
     }
 
+    @Override
+    public List<String> getParentIds() {
+        return fContainer.getParentIds();
+    }
+
+    @Override
     public String getPathSegment() {
         return fContainer.getPathSegment();
     }
 
-    public void move(Folder oldParent, Folder newParent) {
-        fContainer.move(oldParent, newParent);
-    }
-
-    public void addParent(Folder parent) {
-        fContainer.addParent(parent);
-    }
-
-    public void removeParent(Folder parent) {
-        fContainer.removeParent(parent);
-    }
-
+    @Override
     public boolean hasContent() {
         return null != fContent;
     }
 
+    @Override
     public boolean hasParent() {
-      return true;
+        return fContainer.hasParent();
     }
 
-    public void rename(String newName) {
-    	super.rename(newName);
-    	fContainer.setName(newName);
-    }
-
+    @Override
     public String getVersionLabel() {
-        return label;
+        return createVersionLabel();
     }
 
+    @Override
+    public void addParentId(String parentId) {
+        fContainer.addParentId(parentId);
+    }
+
+    @Override
+    public void removeParentId(String parentId) {
+        fContainer.removeParentId(parentId);
+    }
 
 }

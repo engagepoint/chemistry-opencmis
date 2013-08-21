@@ -355,12 +355,12 @@ public class FileShareRepository {
     /**
      * CMIS getTypesDescendants.
      */
-    public List<TypeDefinitionContainer> getTypesDescendants(CallContext context, String typeId, BigInteger depth,
+    public List<TypeDefinitionContainer> getTypeDescendants(CallContext context, String typeId, BigInteger depth,
             Boolean includePropertyDefinitions) {
         debug("getTypesDescendants");
         checkUser(context, false);
 
-        return types.getTypesDescendants(context, typeId, depth, includePropertyDefinitions);
+        return types.getTypeDescendants(context, typeId, depth, includePropertyDefinitions);
     }
 
     /**
@@ -440,7 +440,7 @@ public class FileShareRepository {
         try {
             newFile.createNewFile();
         } catch (IOException e) {
-            throw new CmisStorageException("Could not create file: " + e.getMessage());
+            throw new CmisStorageException("Could not create file: " + e.getMessage(), e);
         }
 
         // write content, if available
@@ -2026,12 +2026,12 @@ public class FileShareRepository {
     private static String getTypeId(Properties properties) {
         PropertyData<?> typeProperty = properties.getProperties().get(PropertyIds.OBJECT_TYPE_ID);
         if (!(typeProperty instanceof PropertyId)) {
-            throw new CmisInvalidArgumentException("Type id must be set!");
+            throw new CmisInvalidArgumentException("Type Id must be set!");
         }
 
         String typeId = ((PropertyId) typeProperty).getFirstValue();
         if (typeId == null) {
-            throw new CmisInvalidArgumentException("Type id must be set!");
+            throw new CmisInvalidArgumentException("Type Id must be set!");
         }
 
         return typeId;
@@ -2050,7 +2050,7 @@ public class FileShareRepository {
     }
 
     /**
-     * Returns the first value of an string property.
+     * Returns the first value of a string property.
      */
     private static String getStringProperty(Properties properties, String name) {
         PropertyData<?> property = properties.getProperties().get(name);
@@ -2062,7 +2062,7 @@ public class FileShareRepository {
     }
 
     /**
-     * Returns the first value of an datetime property.
+     * Returns the first value of a datetime property.
      */
     private static GregorianCalendar getDateTimeProperty(Properties properties, String name) {
         PropertyData<?> property = properties.getProperties().get(name);
@@ -2120,7 +2120,7 @@ public class FileShareRepository {
      * Converts an id to a File object. A simple and insecure implementation,
      * but good enough for now.
      */
-    private File idToFile(String id) throws Exception {
+    private File idToFile(String id) throws IOException {
         if ((id == null) || (id.length() == 0)) {
             throw new CmisInvalidArgumentException("Id is not valid!");
         }
@@ -2148,7 +2148,7 @@ public class FileShareRepository {
      * Creates a File object from an id. A simple and insecure implementation,
      * but good enough for now.
      */
-    private String fileToId(File file) throws Exception {
+    private String fileToId(File file) throws IOException {
         if (file == null) {
             throw new IllegalArgumentException("File is not valid!");
         }
@@ -2167,7 +2167,9 @@ public class FileShareRepository {
     }
 
     private void warn(String msg, Throwable t) {
-        LOG.warn("<" + repositoryId + "> " + msg, t);
+        if (LOG.isWarnEnabled()) {
+            LOG.warn("<" + repositoryId + "> " + msg, t);
+        }
     }
 
     private void debug(String msg) {
@@ -2175,6 +2177,8 @@ public class FileShareRepository {
     }
 
     private void debug(String msg, Throwable t) {
-        LOG.debug("<" + repositoryId + "> " + msg, t);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<" + repositoryId + "> " + msg, t);
+        }
     }
 }

@@ -26,6 +26,7 @@ import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfoHandler;
 import org.apache.chemistry.opencmis.inmemory.TypeValidator;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoreManager;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.slf4j.Logger;
@@ -42,45 +43,51 @@ public class InMemoryAclService extends InMemoryAbstractServiceImpl {
     public Acl getAcl(CallContext context, String repositoryId, String objectId, Boolean onlyBasicPermissions,
             ExtensionsData extension, ObjectInfoHandler objectInfos) {
         LOG.debug("start getAcl()");
-        Acl acl = null;
+        int aclId;
         StoredObject so = validator.getAcl(context, repositoryId, objectId, extension);
-        if (so instanceof DocumentVersion)
-            acl = ((DocumentVersion) so).getParentDocument().getAcl();
-        else
-            acl = so.getAcl();
+        ObjectStore objectStore = fStoreManager.getObjectStore(repositoryId);
+        if (so instanceof DocumentVersion) {
+            aclId = ((DocumentVersion) so).getParentDocument().getAclId();
+        } else {
+            aclId = so.getAclId();
+        }
+
+        Acl acl = objectStore.getAcl(aclId);
 
         if (context.isObjectInfoRequired()) {
             ObjectInfoImpl objectInfo = new ObjectInfoImpl();
             fAtomLinkProvider.fillInformationForAtomLinks(repositoryId, so, objectInfo);
             objectInfos.addObjectInfo(objectInfo);
         }
-        
+
         return acl;
     }
 
-    public Acl applyAcl(CallContext context, String repositoryId, String objectId, Acl addAces, Acl removeAces, AclPropagation aclPropagation,
-            ExtensionsData extension, ObjectInfoHandler objectInfos) {
+    public Acl applyAcl(CallContext context, String repositoryId, String objectId, Acl aclAdd, Acl aclRemove,
+            AclPropagation aclPropagation, ExtensionsData extension, ObjectInfoHandler objectInfos) {
 
-    	addAces  = TypeValidator.expandAclMakros(context.getUsername(), addAces);
-    	removeAces  = TypeValidator.expandAclMakros(context.getUsername(), removeAces);
-        
-    	StoredObject so = validator.applyAcl(context, repositoryId, objectId, aclPropagation, extension);
-        Acl acl = fStoreManager.getObjectStore(repositoryId).applyAcl(so, addAces, removeAces, aclPropagation, context.getUsername());
-        
+        Acl addAces = TypeValidator.expandAclMakros(context.getUsername(), aclAdd);
+        Acl removeAces = TypeValidator.expandAclMakros(context.getUsername(), aclRemove);
+
+        StoredObject so = validator.applyAcl(context, repositoryId, objectId, aclPropagation, extension);
+        Acl acl = fStoreManager.getObjectStore(repositoryId).applyAcl(so, addAces, removeAces, aclPropagation,
+                context.getUsername());
+
         if (context.isObjectInfoRequired()) {
             ObjectInfoImpl objectInfo = new ObjectInfoImpl();
             fAtomLinkProvider.fillInformationForAtomLinks(repositoryId, so, objectInfo);
             objectInfos.addObjectInfo(objectInfo);
         }
-        return acl;       
+        return acl;
     }
-    
-    public Acl applyAcl(CallContext context, String repositoryId, String objectId, Acl aces, AclPropagation aclPropagation) {
-        
-    	aces  = TypeValidator.expandAclMakros(context.getUsername(), aces);
 
-    	StoredObject so = validator.applyAcl(context, repositoryId, objectId);
-        return fStoreManager.getObjectStore(repositoryId).applyAcl(so, aces, aclPropagation, context.getUsername());        
+    public Acl applyAcl(CallContext context, String repositoryId, String objectId, Acl acesParam,
+            AclPropagation aclPropagation) {
+
+        Acl aces = TypeValidator.expandAclMakros(context.getUsername(), acesParam);
+
+        StoredObject so = validator.applyAcl(context, repositoryId, objectId);
+        return fStoreManager.getObjectStore(repositoryId).applyAcl(so, aces, aclPropagation, context.getUsername());
     }
 
 }

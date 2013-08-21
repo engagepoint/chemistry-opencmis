@@ -49,7 +49,10 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 /**
  * Helper methods to turn a value into a CMIS enum.
  */
-public class CmisEnumHelper {
+public final class CmisEnumHelper {
+
+    private CmisEnumHelper() {
+    }
 
     @SuppressWarnings("unchecked")
     public static <E extends Enum<?>> E fromValue(final String value, final Class<E> clazz) {
@@ -106,7 +109,7 @@ public class CmisEnumHelper {
                 return (E) CapabilityRenditions.fromValue(value);
             }
         } catch (IllegalArgumentException e) {
-            throw new CmisInvalidArgumentException("Invalid enum value '" + value + "'!");
+            throw new CmisInvalidArgumentException("Invalid enum value '" + value + "'!", e);
         }
 
         throw new CmisRuntimeException(clazz.getSimpleName() + " is not a CMIS enum!");
@@ -123,7 +126,7 @@ public class CmisEnumHelper {
                 return (E) DecimalPrecision.fromValue(value);
             }
         } catch (IllegalArgumentException e) {
-            throw new CmisInvalidArgumentException("Invalid enum value '" + value + "'!");
+            throw new CmisInvalidArgumentException("Invalid enum value '" + value + "'!", e);
         }
 
         throw new CmisRuntimeException(clazz.getSimpleName() + " is not a CMIS enum!");

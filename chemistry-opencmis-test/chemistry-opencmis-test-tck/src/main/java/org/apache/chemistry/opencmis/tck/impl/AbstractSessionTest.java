@@ -19,6 +19,7 @@
 package org.apache.chemistry.opencmis.tck.impl;
 
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.FAILURE;
+import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.INFO;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.OK;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.SKIPPED;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.UNEXPECTED_EXCEPTION;
@@ -76,6 +77,7 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.enums.Action;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
+import org.apache.chemistry.opencmis.commons.enums.CapabilityOrderBy;
 import org.apache.chemistry.opencmis.commons.enums.Cardinality;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.ContentStreamAllowed;
@@ -87,6 +89,7 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.ContentStreamImpl;
 import org.apache.chemistry.opencmis.tck.CmisTestResult;
 import org.apache.chemistry.opencmis.tck.CmisTestResultStatus;
@@ -107,6 +110,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         SELECT_ALL_NO_CACHE_OC.setIncludePolicies(true);
         SELECT_ALL_NO_CACHE_OC.setIncludeRelationships(IncludeRelationships.BOTH);
         SELECT_ALL_NO_CACHE_OC.setRenditionFilterString("*");
+        SELECT_ALL_NO_CACHE_OC.setOrderBy(null);
 
         SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME = new OperationContextImpl(SELECT_ALL_NO_CACHE_OC);
         SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME.setOrderBy("cmis:name");
@@ -264,6 +268,16 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
      * Creates a folder.
      */
     protected Folder createFolder(Session session, Folder parent, String name, String objectTypeId) {
+        if (parent == null) {
+            throw new IllegalArgumentException("Parent is not set!");
+        }
+        if (name == null) {
+            throw new IllegalArgumentException("Name is not set!");
+        }
+        if (objectTypeId == null) {
+            throw new IllegalArgumentException("Object Type Id is not set!");
+        }
+
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, objectTypeId);
@@ -369,6 +383,16 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
      */
     protected Document createDocument(Session session, Folder parent, String name, String objectTypeId,
             String[] secondaryTypeIds, String content) {
+        if (parent == null) {
+            throw new IllegalArgumentException("Parent is not set!");
+        }
+        if (name == null) {
+            throw new IllegalArgumentException("Name is not set!");
+        }
+        if (objectTypeId == null) {
+            throw new IllegalArgumentException("Object Type Id is not set!");
+        }
+
         if (content == null) {
             content = "";
         }
@@ -394,7 +418,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         byte[] contentBytes = null;
         Document result = null;
         try {
-            contentBytes = content.getBytes("UTF-8");
+            contentBytes = IOUtils.getUTF8Bytes(content);
             ContentStream contentStream = new ContentStreamImpl(name, BigInteger.valueOf(contentBytes.length),
                     "text/plain", new ByteArrayInputStream(contentBytes));
 
@@ -444,20 +468,19 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                     "Newly created document is invalid! Exception: " + e.getMessage(), e, true));
         }
 
-        if (parent != null) {
-            List<Folder> parents = result.getParents(SELECT_ALL_NO_CACHE_OC);
-            boolean found = false;
-            for (Folder folder : parents) {
-                if (parent.getId().equals(folder.getId())) {
-                    found = true;
-                    break;
-                }
+        // check parents
+        List<Folder> parents = result.getParents(SELECT_ALL_NO_CACHE_OC);
+        boolean found = false;
+        for (Folder folder : parents) {
+            if (parent.getId().equals(folder.getId())) {
+                found = true;
+                break;
             }
+        }
 
-            if (!found) {
-                addResult(createResult(FAILURE,
-                        "The folder the document has been created in is not in the list of the document parents!"));
-            }
+        if (!found) {
+            addResult(createResult(FAILURE,
+                    "The folder the document has been created in is not in the list of the document parents!"));
         }
 
         return result;
@@ -480,6 +503,13 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
      */
     protected Relationship createRelationship(Session session, String name, ObjectId source, ObjectId target,
             String objectTypeId) {
+        if (name == null) {
+            throw new IllegalArgumentException("Name is not set!");
+        }
+        if (objectTypeId == null) {
+            throw new IllegalArgumentException("Object Type Id is not set!");
+        }
+
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, objectTypeId);
@@ -521,6 +551,16 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
      * Creates a item.
      */
     protected Item createItem(Session session, Folder parent, String name, String objectTypeId) {
+        if (parent == null) {
+            throw new IllegalArgumentException("Parent is not set!");
+        }
+        if (name == null) {
+            throw new IllegalArgumentException("Name is not set!");
+        }
+        if (objectTypeId == null) {
+            throw new IllegalArgumentException("Object Type Id is not set!");
+        }
+
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, objectTypeId);
@@ -548,20 +588,19 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                     e, true));
         }
 
-        if (parent != null) {
-            List<Folder> parents = result.getParents(SELECT_ALL_NO_CACHE_OC);
-            boolean found = false;
-            for (Folder folder : parents) {
-                if (parent.getId().equals(folder.getId())) {
-                    found = true;
-                    break;
-                }
+        // check parents
+        List<Folder> parents = result.getParents(SELECT_ALL_NO_CACHE_OC);
+        boolean found = false;
+        for (Folder folder : parents) {
+            if (parent.getId().equals(folder.getId())) {
+                found = true;
+                break;
             }
+        }
 
-            if (!found) {
-                addResult(createResult(FAILURE,
-                        "The folder the item has been created in is not in the list of the item parents!"));
-            }
+        if (!found) {
+            addResult(createResult(FAILURE,
+                    "The folder the item has been created in is not in the list of the item parents!"));
         }
 
         return result;
@@ -757,6 +796,14 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         }
 
         return cap.isGetFolderTreeSupported().booleanValue();
+    }
+
+    protected boolean isOrderByNameSupported(Session session) {
+        if (session.getRepositoryInfo().getCapabilities().getOrderByCapability() == CapabilityOrderBy.NONE) {
+            return false;
+        }
+
+        return true;
     }
 
     protected boolean hasRelationships(Session session) {
@@ -1343,10 +1390,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
         } catch (Exception e) {
             addResult(results, createResult(FAILURE, "Reading content failed: " + e, e, false));
         } finally {
-            try {
-                stream.close();
-            } catch (Exception e) {
-            }
+            IOUtils.closeQuietly(stream);
         }
     }
 
@@ -1414,10 +1458,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                             } catch (Exception e) {
                                 addResult(results, createResult(FAILURE, "Reading content failed: " + e, e, false));
                             } finally {
-                                try {
-                                    stream.close();
-                                } catch (Exception e) {
-                                }
+                                IOUtils.closeQuietly(stream);
                             }
                         }
                     }
@@ -1781,9 +1822,13 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
 
         // getChildren
 
+        boolean supportsOrderByName = isOrderByNameSupported(session);
+        OperationContext orderContext = (supportsOrderByName ? SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME
+                : SELECT_ALL_NO_CACHE_OC);
+
         long childrenCount = 0;
         long childrenFolderCount = 0;
-        ItemIterable<CmisObject> children = folder.getChildren(SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME);
+        ItemIterable<CmisObject> children = folder.getChildren(orderContext);
 
         int orderByNameIssues = 0;
         String lastName = null;
@@ -1812,9 +1857,13 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             addResult(results, createResult(WARNING, "getChildren did not report the total number of items!"));
         }
 
-        f = createResult(WARNING,
-                "Children should be ordered by cmis:name, but they are not! (It might be a collation mismtach.)");
-        addResult(results, assertEquals(0, orderByNameIssues, null, f));
+        if (supportsOrderByName) {
+            f = createResult(WARNING,
+                    "Children should be ordered by cmis:name, but they are not! (It might be a collation mismtach.)");
+            addResult(results, assertEquals(0, orderByNameIssues, null, f));
+        } else {
+            addResult(results, createResult(INFO, "Repository doesn't support Order By for getChildren()."));
+        }
 
         // getDescendants
 
@@ -2041,6 +2090,15 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
 
             f = createResult(FAILURE, "Query name contains invalid character: ')'");
             addResult(results, assertIsTrue(queryName.indexOf(')') < 0, null, f));
+
+            f = createResult(FAILURE, "Query name contains invalid character: '\\t'");
+            addResult(results, assertIsTrue(queryName.indexOf('\t') < 0, null, f));
+
+            f = createResult(FAILURE, "Query name contains invalid character: '\\n'");
+            addResult(results, assertIsTrue(queryName.indexOf('\n') < 0, null, f));
+
+            f = createResult(FAILURE, "Query name contains invalid character: '\\r'");
+            addResult(results, assertIsTrue(queryName.indexOf('\r') < 0, null, f));
         }
 
         CmisTestResultImpl result = createResult(getWorst(results), message);
@@ -2251,7 +2309,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
                     addResult(results, cpd.check(type));
 
                     // cmis:secondaryObjectTypeIds
-                    cpd = new CmisPropertyDefintion(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, null, PropertyType.ID,
+                    cpd = new CmisPropertyDefintion(PropertyIds.SECONDARY_OBJECT_TYPE_IDS, false, PropertyType.ID,
                             Cardinality.MULTI, null, null, false);
                     addResult(results, cpd.check(type));
 
@@ -3113,10 +3171,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             f = createResult(FAILURE, "Expected stream is null, but actual stream is not!");
             addResultChild(failure, f);
 
-            try {
-                actual.getStream().close();
-            } catch (Exception e) {
-            }
+            IOUtils.closeQuietly(actual);
 
             return failure;
         }
@@ -3125,10 +3180,7 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             f = createResult(FAILURE, "Actual object is null, but expected object is not!");
             addResultChild(failure, f);
 
-            try {
-                expected.getStream().close();
-            } catch (Exception e) {
-            }
+            IOUtils.closeQuietly(expected);
 
             return failure;
         }
@@ -3178,15 +3230,8 @@ public abstract class AbstractSessionTest extends AbstractCmisTest {
             addResultChild(failure, f);
         }
 
-        try {
-            actual.getStream().close();
-        } catch (Exception e) {
-        }
-
-        try {
-            expected.getStream().close();
-        } catch (Exception e) {
-        }
+        IOUtils.closeQuietly(as);
+        IOUtils.closeQuietly(es);
 
         if (getWorst(results).getLevel() <= OK.getLevel()) {
             for (CmisTestResult result : results) {

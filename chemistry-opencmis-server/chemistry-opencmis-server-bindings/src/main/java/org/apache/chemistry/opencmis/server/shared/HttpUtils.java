@@ -18,13 +18,11 @@
  */
 package org.apache.chemistry.opencmis.server.shared;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 
 public class HttpUtils {
 
@@ -32,12 +30,14 @@ public class HttpUtils {
      * Extracts a string parameter.
      */
     public static String getStringParameter(final HttpServletRequest request, final String name) {
+        assert request != null;
+
         if (name == null) {
             return null;
         }
 
         @SuppressWarnings("unchecked")
-        Map<String, String[]> parameters = (Map<String, String[]>) request.getParameterMap();
+        Map<String, String[]> parameters = request.getParameterMap();
         for (Map.Entry<String, String[]> parameter : parameters.entrySet()) {
             if (name.equalsIgnoreCase(parameter.getKey())) {
                 if (parameter.getValue() == null) {
@@ -54,6 +54,8 @@ public class HttpUtils {
      * Splits the path into its fragments.
      */
     public static String[] splitPath(final HttpServletRequest request) {
+        assert request != null;
+
         int prefixLength = request.getContextPath().length() + request.getServletPath().length();
         String p = request.getRequestURI().substring(prefixLength);
 
@@ -63,12 +65,7 @@ public class HttpUtils {
 
         String[] result = p.substring(1).split("/");
         for (int i = 0; i < result.length; i++) {
-            try {
-                result[i] = URLDecoder.decode(result[i], "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                // should not happen
-                throw new CmisRuntimeException(e.getMessage(), e);
-            }
+            result[i] = IOUtils.decodeURL(result[i]);
         }
 
         return result;

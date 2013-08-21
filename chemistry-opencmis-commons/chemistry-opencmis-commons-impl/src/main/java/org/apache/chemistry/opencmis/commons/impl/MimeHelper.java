@@ -28,10 +28,12 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+
 /**
  * MIME helper class.
  */
-public class MimeHelper {
+public final class MimeHelper {
 
     public static final String CONTENT_DISPOSITION = "Content-Disposition";
 
@@ -274,7 +276,8 @@ public class MimeHelper {
                     try {
                         return boundaryStr.getBytes("ISO-8859-1");
                     } catch (UnsupportedEncodingException e) {
-                        return boundaryStr.getBytes();
+                        // shouldn't happen...
+                        throw new CmisRuntimeException("Unsupported encoding 'ISO-8859-1'", e);
                     }
                 }
             }
@@ -310,21 +313,21 @@ public class MimeHelper {
 
         public static final int QUOTEDSTRING = -2;
 
-        private final int _type;
+        private final int type;
 
-        private final String _value;
+        private final String value;
 
         public Token(int type, String value) {
-            _type = type;
-            _value = value;
+            this.type = type;
+            this.value = value;
         }
 
         public int getType() {
-            return _type;
+            return type;
         }
 
         public String getValue() {
-            return _value;
+            return value;
         }
     }
 
@@ -535,8 +538,9 @@ public class MimeHelper {
          */
         private void eatWhiteSpace() {
             // skip to end of whitespace
-            while (++pos < header.length() && WHITE.indexOf(header.charAt(pos)) != -1)
-                ;
+            while (++pos < header.length() && WHITE.indexOf(header.charAt(pos)) != -1) {
+                // just read
+            }
         }
     }
 

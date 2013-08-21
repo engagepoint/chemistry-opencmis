@@ -40,6 +40,7 @@ import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdate
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.apache.chemistry.opencmis.commons.enums.ContentStreamAllowed;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.tck.CmisTestResult;
 import org.apache.chemistry.opencmis.tck.impl.AbstractSessionTest;
 
@@ -120,11 +121,7 @@ public class SetAndDeleteContentTest extends AbstractSessionTest {
             }
 
             // set a new content stream
-            byte[] contentBytes = new byte[0];
-            try {
-                contentBytes = CONTENT2.getBytes("UTF-8");
-            } catch (Exception e) {
-            }
+            byte[] contentBytes = IOUtils.getUTF8Bytes(CONTENT2);
 
             try {
                 ContentStream contentStream = session.getObjectFactory().createContentStream(workDoc.getName(),
@@ -132,10 +129,7 @@ public class SetAndDeleteContentTest extends AbstractSessionTest {
 
                 ObjectId newObjectId = workDoc.setContentStream(contentStream, true, true);
 
-                try {
-                    contentStream.getStream().close();
-                } catch (Exception e) {
-                }
+                IOUtils.closeQuietly(contentStream);
 
                 // setContentStream may have created a new version
                 Document contentDoc = getNewVersion(session, workDoc, checkedout, newObjectId, "setContentStream()");
@@ -157,11 +151,7 @@ public class SetAndDeleteContentTest extends AbstractSessionTest {
 
             // test appendContentStream
             if (session.getRepositoryInfo().getCmisVersion() != CmisVersion.CMIS_1_0) {
-                contentBytes = new byte[0];
-                try {
-                    contentBytes = CONTENT3.getBytes("UTF-8");
-                } catch (Exception e) {
-                }
+                contentBytes = IOUtils.getUTF8Bytes(CONTENT3);
 
                 try {
                     ContentStream contentStream = session.getObjectFactory().createContentStream(workDoc.getName(),

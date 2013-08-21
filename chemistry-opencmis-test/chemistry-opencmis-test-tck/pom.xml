@@ -15,7 +15,7 @@
     <parent>
         <groupId>org.apache.chemistry.opencmis</groupId>
         <artifactId>chemistry-opencmis</artifactId>
-        <version>0.10.0-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -51,6 +51,7 @@
                                  
                                  <!-- build timestamp -->
                                  <echo file="${targetdir}/generated-resources/META-INF/build-timestamp.txt">Version: ${project.version} / Revision: ${revision} / Build: ${timestamp}</echo>
+                                 <echo file="${targetdir}/generated-resources/META-INF/tck-revision.txt">${revision}</echo>
                             </target>
                         </configuration>
                         <goals>

@@ -22,9 +22,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
-import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Properties;
 import java.util.TreeSet;
 
@@ -37,6 +36,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.UIManager;
+
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 
 public class InfoDialog extends JDialog {
 
@@ -69,14 +70,14 @@ public class InfoDialog extends JDialog {
 
         StringBuilder readme = new StringBuilder();
 
-        readme.append(loadText("/META-INF/README", "CMIS Workbench"));
+        readme.append(loadText("/META-INF/README-cmis-workbench.txt", "CMIS Workbench"));
         readme.append("\n---------------------------------------------------------\n");
 
         readme.append("\nCurrent System Properties:\n\n");
 
         Properties sysProps = System.getProperties();
         for (Object key : new TreeSet<Object>(sysProps.keySet())) {
-            readme.append(key).append(" = ").append(sysProps.get(key)).append("\n");
+            readme.append(key).append(" = ").append(sysProps.get(key)).append('\n');
         }
 
         readme.append("\n---------------------------------------------------------\n");
@@ -106,26 +107,15 @@ public class InfoDialog extends JDialog {
     }
 
     private String loadText(String file, String defaultText) {
-        StringBuilder result = new StringBuilder();
-
         InputStream stream = getClass().getResourceAsStream(file);
         if (stream != null) {
             try {
-                BufferedReader br = new BufferedReader(new InputStreamReader(stream));
-
-                String s = null;
-                while ((s = br.readLine()) != null) {
-                    result.append(s);
-                    result.append('\n');
-                }
-
-                br.close();
-            } catch (Exception e) {
+                return IOUtils.readAllLines(stream);
+            } catch (IOException e) {
+                return defaultText;
             }
-        } else {
-            result.append(defaultText);
         }
 
-        return result.toString();
+        return defaultText;
     }
 }

@@ -24,5 +24,6 @@ import java.io.OutputStream;
  * Output interface.
  */
 public interface Output {
+    @SuppressWarnings("PMD.SignatureDeclareThrowsException")
     void write(OutputStream out) throws Exception;
 }

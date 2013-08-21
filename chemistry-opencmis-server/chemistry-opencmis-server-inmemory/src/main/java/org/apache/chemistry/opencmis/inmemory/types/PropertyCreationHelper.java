@@ -45,6 +45,7 @@ import org.apache.chemistry.opencmis.commons.enums.PropertyType;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractPropertyData;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AbstractPropertyDefinition;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.BindingsObjectFactoryImpl;
@@ -73,6 +74,8 @@ import org.apache.chemistry.opencmis.inmemory.DataObjectCreator;
 import org.apache.chemistry.opencmis.inmemory.FilterParser;
 import org.apache.chemistry.opencmis.inmemory.NameValidator;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.Folder;
+import org.apache.chemistry.opencmis.inmemory.storedobj.api.ObjectStore;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.StoredObject;
 import org.apache.chemistry.opencmis.server.support.TypeManager;
 import org.slf4j.Logger;
@@ -84,7 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class PropertyCreationHelper {
 
-    private static final Logger log = LoggerFactory.getLogger(PropertyCreationHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PropertyCreationHelper.class);
 
     private PropertyCreationHelper() {
     }
@@ -207,7 +210,7 @@ public final class PropertyCreationHelper {
         prop.setDefaultValue(Collections.singletonList(defVal));
     }
 
-    public static Properties getPropertiesFromObject(StoredObject so, TypeManager typeManager,
+    public static Properties getPropertiesFromObject(StoredObject so, ObjectStore objectStore, TypeManager typeManager,
             List<String> requestedIds, boolean fillOptionalPropertyData) {
         // build properties collection
 
@@ -217,9 +220,13 @@ public final class PropertyCreationHelper {
         TypeDefinition td = typeManager.getTypeById(so.getTypeId()).getTypeDefinition();
 
         String typeId = so.getTypeId();
+        if (so instanceof Folder && FilterParser.isContainedInFilter(PropertyIds.PATH, requestedIds)) {
+            String path = objectStore.getFolderPath(so.getId());
+            properties.put(PropertyIds.PATH, objectFactory.createPropertyStringData(PropertyIds.PATH, path));
+        }
         if (FilterParser.isContainedInFilter(PropertyIds.BASE_TYPE_ID, requestedIds)) {
             if (td == null) {
-                log.warn("getPropertiesFromObject(), cannot get type definition, a type with id " + typeId
+                LOG.warn("getPropertiesFromObject(), cannot get type definition, a type with id " + typeId
                         + " is unknown");
                 return null;
             } else {
@@ -233,8 +240,9 @@ public final class PropertyCreationHelper {
         Map<String, PropertyDefinition<?>> propDefs = td.getPropertyDefinitions();
         for (PropertyDefinition<?> propDef : propDefs.values()) {
             if (!properties.containsKey(propDef.getId())
-                    && FilterParser.isContainedInFilter(propDef.getId(), requestedIds))
+                    && FilterParser.isContainedInFilter(propDef.getId(), requestedIds)) {
                 properties.put(propDef.getId(), getEmptyValue(propDef));
+            }
         }
 
         // fill not-set properties from secondary types
@@ -244,8 +252,9 @@ public final class PropertyCreationHelper {
             propDefs = td.getPropertyDefinitions();
             for (PropertyDefinition<?> propDef : propDefs.values()) {
                 if (!properties.containsKey(propDef.getId())
-                        && FilterParser.isContainedInFilter(propDef.getId(), requestedIds))
+                        && FilterParser.isContainedInFilter(propDef.getId(), requestedIds)) {
                     properties.put(propDef.getId(), getEmptyValue(propDef));
+                }
             }
         }
 
@@ -260,14 +269,20 @@ public final class PropertyCreationHelper {
         return props;
     }
 
-    public static Properties getPropertiesFromObject(StoredObject so, TypeDefinition primaryType, List<TypeDefinition> secondaryTypes,
-            Map<String, String> requestedIds, Map<String, String> requestedFuncs) {
+    public static Properties getPropertiesFromObject(StoredObject so, ObjectStore objectStore,
+            TypeDefinition primaryType, List<TypeDefinition> secondaryTypes, Map<String, String> requestedIds,
+            Map<String, String> requestedFuncs) {
         // build properties collection
 
         List<String> idList = new ArrayList<String>(requestedIds.values());
         BindingsObjectFactory objectFactory = new BindingsObjectFactoryImpl();
         Map<String, PropertyData<?>> properties = new HashMap<String, PropertyData<?>>();
         so.fillProperties(properties, objectFactory, idList);
+        // special handling for path
+        if (so instanceof Folder && FilterParser.isContainedInFilter(PropertyIds.PATH, idList)) {
+            String path = objectStore.getFolderPath(so.getId());
+            properties.put(PropertyIds.PATH, objectFactory.createPropertyStringData(PropertyIds.PATH, path));
+        }
 
         if (FilterParser.isContainedInFilter(PropertyIds.BASE_TYPE_ID, idList)) {
             String baseTypeId = primaryType.getBaseTypeId().value();
@@ -276,7 +291,7 @@ public final class PropertyCreationHelper {
         }
 
         Map<String, PropertyData<?>> mappedProperties = new HashMap<String, PropertyData<?>>();
-        
+
         // primary type:
         if (requestedIds.containsValue("*")) {
             for (Map.Entry<String, PropertyData<?>> prop : properties.entrySet()) {
@@ -285,8 +300,9 @@ public final class PropertyCreationHelper {
             // add all values that are not set:
             Map<String, PropertyDefinition<?>> propDefs = primaryType.getPropertyDefinitions();
             for (PropertyDefinition<?> propDef : propDefs.values()) {
-                if (!mappedProperties.containsKey(propDef.getQueryName()))
+                if (!mappedProperties.containsKey(propDef.getQueryName())) {
                     mappedProperties.put(propDef.getId(), getEmptyValue(propDef));
+                }
             }
 
         } else {
@@ -301,7 +317,7 @@ public final class PropertyCreationHelper {
                 }
             }
         }
-        
+
         // secondary types:
         if (null != secondaryTypes) {
             for (TypeDefinition typeDef : secondaryTypes) {
@@ -312,8 +328,9 @@ public final class PropertyCreationHelper {
                     // add all values that are not set:
                     Map<String, PropertyDefinition<?>> propDefs = typeDef.getPropertyDefinitions();
                     for (PropertyDefinition<?> propDef : propDefs.values()) {
-                        if (!mappedProperties.containsKey(propDef.getQueryName()))
+                        if (!mappedProperties.containsKey(propDef.getQueryName())) {
                             mappedProperties.put(propDef.getId(), getEmptyValue(propDef));
+                        }
                     }
                 } else {
                     // replace all ids with query names or alias:
@@ -326,24 +343,20 @@ public final class PropertyCreationHelper {
                             addNotSetPropertyToMap(mappedProperties, typeDef, propAlias.getValue(), queryNameOrAlias);
                         }
                     }
-                }            
+                }
             }
         }
-        
+
         // add functions:
         for (Entry<String, String> funcEntry : requestedFuncs.entrySet()) {
             String queryName;
             if (funcEntry.getValue().equals("SCORE")) {
                 queryName = "SEARCH_SCORE";
-                if (!funcEntry.getKey().equals("SCORE"))
+                if (!funcEntry.getKey().equals("SCORE")) {
                     queryName = funcEntry.getKey();
+                }
 
-                // PropertyDecimal pd =
-                // objFactory.createPropertyDecimalData(queryName,
-                // BigDecimal.valueOf(1.0));
-                // does not give me an impl class, so directly use it
                 PropertyDecimalImpl pd = new PropertyDecimalImpl();
-
                 // fixed dummy value
                 pd.setValue(BigDecimal.valueOf(1.0));
                 pd.setId(queryName);
@@ -381,19 +394,19 @@ public final class PropertyCreationHelper {
             String queryName = propDef.getQueryName();
             String localName = propDef.getLocalName();
             String displayName = propDef.getDisplayName();
-            
+
             AbstractPropertyData<?> ad = clonePropertyData(propData);
             ad.setQueryName(queryNameOrAlias == null ? queryName : queryNameOrAlias);
             ad.setLocalName(localName);
             ad.setDisplayName(displayName);
-            
+
             mappedProperties.put(queryName, ad);
         }
     }
 
-    public static ObjectData getObjectData(TypeManager tm, StoredObject so, String filter, String user,
-            Boolean includeAllowableActions, IncludeRelationships includeRelationships, String renditionFilter,
-            Boolean includePolicyIds, Boolean includeACL, ExtensionsData extension) {
+    public static ObjectData getObjectData(TypeManager tm, ObjectStore objectStore, StoredObject so, String filter,
+            String user, Boolean includeAllowableActions, IncludeRelationships includeRelationships,
+            String renditionFilter, Boolean includePolicyIds, Boolean includeACL, ExtensionsData extension) {
 
         ObjectDataImpl od = new ObjectDataImpl();
 
@@ -403,7 +416,7 @@ public final class PropertyCreationHelper {
 
         // build properties collection
         List<String> requestedIds = FilterParser.getRequestedIdsFromFilter(filter);
-        Properties props = getPropertiesFromObject(so, tm, requestedIds, true);
+        Properties props = getPropertiesFromObject(so, objectStore, tm, requestedIds, true);
 
         // fill output object
         if (null != includeAllowableActions && includeAllowableActions) {
@@ -412,11 +425,14 @@ public final class PropertyCreationHelper {
         }
 
         List<RenditionData> renditions = so.getRenditions(renditionFilter, 0, 0);
-        if (null != renditions && renditions.size() > 0)
+        if (null != renditions && renditions.size() > 0) {
             od.setRenditions(renditions);
+        }
 
         if (null != includeACL && includeACL) {
-            Acl acl = so instanceof DocumentVersion ? ((DocumentVersion) so).getParentDocument().getAcl() : so.getAcl();
+            int aclId = so instanceof DocumentVersion ? ((DocumentVersion) so).getParentDocument().getAclId() : so
+                    .getAclId();
+            Acl acl = objectStore.getAcl(aclId);
             od.setAcl(acl);
         }
         od.setIsExactAcl(true);
@@ -426,7 +442,7 @@ public final class PropertyCreationHelper {
         }
 
         if (null != includeRelationships && includeRelationships != IncludeRelationships.NONE) {
-            od.setRelationships(DataObjectCreator.fillRelationships(tm, includeRelationships, so, user));
+            od.setRelationships(DataObjectCreator.fillRelationships(tm, objectStore, includeRelationships, so, user));
         }
 
         if (null != includePolicyIds && includePolicyIds) {
@@ -443,34 +459,37 @@ public final class PropertyCreationHelper {
         return od;
     }
 
-    public static ObjectData getObjectDataQueryResult(TypeManager tm, TypeDefinition primaryType, StoredObject so,
-            String user, Map<String, String> requestedProperties, Map<String, String> requestedFuncs,
-            List<TypeDefinition> secondaryTypes, Boolean includeAllowableActions,
+    public static ObjectData getObjectDataQueryResult(TypeManager tm, ObjectStore objectStore,
+            TypeDefinition primaryType, StoredObject so, String user, Map<String, String> requestedProperties,
+            Map<String, String> requestedFuncs, List<TypeDefinition> secondaryTypes, Boolean includeAllowableActions,
             IncludeRelationships includeRelationships, String renditionFilter) {
 
         ObjectDataImpl od = new ObjectDataImpl();
 
         // build properties collection
-        Properties props = getPropertiesFromObject(so, primaryType, secondaryTypes, requestedProperties, requestedFuncs);
+        Properties props = getPropertiesFromObject(so, objectStore, primaryType, secondaryTypes, requestedProperties,
+                requestedFuncs);
 
         // fill output object
         if (null != includeAllowableActions && includeAllowableActions) {
-            // AllowableActions allowableActions =
-            // DataObjectCreator.fillAllowableActions(so, user);
             AllowableActions allowableActions = so.getAllowableActions(user);
             od.setAllowableActions(allowableActions);
         }
 
-        od.setAcl(so.getAcl());
+        int aclId = so.getAclId();
+        Acl acl = objectStore.getAcl(aclId);
+        od.setAcl(acl);
+
         od.setIsExactAcl(true);
 
         if (null != includeRelationships && includeRelationships != IncludeRelationships.NONE) {
-            od.setRelationships(DataObjectCreator.fillRelationships(tm, includeRelationships, so, user));
+            od.setRelationships(DataObjectCreator.fillRelationships(tm, objectStore, includeRelationships, so, user));
         }
 
         List<RenditionData> renditions = so.getRenditions(renditionFilter, 0, 0);
-        if (null != renditions && renditions.size() > 0)
+        if (null != renditions && renditions.size() > 0) {
             od.setRenditions(renditions);
+        }
 
         od.setProperties(props);
 
@@ -482,9 +501,7 @@ public final class PropertyCreationHelper {
             String displayName, Cardinality card, Updatability upd) {
 
         if (!NameValidator.isValidId(id)) {
-            if (!NameValidator.isValidId(id)) {
-                throw new CmisInvalidArgumentException(NameValidator.ERROR_ILLEGAL_NAME);
-            }
+            throw new CmisInvalidArgumentException(NameValidator.ERROR_ILLEGAL_NAME);
         }
 
         prop.setId(id);
@@ -526,25 +543,26 @@ public final class PropertyCreationHelper {
     }
 
     private static AbstractPropertyData<?> getEmptyValue(PropertyDefinition<?> propDef) {
-    	AbstractPropertyData<?> emptyValue;
-        if (propDef.getPropertyType().equals(PropertyType.BOOLEAN))
-        	emptyValue =  new PropertyBooleanImpl(propDef.getId(), (Boolean) null);
-        else if (propDef.getPropertyType().equals(PropertyType.DATETIME))
-        	emptyValue =  new PropertyDateTimeImpl(propDef.getId(), (GregorianCalendar) null);
-        else if (propDef.getPropertyType().equals(PropertyType.DECIMAL))
-        	emptyValue =  new PropertyDecimalImpl(propDef.getId(), (BigDecimal) null);
-        else if (propDef.getPropertyType().equals(PropertyType.HTML))
-        	emptyValue =  new PropertyHtmlImpl(propDef.getId(), (String) null);
-        else if (propDef.getPropertyType().equals(PropertyType.ID))
-        	emptyValue =  new PropertyIdImpl(propDef.getId(), (String) null);
-        else if (propDef.getPropertyType().equals(PropertyType.INTEGER))
-        	emptyValue =  new PropertyIntegerImpl(propDef.getId(), (BigInteger) null);
-        else if (propDef.getPropertyType().equals(PropertyType.STRING))
-        	emptyValue =  new PropertyStringImpl(propDef.getId(), (String) null);
-        else if (propDef.getPropertyType().equals(PropertyType.URI))
-        	emptyValue =  new PropertyUriImpl(propDef.getId(), (String) null);
-        else
-        	emptyValue =  null;
+        AbstractPropertyData<?> emptyValue;
+        if (propDef.getPropertyType().equals(PropertyType.BOOLEAN)) {
+            emptyValue = new PropertyBooleanImpl(propDef.getId(), (Boolean) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.DATETIME)) {
+            emptyValue = new PropertyDateTimeImpl(propDef.getId(), (GregorianCalendar) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.DECIMAL)) {
+            emptyValue = new PropertyDecimalImpl(propDef.getId(), (BigDecimal) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.HTML)) {
+            emptyValue = new PropertyHtmlImpl(propDef.getId(), (String) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.ID)) {
+            emptyValue = new PropertyIdImpl(propDef.getId(), (String) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.INTEGER)) {
+            emptyValue = new PropertyIntegerImpl(propDef.getId(), (BigInteger) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.STRING)) {
+            emptyValue = new PropertyStringImpl(propDef.getId(), (String) null);
+        } else if (propDef.getPropertyType().equals(PropertyType.URI)) {
+            emptyValue = new PropertyUriImpl(propDef.getId(), (String) null);
+        } else {
+            throw new CmisRuntimeException("Unknown property type " + propDef.getPropertyType());
+        }
         emptyValue.setDisplayName(propDef.getDisplayName());
         emptyValue.setQueryName(propDef.getQueryName());
         emptyValue.setLocalName(propDef.getLocalName());
@@ -587,7 +605,7 @@ public final class PropertyCreationHelper {
             clone.setValues(((PropertyUriImpl) prop).getValues());
             ad = clone;
         } else {
-            throw new RuntimeException("Unknown property type: " + prop.getClass());
+            throw new CmisRuntimeException("Unknown property type: " + prop.getClass());
         }
 
         ad.setDisplayName(prop.getDisplayName());

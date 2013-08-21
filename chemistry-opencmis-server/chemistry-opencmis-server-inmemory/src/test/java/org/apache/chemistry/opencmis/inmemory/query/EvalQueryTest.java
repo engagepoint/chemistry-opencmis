@@ -903,13 +903,13 @@ public class EvalQueryTest extends AbstractServiceTest {
         assertEquals(2, res.getObjects().size());
         assertTrue(resultContains("ver123", UnitTestTypeSystemCreator.VERSION_PROPERTY_ID, res));
         assertTrue(resultContains("ver456", UnitTestTypeSystemCreator.VERSION_PROPERTY_ID, res));
-        assertTrue(resultContains("V 1.0", PropertyIds.VERSION_LABEL, res));
-        assertTrue(resultContains("V 2.0", PropertyIds.VERSION_LABEL, res));
+        assertTrue(resultContains("1.0", PropertyIds.VERSION_LABEL, res));
+        assertTrue(resultContains("2.0", PropertyIds.VERSION_LABEL, res));
 
         res = doQuery(statement);
         assertEquals(1, res.getObjects().size());
-        assertFalse(resultContains("V 1.0", PropertyIds.VERSION_LABEL, res));
-        assertTrue(resultContains("V 2.0", PropertyIds.VERSION_LABEL, res));
+        assertFalse(resultContains("1.0", PropertyIds.VERSION_LABEL, res));
+        assertTrue(resultContains("2.0", PropertyIds.VERSION_LABEL, res));
         log.debug("...Stop testLastestVersionsWithQuery.");
     }
 
@@ -922,12 +922,12 @@ public class EvalQueryTest extends AbstractServiceTest {
         ObjectList res = doQuery(statement);
         assertEquals(1, res.getObjects().size());
         assertTrue(resultContains("ver456", UnitTestTypeSystemCreator.VERSION_PROPERTY_ID, res));
-        assertTrue(resultContains("V 2.0", PropertyIds.VERSION_LABEL, res));
+        assertTrue(resultContains("2.0", PropertyIds.VERSION_LABEL, res));
 
         res = doQuery(statement);
         assertEquals(1, res.getObjects().size());
-        assertFalse(resultContains("V 1.0", PropertyIds.VERSION_LABEL, res));
-        assertTrue(resultContains("V 2.0", PropertyIds.VERSION_LABEL, res));
+        assertFalse(resultContains("1.0", PropertyIds.VERSION_LABEL, res));
+        assertTrue(resultContains("2.0", PropertyIds.VERSION_LABEL, res));
         log.debug("...Stop testLastestVersionsWithQuery.");
     }
 
@@ -1105,10 +1105,11 @@ public class EvalQueryTest extends AbstractServiceTest {
         log.debug("Query result, number of matching objects: " + res.getNumItems());
         for (ObjectData od : res.getObjects()) {
             PropertyData<?> propData = od.getProperties().getProperties().get(PropertyIds.NAME);
-            if (null != propData)
+            if (null != propData) {
                 log.debug("Found matching object: " + propData.getFirstValue());
-            else
+            } else {
                 log.debug("Found matching object: (unknown, no name)");
+            }
         }
         return res;
     }

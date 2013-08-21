@@ -18,7 +18,7 @@
  */
 package org.apache.chemistry.opencmis.workbench.actions;
 
-import java.io.IOException;
+import java.io.FileNotFoundException;
 
 import javax.swing.JCheckBox;
 import javax.swing.JTextField;
@@ -26,6 +26,7 @@ import javax.swing.JTextField;
 import org.apache.chemistry.opencmis.client.api.Document;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.enums.Action;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.workbench.model.ClientModel;
 import org.apache.chemistry.opencmis.workbench.swing.ActionPanel;
 
@@ -64,19 +65,13 @@ public class CheckInPanel extends ActionPanel {
     }
 
     @Override
-    public boolean doAction() throws Exception {
+    public boolean doAction() throws FileNotFoundException {
         ContentStream content = getClientModel().createContentStream(filenameField.getText());
 
         try {
             ((Document) getObject()).checkIn(majorBox.isSelected(), null, content, null, null, null, null);
         } finally {
-            if (content != null && content.getStream() != null) {
-                try {
-                    content.getStream().close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
+            IOUtils.closeQuietly(content);
         }
 
         return false;

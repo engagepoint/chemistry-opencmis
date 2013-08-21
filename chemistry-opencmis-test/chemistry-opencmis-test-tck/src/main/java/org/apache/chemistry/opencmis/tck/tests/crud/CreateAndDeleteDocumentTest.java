@@ -22,7 +22,6 @@ import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.FAILURE;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.INFO;
 import static org.apache.chemistry.opencmis.tck.CmisTestResultStatus.WARNING;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,8 +34,10 @@ import org.apache.chemistry.opencmis.client.api.Document;
 import org.apache.chemistry.opencmis.client.api.DocumentType;
 import org.apache.chemistry.opencmis.client.api.Folder;
 import org.apache.chemistry.opencmis.client.api.ItemIterable;
+import org.apache.chemistry.opencmis.client.api.OperationContext;
 import org.apache.chemistry.opencmis.client.api.Session;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.tck.CmisTestResult;
 import org.apache.chemistry.opencmis.tck.impl.AbstractSessionTest;
 
@@ -59,6 +60,9 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
         CmisTestResult f;
 
         int numOfDocuments = 20;
+
+        OperationContext orderContext = (isOrderByNameSupported(session) ? SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME
+                : SELECT_ALL_NO_CACHE_OC);
 
         // create a test folder
         Folder testFolder = createTestFolder(session);
@@ -115,8 +119,7 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
             CmisObject lastObject = null;
 
             int count = 0;
-            ItemIterable<CmisObject> page1 = testFolder.getChildren(SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME).getPage(
-                    pageSize);
+            ItemIterable<CmisObject> page1 = testFolder.getChildren(orderContext).getPage(pageSize);
             for (CmisObject child : page1) {
                 count++;
                 lastObject = child;
@@ -137,8 +140,8 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
 
             // check second page
             count = 0;
-            ItemIterable<CmisObject> page2 = testFolder.getChildren(SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME)
-                    .skipTo(pageSize - 1).getPage(pageSize);
+            ItemIterable<CmisObject> page2 = testFolder.getChildren(orderContext).skipTo(pageSize - 1)
+                    .getPage(pageSize);
             for (CmisObject child : page2) {
                 count++;
 
@@ -164,8 +167,8 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
 
             // check third page
             count = 0;
-            ItemIterable<CmisObject> page3 = testFolder.getChildren(SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME)
-                    .skipTo(numOfDocuments - 5).getPage(10);
+            ItemIterable<CmisObject> page3 = testFolder.getChildren(orderContext).skipTo(numOfDocuments - 5)
+                    .getPage(10);
             for (@SuppressWarnings("unused")
             CmisObject child : page3) {
                 count++;
@@ -187,8 +190,8 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
 
             // check non-existing page
             count = 0;
-            ItemIterable<CmisObject> pageNotExisting = testFolder.getChildren(SELECT_ALL_NO_CACHE_OC_ORDER_BY_NAME)
-                    .skipTo(100000).getPage(pageSize);
+            ItemIterable<CmisObject> pageNotExisting = testFolder.getChildren(orderContext).skipTo(100000)
+                    .getPage(pageSize);
             for (@SuppressWarnings("unused")
             CmisObject child : pageNotExisting) {
                 count++;
@@ -214,10 +217,7 @@ public class CreateAndDeleteDocumentTest extends AbstractSessionTest {
                     addResult(createResult(FAILURE, "Document has no content! Id: " + document.getId()));
                     continue;
                 } else {
-                    try {
-                        contentStream.getStream().close();
-                    } catch (IOException e) {
-                    }
+                    IOUtils.closeQuietly(contentStream);
                 }
 
                 // TODO: content checks

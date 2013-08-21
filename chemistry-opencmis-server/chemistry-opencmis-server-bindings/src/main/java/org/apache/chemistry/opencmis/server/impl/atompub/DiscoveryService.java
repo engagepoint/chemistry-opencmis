@@ -54,6 +54,12 @@ public class DiscoveryService {
     public static class Query extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String statement = null;
             Boolean searchAllVersions = null;
@@ -75,7 +81,7 @@ public class DiscoveryService {
                     XMLUtils.findNextStartElemenet(parser);
                     queryType = XMLConverter.convertQuery(parser);
                 } catch (XMLStreamException e) {
-                    throw new CmisInvalidArgumentException("Invalid query request!");
+                    throw new CmisInvalidArgumentException("Invalid query request!", e);
                 } finally {
                     if (parser != null) {
                         try {
@@ -208,6 +214,12 @@ public class DiscoveryService {
     public static class GetContentChanges extends AbstractAtomPubServiceCall {
         public void serve(CallContext context, CmisService service, String repositoryId, HttpServletRequest request,
                 HttpServletResponse response) throws Exception {
+            assert context != null;
+            assert service != null;
+            assert repositoryId != null;
+            assert request != null;
+            assert response != null;
+
             // get parameters
             String changeLogToken = getStringParameter(request, Constants.PARAM_CHANGE_LOG_TOKEN);
             Boolean includeProperties = getBooleanParameter(request, Constants.PARAM_PROPERTIES);

@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,7 +57,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     private static final Pattern ATTR_PATTERN1 = Pattern.compile("(,?[^;=]*)(?:=([^;,]*))?((?=.))?");
 
     private abstract static class Setter {
-        boolean set;
+        private boolean set;
 
         Setter() {
             set = false;
@@ -79,7 +80,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
         }
     }
 
-    private HashMap<String, Setter> attributeSet = new HashMap<String, Setter>();
+    private Map<String, Setter> attributeSet = new HashMap<String, Setter>();
 
     /**
      * A utility method used to check whether the host name is in a domain or
@@ -257,7 +258,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     private String commentURL;
     private boolean discard;
     private String domain;
-    private long maxAge = -1l;
+    private long maxAge = -1L;
     private String name;
     private String path;
     private String portList;
@@ -306,7 +307,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
                 try {
                     cookie.setMaxAge(Long.parseLong(value));
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid max-age!");
+                    throw new IllegalArgumentException("Invalid max-age!", e);
                 }
                 set(true);
 
@@ -336,7 +337,6 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
 
             @Override
             void validate(String v, CmisHttpCookie cookie) {
-                return;
             }
         });
         attributeSet.put("secure", new Setter() {
@@ -355,7 +355,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
                         cookie.setVersion(v);
                     }
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid version!");
+                    throw new IllegalArgumentException("Invalid version!", e);
                 }
                 if (cookie.getVersion() != 0) {
                     set(true);
@@ -386,7 +386,6 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
 
             @Override
             void validate(String v, CmisHttpCookie cookie) {
-                return;
             }
         });
     }
@@ -427,8 +426,8 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
 
     private void attrToString(StringBuilder builder, String attrName, String attrValue) {
         if (attrValue != null && builder != null) {
-            builder.append(";");
-            builder.append("$");
+            builder.append(';');
+            builder.append('$');
             builder.append(attrName);
             builder.append("=\"");
             builder.append(attrValue);
@@ -444,8 +443,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     @Override
     public Object clone() {
         try {
-            CmisHttpCookie obj = (CmisHttpCookie) super.clone();
-            return obj;
+            return super.clone();
         } catch (CloneNotSupportedException e) {
             return null;
         }
@@ -595,12 +593,12 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     public boolean hasExpired() {
         // -1 indicates the cookie will persist until browser shutdown
         // so the cookie is not expired.
-        if (maxAge == -1l) {
+        if (maxAge == -1L) {
             return false;
         }
 
         boolean expired = false;
-        if (maxAge <= 0l) {
+        if (maxAge <= 0L) {
             expired = true;
         }
         return expired;
@@ -625,7 +623,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     private boolean isValidName(String n) {
         // name cannot be empty or begin with '$' or equals the reserved
         // attributes (case-insensitive)
-        boolean isValid = !(n.length() == 0 || n.startsWith("$") || attributeSet.containsKey(n.toLowerCase()));
+        boolean isValid = !(n.length() == 0 || n.charAt(0) == '$' || attributeSet.containsKey(n.toLowerCase()));
         if (isValid) {
             for (int i = 0; i < n.length(); i++) {
                 char nameChar = n.charAt(i);
@@ -776,7 +774,7 @@ public final class CmisHttpCookie implements Cloneable, Serializable {
     public String toString() {
         StringBuilder cookieStr = new StringBuilder();
         cookieStr.append(name);
-        cookieStr.append("=");
+        cookieStr.append('=');
         if (version == 0) {
             cookieStr.append(value);
         } else if (version == 1) {

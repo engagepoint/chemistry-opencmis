@@ -18,17 +18,17 @@
  */
 package org.apache.chemistry.opencmis.tck.runner;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.chemistry.opencmis.commons.impl.ClassLoaderUtil;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.tck.CmisTest;
 import org.apache.chemistry.opencmis.tck.CmisTestGroup;
 import org.apache.chemistry.opencmis.tck.CmisTestProgressMonitor;
@@ -43,6 +43,8 @@ public abstract class AbstractRunner {
     public static final String DEFAULT_TCK_GROUPS = "/cmis-tck-groups.txt";
     public static final String TCK_BUILD_TIMESTAMP = "/META-INF/build-timestamp.txt";
     public static final String TCK_BUILD_TIMESTAMP_PARAMETER = "org.apache.chemistry.opencmis.tck.timestamp";
+    public static final String TCK_REVISION = "/META-INF/tck-revision.txt";
+    public static final String TCK_REVISION_PARAMETER = "org.apache.chemistry.opencmis.tck.revision";
 
     private Map<String, String> parameters;
     private final List<CmisTestGroup> groups = new ArrayList<CmisTestGroup>();
@@ -65,11 +67,15 @@ public abstract class AbstractRunner {
             parameters.put(key.toString(), System.getProperties().getProperty(key.toString()));
         }
 
-        // set TCK build timestamp
+        // set TCK build timestamp and revision
         parameters.put(TCK_BUILD_TIMESTAMP_PARAMETER, loadTCKTimestamp());
+        String revision = loadTCKRevision();
+        if (revision != null) {
+            parameters.put(TCK_REVISION_PARAMETER, revision);
+        }
     }
 
-    public void loadParameters(File file) throws Exception {
+    public void loadParameters(File file) throws IOException {
         if (file == null || !file.isFile()) {
             throw new IllegalArgumentException("File not found!");
         }
@@ -77,41 +83,12 @@ public abstract class AbstractRunner {
         loadParameters(new FileInputStream(file));
     }
 
-    public void loadParameters(InputStream stream) throws Exception {
+    public void loadParameters(InputStream stream) throws IOException {
         if (stream == null) {
             throw new IllegalArgumentException("Stream is null!");
         }
 
-        BufferedReader reader = null;
-        Map<String, String> loadParams = new HashMap<String, String>();
-
-        try {
-            reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.startsWith("#") || line.length() == 0) {
-                    continue;
-                }
-
-                int x = line.indexOf('=');
-                if (x < 0) {
-                    loadParams.put(line.trim(), "");
-                } else {
-                    loadParams.put(line.substring(0, x).trim(), line.substring(x + 1).trim());
-                }
-            }
-
-            setParameters(loadParams);
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception e) {
-                }
-            }
-        }
+        setParameters(IOUtils.readAllLinesAsMap(stream));
     }
 
     public Map<String, String> getParameters() {
@@ -119,24 +96,33 @@ public abstract class AbstractRunner {
     }
 
     private String loadTCKTimestamp() {
-        StringBuilder result = new StringBuilder();
-
         InputStream stream = getClass().getResourceAsStream(TCK_BUILD_TIMESTAMP);
         if (stream != null) {
             try {
-                BufferedReader br = new BufferedReader(new InputStreamReader(stream));
-
-                String s = null;
-                while ((s = br.readLine()) != null) {
-                    result.append(s);
-                }
-
-                br.close();
-            } catch (Exception e) {
+                return IOUtils.readAllLines(stream);
+            } catch (IOException e) {
+                return "";
             }
         }
 
-        return result.toString();
+        return "";
+    }
+
+    private String loadTCKRevision() {
+        InputStream stream = getClass().getResourceAsStream(TCK_REVISION);
+
+        if (stream != null) {
+            try {
+                String revStr = IOUtils.readFirstLine(stream);
+                return String.valueOf(Integer.parseInt(revStr.trim()));
+            } catch (NumberFormatException e) {
+                return null;
+            } catch (IOException e) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     // --- groups ---
@@ -158,27 +144,8 @@ public abstract class AbstractRunner {
             throw new IllegalArgumentException("Stream is null!");
         }
 
-        BufferedReader reader = null;
-
-        try {
-            reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.startsWith("#") || line.length() == 0) {
-                    continue;
-                }
-
-                addGroup(line);
-            }
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception e) {
-                }
-            }
+        for (String groupName : IOUtils.readAllLinesAsList(stream)) {
+            addGroup(groupName);
         }
     }
 
@@ -211,7 +178,7 @@ public abstract class AbstractRunner {
         } else if (o instanceof CmisTest) {
             group = new WrapperCmisTestGroup((CmisTest) o);
         } else {
-            throw new Exception("Not a CmisTestGroup or CmisTest class!");
+            throw new InstantiationException("Not a CmisTestGroup or CmisTest class!");
         }
 
         addGroup(group);
@@ -234,7 +201,9 @@ public abstract class AbstractRunner {
      * Runs all configured groups.
      */
     public void run(CmisTestProgressMonitor monitor) throws Exception {
-        isCanceled = false;
+        synchronized (this) {
+            isCanceled = false;
+        }
 
         for (CmisTestGroup group : groups) {
             synchronized (this) {

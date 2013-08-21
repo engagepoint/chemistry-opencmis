@@ -77,6 +77,7 @@ public class AtomLinkInfoProvider {
             return;
         }
         TypeDefinition typeDef = fStoreManager.getTypeById(repositoryId, so.getTypeId()).getTypeDefinition();
+        ObjectStore objStore = fStoreManager.getObjectStore(repositoryId);
 
         // Fill all setters:
         objInfo.setId(so.getId());
@@ -95,7 +96,8 @@ public class AtomLinkInfoProvider {
             objInfo.setIsCurrentVersion(ver == ver.getParentDocument().getLatestVersion(false));
             objInfo.setVersionSeriesId(ver.getParentDocument().getId());
             objInfo.setWorkingCopyId(pwc == null ? null : pwc.getId());
-            objInfo.setWorkingCopyOriginalId(pwc == ver ? ver.getParentDocument().getLatestVersion(false).getId()
+            objInfo.setWorkingCopyOriginalId(pwc == ver && ver.getParentDocument().getLatestVersion(false) != null ?
+                    ver.getParentDocument().getLatestVersion(false).getId()
                     : null);
         } else if (so instanceof VersionedDocument) {
             VersionedDocument doc = (VersionedDocument) so;
@@ -131,9 +133,9 @@ public class AtomLinkInfoProvider {
         }
 
         List<RenditionData> renditions = so.getRenditions("*", 0, 0);
-        if (renditions == null || renditions.size() == 0)
+        if (renditions == null || renditions.size() == 0) {
             objInfo.setRenditionInfos(null);
-        else {
+        } else {
             List<RenditionInfo> infos = new ArrayList<RenditionInfo>();
             for (RenditionData rendition : renditions) {
                 RenditionInfoImpl info = new RenditionInfoImpl();
@@ -149,15 +151,17 @@ public class AtomLinkInfoProvider {
 
         // Relationships
         objInfo.setSupportsRelationships(true);
-        List<StoredObject> rels = so.getObjectRelationships(RelationshipDirection.SOURCE, null);
+        List<StoredObject> rels = objStore.getRelationships(so.getId(), null, RelationshipDirection.SOURCE);
         List<String> srcIds = new ArrayList<String>(rels.size());
-        for (StoredObject rel : rels)
+        for (StoredObject rel : rels) {
             srcIds.add(rel.getId());
+        }
         
-        rels = so.getObjectRelationships(RelationshipDirection.TARGET, null);
+        rels = objStore.getRelationships(so.getId(), null, RelationshipDirection.TARGET);
         List<String> targetIds = new ArrayList<String>(rels.size());
-        for (StoredObject rel : rels)
+        for (StoredObject rel : rels) {
             targetIds.add(rel.getId());
+        }
         objInfo.setRelationshipSourceIds(srcIds);
         objInfo.setRelationshipTargetIds(targetIds);
 
@@ -172,8 +176,8 @@ public class AtomLinkInfoProvider {
 
     public void fillInformationForAtomLinks(String repositoryId, StoredObject so, ObjectInfoImpl objectInfo) {
         TypeManager tm = fStoreManager.getTypeManager(repositoryId);
-
-        ObjectData od = PropertyCreationHelper.getObjectData(tm, so, null, null, false,
+        ObjectStore objStore = fStoreManager.getObjectStore(repositoryId);
+        ObjectData od = PropertyCreationHelper.getObjectData(tm, objStore, so, null, null, false,
                 IncludeRelationships.NONE, null, false, false, null);
         fillInformationForAtomLinks(repositoryId, so, od, objectInfo);
     }
@@ -263,7 +267,7 @@ public class AtomLinkInfoProvider {
             if (null != listObjects) {
                 for (ObjectData object : listObjects) {
                     objectInfo = new ObjectInfoImpl();
-                    fillInformationForAtomLinks(repositoryId, object, objectInfo);
+                    fillInformationForAtomLinks(object, objectInfo);
                     objectInfos.addObjectInfo(objectInfo);
                 }
             }
@@ -271,7 +275,7 @@ public class AtomLinkInfoProvider {
 
     }
 
-    private void fillInformationForAtomLinks(String repositoryId, ObjectData od, ObjectInfoImpl objectInfo) {
+    private void fillInformationForAtomLinks(ObjectData od, ObjectInfoImpl objectInfo) {
             objectInfo.setObject(od); 
     }
 

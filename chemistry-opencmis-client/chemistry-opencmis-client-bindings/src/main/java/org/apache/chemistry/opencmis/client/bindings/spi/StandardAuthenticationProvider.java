@@ -18,19 +18,18 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi;
 
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.chemistry.opencmis.client.bindings.spi.cookies.CmisCookieManager;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.impl.Base64;
 import org.apache.chemistry.opencmis.commons.impl.DateTimeHelper;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -45,11 +44,9 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
 
     private static final long serialVersionUID = 1L;
 
-    private static final String WSSE_NAMESPACE = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd";
-    private static final String WSU_NAMESPACE = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
+    protected static final String WSSE_NAMESPACE = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd";
+    protected static final String WSU_NAMESPACE = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
 
-    private boolean sendBasicAuth;
-    private boolean sendUsernameToken;
     private CmisCookieManager cookieManager;
     private Map<String, List<String>> fixedHeaders = new HashMap<String, List<String>>();
 
@@ -57,14 +54,13 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
     public void setSession(BindingSession session) {
         super.setSession(session);
 
-        sendBasicAuth = isTrue(SessionParameter.AUTH_HTTP_BASIC);
-        sendUsernameToken = isTrue(SessionParameter.AUTH_SOAP_USERNAMETOKEN);
+        boolean sendBasicAuth = getSendBasicAuth();
 
-        if (isTrue(SessionParameter.COOKIES)) {
+        if (getHandleCookies()) {
             cookieManager = new CmisCookieManager();
         }
 
-        // authentication
+        // basic authentication
         if (sendBasicAuth) {
             // get user and password
             String user = getUser();
@@ -74,39 +70,19 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
             if (user != null) {
                 fixedHeaders.put("Authorization", createBasicAuthHeaderValue(user, password));
             }
+        }
 
+        // proxy authentication
+        if (getProxyUser() != null) {
             // get proxy user and password
             String proxyUser = getProxyUser();
             String proxyPassword = getProxyPassword();
 
-            // if no proxy user is set, don't set basic auth header
-            if (proxyUser != null) {
-                fixedHeaders.put("Proxy-Authorization", createBasicAuthHeaderValue(proxyUser, proxyPassword));
-            }
+            fixedHeaders.put("Proxy-Authorization", createBasicAuthHeaderValue(proxyUser, proxyPassword));
         }
 
         // other headers
-        int x = 0;
-        Object headerParam;
-        while ((headerParam = getSession().get(SessionParameter.HEADER + "." + x)) != null) {
-            String header = headerParam.toString();
-            int colon = header.indexOf(':');
-            if (colon > -1) {
-                String key = header.substring(0, colon).trim();
-                if (key.length() > 0) {
-                    String value = header.substring(colon + 1).trim();
-                    List<String> values = fixedHeaders.get(key);
-                    if (values == null) {
-                        fixedHeaders.put(key, Collections.singletonList(value));
-                    } else {
-                        List<String> newValues = new ArrayList<String>(values);
-                        newValues.add(value);
-                        fixedHeaders.put(key, newValues);
-                    }
-                }
-            }
-            x++;
-        }
+        addSessionParameterHeadersToFixedHeaders();
     }
 
     @Override
@@ -134,7 +110,7 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
     @Override
     public Element getSOAPHeaders(Object portObject) {
         // only send SOAP header if configured
-        if (!sendUsernameToken) {
+        if (!getSendUsernameToken()) {
             return null;
         }
 
@@ -190,12 +166,10 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
             usernameTokenElement.appendChild(createdElement);
 
             return wsseSecurityElement;
-        } catch (ParserConfigurationException e) {
+        } catch (Exception e) {
             // shouldn't happen...
-            e.printStackTrace();
+            throw new CmisRuntimeException("Could not build SOAP header: " + e.getMessage(), e);
         }
-
-        return null;
     }
 
     /**
@@ -207,6 +181,35 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
     }
 
     /**
+     * Adds the {@link SessionParameter.HEADER} to the fixed headers. This
+     * method should only be called from the {@link #setSession(BindingSession)}
+     * method to avoid threading issues.
+     */
+    protected void addSessionParameterHeadersToFixedHeaders() {
+        int x = 0;
+        Object headerParam;
+        while ((headerParam = getSession().get(SessionParameter.HEADER + "." + x)) != null) {
+            String header = headerParam.toString();
+            int colon = header.indexOf(':');
+            if (colon > -1) {
+                String key = header.substring(0, colon).trim();
+                if (key.length() > 0) {
+                    String value = header.substring(colon + 1).trim();
+                    List<String> values = fixedHeaders.get(key);
+                    if (values == null) {
+                        fixedHeaders.put(key, Collections.singletonList(value));
+                    } else {
+                        List<String> newValues = new ArrayList<String>(values);
+                        newValues.add(value);
+                        fixedHeaders.put(key, newValues);
+                    }
+                }
+            }
+            x++;
+        }
+    }
+
+    /**
      * Creates a basic authentication header value from a username and a
      * password.
      */
@@ -215,13 +218,30 @@ public class StandardAuthenticationProvider extends AbstractAuthenticationProvid
             password = "";
         }
 
-        try {
-            return Collections.singletonList("Basic "
-                    + Base64.encodeBytes((username + ":" + password).getBytes("ISO-8859-1")));
-        } catch (UnsupportedEncodingException e) {
-            // shouldn't happen...
-            return Collections.emptyList();
-        }
+        return Collections
+                .singletonList("Basic " + Base64.encodeBytes(IOUtils.getUTF8Bytes(username + ":" + password)));
+    }
+
+    /**
+     * Returns if a HTTP Basic Authentication header should be sent. (All
+     * bindings.)
+     */
+    protected boolean getSendBasicAuth() {
+        return isTrue(SessionParameter.AUTH_HTTP_BASIC);
+    }
+
+    /**
+     * Returns if a UsernameToken should be sent. (Web Services binding only.)
+     */
+    protected boolean getSendUsernameToken() {
+        return isTrue(SessionParameter.AUTH_SOAP_USERNAMETOKEN);
+    }
+
+    /**
+     * Returns if the authentication provider should handle cookies.
+     */
+    protected boolean getHandleCookies() {
+        return isTrue(SessionParameter.COOKIES);
     }
 
     /**

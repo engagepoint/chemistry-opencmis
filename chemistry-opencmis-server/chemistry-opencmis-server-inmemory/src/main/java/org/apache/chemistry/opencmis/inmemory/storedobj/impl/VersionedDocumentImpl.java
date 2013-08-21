@@ -34,28 +34,28 @@ import org.apache.chemistry.opencmis.inmemory.FilterParser;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.DocumentVersion;
 import org.apache.chemistry.opencmis.inmemory.storedobj.api.VersionedDocument;
 
-public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements VersionedDocument {
+public class VersionedDocumentImpl extends FilingImpl implements VersionedDocument {
 
     private boolean fIsCheckedOut;
     private String fCheckedOutUser;
     private final List<DocumentVersion> fVersions;
 
-    public VersionedDocumentImpl(ObjectStoreImpl objStore) {
-        super(objStore);
+    public VersionedDocumentImpl() {
+        super();
         fVersions = new ArrayList<DocumentVersion>();
         fIsCheckedOut = false;
     }
 
+    @Override
     public DocumentVersion addVersion(ContentStream content, VersioningState verState, String user) {
 
         if (isCheckedOut()) {
             throw new CmisConstraintException("Cannot add a version to document, document is checked out.");
         }
 
-        DocumentVersionImpl ver = new DocumentVersionImpl(fRepositoryId, this, content, verState, fObjStore);
+        DocumentVersionImpl ver = new DocumentVersionImpl(fRepositoryId, this, content, verState);
         ver.setSystemBasePropertiesWhenCreatedDirect(getName(), getTypeId(), user); // copy
         // name and type id from version series.
-        ver.persist();
         fVersions.add(ver);
         if (verState == VersioningState.CHECKEDOUT) {
             fCheckedOutUser = user;
@@ -65,13 +65,14 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
         return ver;
     }
 
+    @Override
     public boolean deleteVersion(DocumentVersion version) {
         if (fIsCheckedOut) {
             // Note: Do not throw an exception here if the document is
             // checked-out. In AtomPub binding cancelCheckout
             // mapped to a deleteVersion() call!
             DocumentVersion pwc = getPwc();
-            if (pwc == version) {
+            if (pwc == version) { // NOSONAR
                 cancelCheckOut(false); // note object is already deleted from
                                        // map in ObjectStore
                 return !fVersions.isEmpty();
@@ -85,10 +86,12 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
         return !fVersions.isEmpty();
     }
 
+    @Override
     public void cancelCheckOut(String user) {
         cancelCheckOut(true);
     }
 
+    @Override
     public void checkIn(boolean isMajor, Properties properties, ContentStream content, String checkinComment,
             List<String> policyIds, String user) {
         if (fIsCheckedOut) {
@@ -106,19 +109,22 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
 
         DocumentVersion pwc = getPwc();
 
-        if (null != content)
+        if (null != content) {
             pwc.setContent(content, false);
+        }
 
-        if (null != properties && null != properties.getProperties())
+        if (null != properties && null != properties.getProperties()) {
             ((DocumentVersionImpl) pwc).setCustomProperties(properties.getProperties());
+        }
 
         pwc.setCheckinComment(checkinComment);
         pwc.commit(isMajor);
-        if (policyIds != null && policyIds.size() > 0 ) {
+        if (policyIds != null && policyIds.size() > 0) {
             ((DocumentVersionImpl) pwc).setAppliedPolicies(policyIds);
         }
     }
 
+    @Override
     public DocumentVersion checkOut(ContentStream content, String user) {
         if (fIsCheckedOut) {
             throw new CmisConstraintException("Error: Can't checkout, Document " + getId() + " is already checked out.");
@@ -130,36 +136,55 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
         return pwc;
     }
 
+    @Override
     public List<DocumentVersion> getAllVersions() {
         return fVersions;
     }
 
+    @Override
     public DocumentVersion getLatestVersion(boolean major) {
 
         DocumentVersion latest = null;
-        if (fVersions.size() == 0)
+        if (fVersions.size() == 0) {
             return null;
+        }
 
         if (major) {
             for (DocumentVersion ver : fVersions) {
-                if (ver.isMajor()) {
+                if (ver.isMajor() && !ver.isPwc()) {
                     latest = ver;
                 }
             }
         } else {
-            latest = fVersions.get(fVersions.size() - 1);
+            if (null == getPwc()) {
+                latest = fVersions.get(fVersions.size() - 1);
+            } else if (fVersions.size() > 1) {
+                latest = fVersions.get(fVersions.size() - 2);
+            } else {
+                latest = null;
+            }
+            if (null == getPwc()) {
+                latest = fVersions.get(fVersions.size() - 1);
+            } else if (fVersions.size() > 1) {
+                latest = fVersions.get(fVersions.size() - 2);
+            } else {
+                latest = null;
+            }
         }
         return latest;
     }
 
+    @Override
     public boolean isCheckedOut() {
         return fIsCheckedOut;
     }
 
+    @Override
     public String getCheckedOutBy() {
         return fCheckedOutUser;
     }
 
+    @Override
     public DocumentVersion getPwc() {
         for (DocumentVersion ver : fVersions) {
             if (ver.isPwc()) {
@@ -205,7 +230,6 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
     }
 
     private void cancelCheckOut(boolean deleteInObjectStore) {
-
         DocumentVersion pwc = getPwc();
         fIsCheckedOut = false;
         fCheckedOutUser = null;
@@ -216,9 +240,9 @@ public class VersionedDocumentImpl extends AbstractMultiFilingImpl implements Ve
                 setName(nameLatestVer);
             }
         }
+        if (deleteInObjectStore) {
+        }
 
-        if (deleteInObjectStore)
-            fObjStore.removeVersion(pwc);
     }
 
 }

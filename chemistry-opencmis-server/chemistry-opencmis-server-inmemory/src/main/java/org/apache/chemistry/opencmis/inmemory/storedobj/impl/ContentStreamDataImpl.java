@@ -38,11 +38,15 @@ import org.slf4j.LoggerFactory;
 
 public class ContentStreamDataImpl implements LastModifiedContentStream {
 
+    private static final int SIZE_KB = 1024;
+
+    private static final int BUFFER_SIZE = 0xFFFF;
+
     private static final Logger LOG = LoggerFactory.getLogger(ContentStreamDataImpl.class.getName());
 
-    private static long TOTAL_LENGTH  = 0L;
-    private static long TOTAL_CALLS  = 0L;
-    
+    private static long totalLength = 0L;
+    private static long totalCalls = 0L;
+
     private int fLength;
 
     private String fMimeType;
@@ -50,7 +54,7 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
     private String fFileName;
 
     private byte[] fContent;
-    
+
     private GregorianCalendar fLastModified;
 
     private long fStreamLimitOffset;
@@ -59,76 +63,107 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
 
     private final long sizeLimitKB;
 
+    private static synchronized long getTotalLength () {
+        return totalLength;
+    }
+
+    private static synchronized void increaseTotalLength(int length) {
+        totalLength += length;
+    }
+    
+    private static synchronized void decreaseTotalLength(int length) {
+        totalLength -= length;
+    }
+    
+    private static synchronized long getTotalCalls () {
+        return totalCalls;
+    }
+
+    private static synchronized void increaseTotalCalls() {
+        totalCalls++;
+    }
+
+
     public ContentStreamDataImpl(long maxAllowedContentSizeKB) {
         sizeLimitKB = maxAllowedContentSizeKB;
         fLength = 0;
     }
 
     public void setContent(InputStream in) throws IOException {
-        fStreamLimitOffset = fStreamLimitLength = -1;
+        fStreamLimitOffset = -1;
+        fStreamLimitLength = -1;
         if (null == in) {
             fContent = null; // delete content
             fLength = 0;
         } else {
-            byte[] buffer = new byte[0xFFFF];
+            byte[] buffer = new byte[BUFFER_SIZE];
             ByteArrayOutputStream contentStream = new ByteArrayOutputStream();
-            for (int len = 0; (len = in.read(buffer)) != -1;) {
+            int len = in.read(buffer);
+            while (len != -1) {
                 contentStream.write(buffer, 0, len);
                 fLength += len;
-                if (sizeLimitKB > 0 && fLength > sizeLimitKB * 1024) {
+                if (sizeLimitKB > 0 && fLength > sizeLimitKB * SIZE_KB) {
                     throw new CmisInvalidArgumentException("Content size exceeds max. allowed size of " + sizeLimitKB
                             + "KB.");
                 }
+                len = in.read(buffer);
             }
             fContent = contentStream.toByteArray();
             fLength = contentStream.size();
             contentStream.close();
             in.close();
         }
-        TOTAL_LENGTH += fLength;
-        LOG.debug("setting content stream, total no calls " + ++TOTAL_CALLS + ".");
-        LOG.debug("setting content stream, new size total " + (TOTAL_LENGTH / (1024 * 1024)) + "MB.");
+        increaseTotalLength(fLength);
+        increaseTotalCalls();
+        LOG.debug("setting content stream, total no calls " + getTotalCalls() + ".");
+        LOG.debug("setting content stream, new size total " + (getTotalLength() / (SIZE_KB * SIZE_KB)) + "MB.");
     }
-    
+
     public void appendContent(InputStream is) throws IOException {
-        
+
         if (null == is) {
             return; // nothing to do
         } else {
-            byte[] buffer = new byte[0xFFFF];
+            byte[] buffer = new byte[BUFFER_SIZE];
             ByteArrayOutputStream contentStream = new ByteArrayOutputStream();
-            
+
             // first read existing stream
             contentStream.write(fContent);
-            TOTAL_LENGTH -= fLength;
-            
+            decreaseTotalLength(fLength);
+
             // then append new content
-            for (int len = 0; (len = is.read(buffer)) != -1;) {
+            int len = is.read(buffer);
+            while (len != -1) {
                 contentStream.write(buffer, 0, len);
                 fLength += len;
-                if (sizeLimitKB > 0 && fLength > sizeLimitKB * 1024) {
+                if (sizeLimitKB > 0 && fLength > sizeLimitKB * SIZE_KB) {
                     throw new CmisInvalidArgumentException("Content size exceeds max. allowed size of " + sizeLimitKB
                             + "KB.");
                 }
+                len = is.read(buffer);
             }
             fContent = contentStream.toByteArray();
             fLength = contentStream.size();
             contentStream.close();
             is.close();
         }
-        TOTAL_LENGTH += fLength;
-        LOG.debug("setting content stream, total no calls " + ++TOTAL_CALLS + ".");
-        LOG.debug("setting content stream, new size total " + (TOTAL_LENGTH / (1024 * 1024)) + "MB.");
+        increaseTotalLength(fLength);
+        increaseTotalCalls();
+        LOG.debug("setting content stream, total no calls " + getTotalCalls() + ".");
+        LOG.debug("setting content stream, new size total " + (getTotalLength() / (SIZE_KB * SIZE_KB)) + "MB.");
     }
 
+    @Override
     public long getLength() {
         return fLength;
     }
 
+    @Override
     public BigInteger getBigLength() {
         return BigInteger.valueOf(fLength);
     }
 
+    @Override
     public String getMimeType() {
         return fMimeType;
     }
@@ -137,6 +172,7 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
         this.fMimeType = fMimeType;
     }
 
+    @Override
     public String getFileName() {
         return fFileName;
     }
@@ -149,6 +185,7 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
         return fFileName;
     }
 
+    @Override
     public InputStream getStream() {
         if (null == fContent) {
             return null;
@@ -163,11 +200,12 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
     public void setLastModified(GregorianCalendar lastModified) {
         this.fLastModified = lastModified;
     }
-    
+
+    @Override
     public GregorianCalendar getLastModified() {
         return fLastModified;
     }
-    
+
     public ContentStream getCloneWithLimits(long offset, long length) {
         ContentStreamDataImpl clone = new ContentStreamDataImpl(0);
         clone.fFileName = fFileName;
@@ -184,10 +222,12 @@ public class ContentStreamDataImpl implements LastModifiedContentStream {
         return fContent;
     }
 
+    @Override
     public List<CmisExtensionElement> getExtensions() {
         return null;
     }
 
+    @Override
     public void setExtensions(List<CmisExtensionElement> extensions) {
         // not implemented
     }

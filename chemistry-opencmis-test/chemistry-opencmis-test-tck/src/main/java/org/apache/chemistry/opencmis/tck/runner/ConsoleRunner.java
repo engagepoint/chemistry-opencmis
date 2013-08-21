@@ -55,21 +55,26 @@ public class ConsoleRunner extends AbstractRunner {
     }
 
     private static class ConsoleProgressMonitor implements CmisTestProgressMonitor {
+        
+        @SuppressWarnings("PMD.SystemPrintln")
         public void startGroup(CmisTestGroup group) {
             System.out.println(group.getName() + " (" + group.getTests().size() + " tests)");
         }
 
+        @SuppressWarnings("PMD.SystemPrintln")
         public void endGroup(CmisTestGroup group) {
             System.out.println();
         }
 
+        @SuppressWarnings("PMD.SystemPrintln")
         public void startTest(CmisTest test) {
-            System.out.print(".");
+            System.out.print('.');
         }
 
         public void endTest(CmisTest test) {
         }
 
+        @SuppressWarnings("PMD.SystemPrintln")
         public void message(String msg) {
             System.out.println(msg);
         }

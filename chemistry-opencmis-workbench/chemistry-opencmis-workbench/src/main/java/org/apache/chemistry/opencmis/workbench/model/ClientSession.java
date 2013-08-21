@@ -197,7 +197,7 @@ public class ClientSession {
         return repositories;
     }
 
-    public Session createSession(int index) {
+    public synchronized Session createSession(int index) {
         session = repositories.get(index).createSession();
         objectOperationContext = null;
         folderOperationContext = null;
@@ -266,7 +266,7 @@ public class ClientSession {
                 PropertyDefinition<?> propDef = type.getPropertyDefinitions().get(propId);
                 if (propDef != null) {
                     if (filter.length() > 0) {
-                        filter.append(",");
+                        filter.append(',');
                     }
                     filter.append(propDef.getQueryName());
                 }
@@ -294,7 +294,7 @@ public class ClientSession {
                 PropertyDefinition<?> propDef = type.getPropertyDefinitions().get(propId);
                 if (propDef != null) {
                     if (filter.length() > 0) {
-                        filter.append(",");
+                        filter.append(',');
                     }
                     filter.append(propDef.getQueryName());
                 }

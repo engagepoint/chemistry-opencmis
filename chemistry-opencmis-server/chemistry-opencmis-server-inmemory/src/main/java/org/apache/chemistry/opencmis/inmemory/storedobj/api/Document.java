@@ -26,6 +26,6 @@ package org.apache.chemistry.opencmis.inmemory.storedobj.api;
  * 
  */
 
-public interface Document extends StoredObject, MultiFiling, Content {
+public interface Document extends Fileable, Content {
 
 }

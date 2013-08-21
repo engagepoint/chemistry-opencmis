@@ -52,12 +52,14 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisUnauthorizedExceptio
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisVersioningException;
 import org.apache.chemistry.opencmis.commons.impl.Constants;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.JSONConstants;
 import org.apache.chemistry.opencmis.commons.impl.JSONConverter;
 import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.RepositoryInfoBrowserBindingImpl;
 import org.apache.chemistry.opencmis.commons.impl.json.JSONObject;
 import org.apache.chemistry.opencmis.commons.impl.json.parser.ContainerFactory;
+import org.apache.chemistry.opencmis.commons.impl.json.parser.JSONParseException;
 import org.apache.chemistry.opencmis.commons.impl.json.parser.JSONParser;
 
 /**
@@ -205,9 +207,12 @@ public abstract class AbstractBrowserBindingService implements LinkAccess {
     protected CmisBaseException convertStatusCode(int code, String message, String errorContent, Throwable t) {
         Object obj = null;
         try {
-            JSONParser parser = new JSONParser();
-            obj = parser.parse(errorContent);
-        } catch (Exception pe) {
+            if (errorContent != null) {
+                JSONParser parser = new JSONParser();
+                obj = parser.parse(errorContent);
+            }
+        } catch (JSONParseException pe) {
+            // error content is not valid JSON -> ignore
         }
 
         if (obj instanceof JSONObject) {
@@ -313,19 +318,9 @@ public abstract class AbstractBrowserBindingService implements LinkAccess {
         } catch (Exception e) {
             throw new CmisConnectionException("Parsing exception!", e);
         } finally {
-            try {
-                char[] buffer = new char[4096];
-                while (reader.read(buffer) > -1) {
-                }
-            } catch (Exception e) {
-            }
-            try {
-                if (reader == null) {
-                    stream.close();
-                } else {
-                    reader.close();
-                }
-            } catch (Exception e) {
+            IOUtils.consumeAndClose(reader);
+            if (reader == null) {
+                IOUtils.closeQuietly(stream);
             }
         }
 
@@ -370,20 +365,7 @@ public abstract class AbstractBrowserBindingService implements LinkAccess {
      */
     protected void postAndConsume(UrlBuilder url, String contentType, Output writer) {
         Response resp = post(url, contentType, writer);
-
-        InputStream stream = resp.getStream();
-        try {
-            byte[] buffer = new byte[4096];
-            while (stream.read(buffer) > -1) {
-            }
-        } catch (Exception e) {
-            // ignore
-        } finally {
-            try {
-                stream.close();
-            } catch (Exception e) {
-            }
-        }
+        IOUtils.consumeAndClose(resp.getStream());
     }
 
     // ---- URL ----

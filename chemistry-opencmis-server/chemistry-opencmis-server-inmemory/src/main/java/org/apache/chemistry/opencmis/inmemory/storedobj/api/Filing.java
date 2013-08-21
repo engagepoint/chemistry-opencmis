@@ -38,32 +38,29 @@ public interface Filing {
     String PATH_SEPARATOR = "/";
 
     /**
-     * return a list of parents the principal has access to. for single parent object this list must contain
-     * only one element. returns an empty list if this is an unfiled document.
+     * return a list of parents the principal has access to. for single parent
+     * object this list must contain only one element. returns an empty list if
+     * this is an unfiled document.
      * 
      * @param user
-     * 		user id
+     *            user id
      * @return list of parent folders
      */
-    List<Folder> getParents(String user);
-    
+    List<String> getParentIds();
+
     /**
      * usually true except for the root folder, optimized call that just tests
      * existence to provide information for AtomPub links (much cheaper than
      * calling getParents() and test for empty result.
      * 
-     * @return
-     *    true if object has a parent, false if it is a root object
+     * @return true if object has a parent, false if it is a root object
      */
     boolean hasParent();
 
     /**
-     * Move an object to a different folder. Source and target object are
-     * persisted in this call as part of a transactional step.
+     * get the path segment of this object
      * 
-     * @param newParent
-     *            new parent folder for the object
+     * @return
      */
-    void move(Folder oldParent, Folder newParent);
-
+    String getPathSegment();
 }

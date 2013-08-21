@@ -24,9 +24,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +150,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
-public class XMLConverter {
+public final class XMLConverter {
 
     private static final Logger LOG = LoggerFactory.getLogger(XMLConverter.class);
 
@@ -164,7 +162,7 @@ public class XMLConverter {
     // ---------------
 
     public static void writeRepositoryInfo(XmlSerializer writer, CmisVersion cmisVersion, String namespace,
-            RepositoryInfo source) throws IllegalArgumentException, IllegalStateException, IOException {
+            RepositoryInfo source) throws IOException {
         if (source == null) {
             return;
         }
@@ -212,7 +210,7 @@ public class XMLConverter {
     }
 
     public static void writeRepositoryCapabilities(XmlSerializer writer, CmisVersion cmisVersion,
-            RepositoryCapabilities source) throws IllegalArgumentException, IllegalStateException, IOException {
+            RepositoryCapabilities source) throws IOException {
         if (source == null) {
             return;
         }
@@ -302,7 +300,7 @@ public class XMLConverter {
     }
 
     public static void writeAclCapabilities(XmlSerializer writer, CmisVersion cmisVersion, AclCapabilities source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null) {
             return;
         }
@@ -345,7 +343,7 @@ public class XMLConverter {
     }
 
     public static void writeExtendedFeatures(XmlSerializer writer, CmisVersion cmisVersion, ExtensionFeature source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null) {
             return;
         }
@@ -377,7 +375,7 @@ public class XMLConverter {
     // --------------------------
 
     public static void writeTypeDefinition(XmlSerializer writer, CmisVersion cmisVersion, String namespace,
-            TypeDefinition source) throws IllegalArgumentException, IllegalStateException, IOException {
+            TypeDefinition source) throws IOException {
         if (source == null) {
             return;
         }
@@ -474,7 +472,7 @@ public class XMLConverter {
     }
 
     public static void writePropertyDefinition(XmlSerializer writer, CmisVersion cmisVersion,
-            PropertyDefinition<?> source) throws IllegalArgumentException, IllegalStateException, IOException {
+            PropertyDefinition<?> source) throws IOException {
         if (source == null) {
             return;
         }
@@ -605,8 +603,7 @@ public class XMLConverter {
     }
 
     @SuppressWarnings("unchecked")
-    public static void writeChoice(XmlSerializer writer, PropertyType propType, Choice<?> source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+    public static void writeChoice(XmlSerializer writer, PropertyType propType, Choice<?> source) throws IOException {
         if (source == null) {
             return;
         }
@@ -667,12 +664,12 @@ public class XMLConverter {
     // -----------------------
 
     public static void writeObject(XmlSerializer writer, CmisVersion cmisVersion, String namespace, ObjectData source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         writeObject(writer, cmisVersion, false, TAG_OBJECT, namespace, source);
     }
 
     public static void writeObject(XmlSerializer writer, CmisVersion cmisVersion, boolean root, String name,
-            String namespace, ObjectData source) throws IllegalArgumentException, IllegalStateException, IOException {
+            String namespace, ObjectData source) throws IOException {
 
         if (source == null) {
             return;
@@ -774,7 +771,7 @@ public class XMLConverter {
 
     @SuppressWarnings("unchecked")
     public static void writeProperty(XmlSerializer writer, PropertyData<?> source, boolean isDefaultValue)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null) {
             return;
         }
@@ -862,7 +859,7 @@ public class XMLConverter {
     }
 
     public static void writeAllowableActions(XmlSerializer writer, CmisVersion cmisVersion, boolean root,
-            AllowableActions source) throws IllegalArgumentException, IllegalStateException, IOException {
+            AllowableActions source) throws IOException {
         if (source == null) {
             return;
         }
@@ -892,7 +889,7 @@ public class XMLConverter {
     }
 
     public static void writeAcl(XmlSerializer writer, CmisVersion cmisVersion, boolean root, Acl source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null) {
             return;
         }
@@ -941,7 +938,7 @@ public class XMLConverter {
     // -------------
 
     public static void writeQuery(XmlSerializer writer, CmisVersion cmisVersion, QueryTypeImpl source)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null) {
             return;
         }
@@ -968,7 +965,7 @@ public class XMLConverter {
     // -------------------
 
     public static void writeBulkUpdate(XmlSerializer writer, String namespace, BulkUpdateImpl bulkUpdate)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (bulkUpdate == null || bulkUpdate.getObjectIdAndChangeToken() == null) {
             return;
         }
@@ -1042,34 +1039,31 @@ public class XMLConverter {
     }
 
     private static void writeExtensionElement(XmlSerializer writer, CmisExtensionElement source, LinkedList<String> ns)
-            throws IllegalArgumentException, IllegalStateException, IOException {
+            throws IOException {
         if (source == null || source.getName() == null) {
             return;
         }
 
         String namespace = null;
-        //boolean addedNamespace = false;
+        // boolean addedNamespace = false;
 
         if (source.getNamespace() != null) {
-           /* String prefix = writer.getPrefix(source.getNamespace(), false);
-            if (prefix == null) {
-                int p = ns.indexOf(source.getNamespace());
-
-                if (p == -1) {
-                    prefix = "e" + (ns.size() + 1);
-                    ns.add(source.getNamespace());
-                    addedNamespace = true;
-                } else {
-                    prefix = "e" + (p + 1);
-                }
-            }*/
+            /*
+             * String prefix = writer.getPrefix(source.getNamespace(), false);
+             * if (prefix == null) { int p = ns.indexOf(source.getNamespace());
+             * 
+             * if (p == -1) { prefix = "e" + (ns.size() + 1);
+             * ns.add(source.getNamespace()); addedNamespace = true; } else {
+             * prefix = "e" + (p + 1); } }
+             */
 
             namespace = source.getNamespace();
             writer.startTag(source.getNamespace(), source.getName());
 
-            /*if (addedNamespace) {
-                writer.attribute("", prefix, source.getNamespace());
-            }*/
+            /*
+             * if (addedNamespace) { writer.attribute("", prefix,
+             * source.getNamespace()); }
+             */
         } else {
             writer.startTag(null, source.getName());
         }
@@ -1092,9 +1086,9 @@ public class XMLConverter {
 
         writer.endTag(namespace, source.getName());
 
-        /*if (addedNamespace) {
-            ns.removeLast();
-        }*/
+        /*
+         * if (addedNamespace) { ns.removeLast(); }
+         */
     }
 
     // ---------------
@@ -1349,10 +1343,6 @@ public class XMLConverter {
             if (isCmisNamespace(name)) {
                 if (isTag(name, TAG_CAP_CREATABLE_PROPERTY_TYPES_CANCREATE)) {
                     Set<PropertyType> ptSet = target.canCreate();
-                    if (ptSet == null) {
-                        ptSet = EnumSet.noneOf(PropertyType.class);
-                        target.setCanCreate(ptSet);
-                    }
 
                     ptSet.add(readEnum(parser, PropertyType.class));
                     return true;
@@ -1471,10 +1461,6 @@ public class XMLConverter {
 
                 if (isTag(name, TAG_ACLCAP_PERMISSION_MAPPING)) {
                     Map<String, PermissionMapping> mapping = target.getPermissionMapping();
-                    if (mapping == null) {
-                        mapping = new HashMap<String, PermissionMapping>();
-                        target.setPermissionMappingData(mapping);
-                    }
 
                     PermissionMapping pm = PERMISSION_MAPPING_PARSER.walk(parser);
                     mapping.put(pm.getKey(), pm);
@@ -1499,7 +1485,7 @@ public class XMLConverter {
                 throws XmlPullParserException {
             if (isCmisNamespace(name)) {
                 if (isTag(name, TAG_ACLCAP_PERMISSION_PERMISSION)) {
-                    target.setPermission(readText(parser));
+                    target.setId(readText(parser));
                     return true;
                 }
 
@@ -1576,10 +1562,6 @@ public class XMLConverter {
 
                 if (isTag(name, TAG_FEATURE_DATA)) {
                     Map<String, String> featureData = target.getFeatureData();
-                    if (featureData == null) {
-                        featureData = new HashMap<String, String>();
-                        target.setFeatureData(featureData);
-                    }
 
                     String[] data = FEATURE_DATA_PARSER.walk(parser);
                     featureData.put(data[0], data[1]);
@@ -2151,7 +2133,7 @@ public class XMLConverter {
         }
     };
 
-    private static abstract class ChoiceAtomPubXMLWalker<T> extends XMLWalker<ChoiceImpl<T>> {
+    private abstract static class ChoiceAtomPubXMLWalker<T> extends XMLWalker<ChoiceImpl<T>> {
 
         public void addToChoiceList(XmlPullParser parser, AbstractPropertyDefinition<T> propDef)
                 throws XmlPullParserException {
@@ -2324,10 +2306,6 @@ public class XMLConverter {
                     Action action = Action.fromValue(name.getLocalPart());
 
                     Set<Action> actions = target.getAllowableActions();
-                    if (actions == null) {
-                        actions = EnumSet.noneOf(Action.class);
-                        target.setAllowableActions(actions);
-                    }
 
                     if (Boolean.TRUE.equals(readBoolean(parser))) {
                         actions.add(action);
@@ -2593,7 +2571,7 @@ public class XMLConverter {
         }
     };
 
-    private static abstract class PropertyAtomPubXMLWalker<T extends AbstractPropertyData<?>> extends XMLWalker<T> {
+    private abstract static class PropertyAtomPubXMLWalker<T extends AbstractPropertyData<?>> extends XMLWalker<T> {
 
         protected abstract T createTarget(XmlPullParser parser, QName name);
 
@@ -2635,7 +2613,7 @@ public class XMLConverter {
 
     };
 
-    private static abstract class PropertyStringAtomPubXMLWalker<T extends AbstractPropertyData<String>> extends
+    private abstract static class PropertyStringAtomPubXMLWalker<T extends AbstractPropertyData<String>> extends
             PropertyAtomPubXMLWalker<T> {
         @Override
         protected void addValue(XmlPullParser parser, T target) throws XmlPullParserException {

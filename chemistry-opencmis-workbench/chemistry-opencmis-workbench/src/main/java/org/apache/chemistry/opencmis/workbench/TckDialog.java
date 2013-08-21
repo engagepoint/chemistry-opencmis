@@ -295,8 +295,8 @@ public class TckDialog {
                 }
             }
 
-            DefaultTreeModel model = ((DefaultTreeModel) tree.getModel());
-            model.nodeChanged((TreeNode) model.getRoot());
+            DefaultTreeModel treeModel = ((DefaultTreeModel) tree.getModel());
+            treeModel.nodeChanged((TreeNode) treeModel.getRoot());
         }
 
         private JComboBox addComboBox(JPanel panel, String title, String rootTypeId, String defaultTypeId,
@@ -324,7 +324,7 @@ public class TckDialog {
         }
     }
 
-    private class TestTreeNode extends DefaultMutableTreeNode {
+    private static class TestTreeNode extends DefaultMutableTreeNode {
         private static final long serialVersionUID = 1L;
 
         private final JTree tree;
@@ -372,7 +372,7 @@ public class TckDialog {
         }
 
         public void setEnabled(boolean enabled) {
-            DefaultTreeModel model = ((DefaultTreeModel) tree.getModel());
+            DefaultTreeModel treeModel = ((DefaultTreeModel) tree.getModel());
 
             if (group != null) {
                 group.setEnabled(enabled);
@@ -380,7 +380,7 @@ public class TckDialog {
                 for (int i = 0; i < getChildCount(); i++) {
                     TestTreeNode node = (TestTreeNode) getChildAt(i);
                     node.setEnabled(enabled);
-                    model.nodeChanged(node);
+                    treeModel.nodeChanged(node);
                 }
 
                 return;
@@ -391,12 +391,12 @@ public class TckDialog {
             if (enabled) {
                 TestTreeNode node = (TestTreeNode) getParent();
                 node.getGroup().setEnabled(true);
-                model.nodeChanged(node);
+                treeModel.nodeChanged(node);
             }
         }
     }
 
-    private class TestTreeNodeRender extends JCheckBox implements TreeCellRenderer {
+    private static class TestTreeNodeRender extends JCheckBox implements TreeCellRenderer {
         private static final long serialVersionUID = 1L;
 
         private final Color textSelectionColor;
@@ -459,7 +459,7 @@ public class TckDialog {
         }
     }
 
-    private class TestTreeNodeEditor extends AbstractCellEditor implements TreeCellEditor {
+    private static class TestTreeNodeEditor extends AbstractCellEditor implements TreeCellEditor {
         private static final long serialVersionUID = 1L;
 
         private TestTreeNodeRender lastObject;

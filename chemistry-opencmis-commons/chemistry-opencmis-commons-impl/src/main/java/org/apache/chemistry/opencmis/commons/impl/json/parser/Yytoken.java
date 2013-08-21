@@ -47,7 +47,7 @@ public class Yytoken {
         StringBuilder sb = new StringBuilder();
         switch (type) {
         case TYPE_VALUE:
-            sb.append("VALUE(").append(value).append(")");
+            sb.append("VALUE(").append(value).append(')');
             break;
         case TYPE_LEFT_BRACE:
             sb.append("LEFT BRACE({)");
@@ -70,6 +70,8 @@ public class Yytoken {
         case TYPE_EOF:
             sb.append("END OF FILE");
             break;
+        default:
+            assert false;
         }
         return sb.toString();
     }

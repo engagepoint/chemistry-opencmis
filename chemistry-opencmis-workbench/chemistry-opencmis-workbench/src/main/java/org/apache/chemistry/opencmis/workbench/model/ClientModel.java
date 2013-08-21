@@ -21,6 +21,7 @@ package org.apache.chemistry.opencmis.workbench.model;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +53,7 @@ import org.apache.chemistry.opencmis.commons.enums.CapabilityQuery;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
+import org.apache.chemistry.opencmis.commons.impl.IOUtils;
 import org.apache.chemistry.opencmis.commons.impl.MimeTypes;
 import org.apache.chemistry.opencmis.workbench.RandomInputStream;
 
@@ -95,7 +97,7 @@ public class ClientModel {
         return clientSession;
     }
 
-    public synchronized RepositoryInfo getRepositoryInfo() throws Exception {
+    public synchronized RepositoryInfo getRepositoryInfo() {
         Session session = clientSession.getSession();
         return session.getRepositoryInfo();
     }
@@ -154,7 +156,7 @@ public class ClientModel {
         return false;
     }
 
-    public synchronized ObjectId loadFolder(String folderId, boolean byPath) throws Exception {
+    public synchronized ObjectId loadFolder(String folderId, boolean byPath) {
         try {
             Session session = clientSession.getSession();
             CmisObject selectedObject = null;
@@ -193,32 +195,32 @@ public class ClientModel {
             setCurrentFolder((Folder) folderObject, children);
 
             return selectedObject;
-        } catch (Exception ex) {
+        } catch (CmisBaseException ex) {
             setCurrentFolder(null, new ArrayList<CmisObject>(0));
             throw ex;
         }
     }
 
-    public synchronized void reloadFolder() throws Exception {
+    public synchronized void reloadFolder() {
         if (currentFolder != null) {
             loadFolder(currentFolder.getId(), false);
         }
     }
 
-    public synchronized void loadObject(String objectId) throws Exception {
+    public synchronized void loadObject(String objectId) {
         try {
             Session session = clientSession.getSession();
             CmisObject object = session.getObject(objectId, clientSession.getObjectOperationContext());
             object.refreshIfOld(OLD);
 
             setCurrentObject(object);
-        } catch (Exception ex) {
+        } catch (CmisBaseException ex) {
             setCurrentObject(null);
             throw ex;
         }
     }
 
-    public synchronized void reloadObject() throws Exception {
+    public synchronized void reloadObject() {
         if (currentObject == null) {
             return;
         }
@@ -229,14 +231,13 @@ public class ClientModel {
             object.refresh();
 
             setCurrentObject(object);
-        } catch (Exception ex) {
+        } catch (CmisBaseException ex) {
             setCurrentObject(null);
             throw ex;
         }
     }
 
-    public synchronized ItemIterable<QueryResult> query(String q, boolean searchAllVersions, int maxHits)
-            throws Exception {
+    public synchronized ItemIterable<QueryResult> query(String q, boolean searchAllVersions, int maxHits) {
         OperationContext queryContext = new OperationContextImpl(null, false, false, false, IncludeRelationships.NONE,
                 null, false, null, false, maxHits);
 
@@ -244,12 +245,12 @@ public class ClientModel {
         return session.query(q, searchAllVersions, queryContext);
     }
 
-    public synchronized List<Tree<ObjectType>> getTypeDescendants() throws Exception {
+    public synchronized List<Tree<ObjectType>> getTypeDescendants() {
         Session session = clientSession.getSession();
         return session.getTypeDescendants(null, -1, true);
     }
 
-    public ContentStream createContentStream(String filename) throws Exception {
+    public ContentStream createContentStream(String filename) throws FileNotFoundException {
         ContentStream content = null;
         if ((filename != null) && (filename.length() > 0)) {
             File file = new File(filename);
@@ -264,7 +265,7 @@ public class ClientModel {
 
     public synchronized ObjectId createDocument(String name, String type, String filename,
             Map<String, Object> additionalProperties, VersioningState versioningState, boolean unfiled)
-            throws Exception {
+            throws FileNotFoundException {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
@@ -279,19 +280,17 @@ public class ClientModel {
             return clientSession.getSession().createDocument(properties, (unfiled ? null : currentFolder), content,
                     versioningState, null, null, null);
         } finally {
-            if (content != null && content.getStream() != null) {
-                content.getStream().close();
-            }
+            IOUtils.closeQuietly(content);
         }
     }
 
-    public ContentStream createContentStream(String name, long length, long seed) throws Exception {
+    public ContentStream createContentStream(String name, long length, long seed) {
         return clientSession.getSession().getObjectFactory()
                 .createContentStream(name, length, "application/octet-stream", new RandomInputStream(length, seed));
     }
 
     public synchronized ObjectId createDocument(String name, String type, Map<String, Object> additionalProperties,
-            long length, long seed, VersioningState versioningState, boolean unfiled) throws Exception {
+            long length, long seed, VersioningState versioningState, boolean unfiled) {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
@@ -305,14 +304,11 @@ public class ClientModel {
             return clientSession.getSession().createDocument(properties, (unfiled ? null : currentFolder), content,
                     versioningState, null, null, null);
         } finally {
-            if (content != null && content.getStream() != null) {
-                content.getStream().close();
-            }
+            IOUtils.closeQuietly(content);
         }
     }
 
-    public synchronized ObjectId createItem(String name, String type, Map<String, Object> additionalProperties)
-            throws Exception {
+    public synchronized ObjectId createItem(String name, String type, Map<String, Object> additionalProperties) {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
@@ -324,8 +320,7 @@ public class ClientModel {
         return clientSession.getSession().createItem(properties, currentFolder, null, null, null);
     }
 
-    public synchronized ObjectId createFolder(String name, String type, Map<String, Object> additionalProperties)
-            throws Exception {
+    public synchronized ObjectId createFolder(String name, String type, Map<String, Object> additionalProperties) {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
@@ -338,7 +333,7 @@ public class ClientModel {
     }
 
     public synchronized ObjectId createRelationship(String name, String type, String sourceId, String targetId,
-            Map<String, Object> additionalProperties) throws Exception {
+            Map<String, Object> additionalProperties) {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(PropertyIds.NAME, name);
         properties.put(PropertyIds.OBJECT_TYPE_ID, type);
@@ -384,6 +379,9 @@ public class ClientModel {
     }
 
     private void addType(List<Tree<ObjectType>> types, List<ObjectType> resultList, boolean creatableOnly) {
+        assert types != null;
+        assert resultList != null;
+
         for (Tree<ObjectType> tt : types) {
             if (tt.getItem() != null) {
                 if (creatableOnly) {
