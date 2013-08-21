@@ -574,6 +574,10 @@ public class JcrRepository {
 
         // get parent
         JcrNode parent = jcrNode.getParent();
+        if (parent == null) {
+            return Collections.emptyList();
+        }
+
         ObjectData object = parent.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos,
                 requiresObjectInfo);
 

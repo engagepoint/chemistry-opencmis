@@ -77,6 +77,8 @@ public abstract class JcrNode {
 
     private static final Logger log = LoggerFactory.getLogger(JcrNode.class);
 
+    private static final String JCR_SYSTEM_FOLDER = "/jcr:system";
+
     /**
      * Default value for last cmis:createdBy and cmis:modifiedBy
      */
@@ -340,7 +342,9 @@ public abstract class JcrNode {
      */
     public JcrFolder getParent() {
         try {
-            return create(node.getParent()).asFolder();
+            return (node.getParent().getPath().startsWith(JCR_SYSTEM_FOLDER))
+                    ? null
+                    : create(node.getParent()).asFolder();
         }
         catch (ItemNotFoundException e) {
             log.debug(e.getMessage(), e);
