@@ -206,6 +206,14 @@ public class JcrRepository {
 
         log.debug("createDocument");
 
+        if (folderId == null) {
+            try {
+                folderId = getUnfiledStorageNode(session).getIdentifier();
+            } catch (RepositoryException e) {
+                throw new CmisObjectNotFoundException("Cannot get unfiled storage", e);
+            }
+        }
+
         // check properties
         if (properties == null || properties.getProperties() == null) {
             throw new CmisInvalidArgumentException("Properties must be set!");
@@ -1278,5 +1286,11 @@ public class JcrRepository {
 
     public JcrTypeHandlerManager getTypeHandlerManager() {
         return typeHandlerManager;
+    }
+
+    private Node getUnfiledStorageNode(Session session) throws RepositoryException {
+        // must exist
+        // todo add check for unfiled support somewhere
+        return session.getNode(Workspace.PATH_UNFILED_NODE);
     }
 }
