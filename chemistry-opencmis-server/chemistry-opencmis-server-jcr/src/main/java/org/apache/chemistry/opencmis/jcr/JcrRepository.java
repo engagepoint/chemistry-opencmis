@@ -872,8 +872,7 @@ public class JcrRepository {
             protected String jcrPathFromId(String id) {
                 try {
                     JcrFolder folder = getJcrNode(session, id).asFolder();
-                    String path = folder.getNode().getPath();
-                    return Util.escape(path);                    
+                    return folder.getNode().getPath();
                 }
                 catch (RepositoryException e) {
                     log.debug(e.getMessage(), e);
