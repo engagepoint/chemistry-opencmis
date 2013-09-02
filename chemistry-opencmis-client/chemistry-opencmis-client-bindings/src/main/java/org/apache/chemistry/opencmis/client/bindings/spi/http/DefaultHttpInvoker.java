@@ -19,10 +19,12 @@
 package org.apache.chemistry.opencmis.client.bindings.spi.http;
 
 import java.io.BufferedOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +83,7 @@ public class DefaultHttpInvoker implements HttpInvoker {
             }
 
             // connect
-            HttpURLConnection conn = (HttpURLConnection) (new URL(url.toString())).openConnection();
+            HttpURLConnection conn = checkRedirect(url);
             conn.setRequestMethod(method);
             conn.setDoInput(true);
             conn.setDoOutput(writer != null);
@@ -224,4 +226,19 @@ public class DefaultHttpInvoker implements HttpInvoker {
             throw new CmisConnectionException("Cannot access " + url + ": " + e.getMessage(), e);
         }
     }
+
+	private HttpURLConnection checkRedirect(UrlBuilder url)
+			throws IOException, MalformedURLException {
+		HttpURLConnection conn = (HttpURLConnection) (new URL(url.toString())).openConnection();
+		
+		int status = conn.getResponseCode();
+		if (status == HttpURLConnection.HTTP_MOVED_TEMP
+				|| status == HttpURLConnection.HTTP_MOVED_PERM
+					|| status == HttpURLConnection.HTTP_SEE_OTHER)  {
+			String newUrl = conn.getHeaderField("Location");
+			return (HttpURLConnection) (new URL(newUrl).openConnection());
+		} else {
+			return (HttpURLConnection) (new URL(url.toString())).openConnection();
+		}
+	}
 }
