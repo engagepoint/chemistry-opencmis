@@ -26,7 +26,7 @@
     <groupId>org.apache.chemistry.opencmis</groupId>
     <artifactId>chemistry-opencmis</artifactId>
     <name>Apache Chemistry OpenCMIS</name>
-    <version>0.10.0-SNAPSHOT</version>
+    <version>0.10.0.14-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <organization>
@@ -54,9 +54,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:svn:http://svn.apache.org/repos/asf/chemistry/opencmis/trunk</connection>
-        <developerConnection>scm:svn:https://svn.apache.org/repos/asf/chemistry/opencmis/trunk</developerConnection>
-        <url>http://svn.apache.org/viewvc/chemistry/opencmis/trunk</url>
+        <connection>scm:git:git@github.com:engagepoint/chemistry-opencmis.git</connection>
+        <developerConnection>scm:git:git@github.com:engagepoint/chemistry-opencmis.git</developerConnection>
+        <url>http://github.com/engagepoint/chemistry-opencmis</url>
     </scm>
 
     <distributionManagement>
@@ -631,6 +631,14 @@
                                     </includes>
                                 </resource>
                             </webResources>
+                        </configuration>
+                    </plugin>
+                    <!-- We want to sign the artifact, the POM, and all attached artifacts -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
                         </configuration>
                     </plugin>
                 </plugins>
