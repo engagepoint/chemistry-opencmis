@@ -345,7 +345,7 @@ public class JcrTypeManager implements TypeManager {
                 Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.VERSION_SERIES_CHECKED_OUT_BY,
-                "Version Series Checked Out By", "Version Series Checked Out By", PropertyType.ID, Cardinality.SINGLE,
+                "Version Series Checked Out By", "Version Series Checked Out By", PropertyType.STRING, Cardinality.SINGLE,
                 Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.CHECKIN_COMMENT, "Checkin Comment", "Checkin Comment",
