@@ -596,6 +596,22 @@ public abstract class JcrNode {
     }
 
     /**
+     * Add <code>action</code> to <code>actions</code> iff <code>condition</code> is true.
+     *
+     * @param actions
+     * @param action
+     * @param condition
+     */
+    protected static void setAction(Set<Action> actions, Action action, boolean condition) {
+        if (condition) {
+            actions.add(action);
+        }
+        else {
+            actions.remove(action);
+        }
+    }
+
+    /**
      * @return  the change token of the CMIS object represented by this instance
      * @throws RepositoryException
      */
@@ -966,22 +982,6 @@ public abstract class JcrNode {
         }
         else {
             return defaultValue;
-        }
-    }
-
-    /**
-     * Add <code>action</code> to <code>actions</code> iff <code>condition</code> is true.
-     *
-     * @param actions
-     * @param action
-     * @param condition
-     */
-    protected static void setAction(Set<Action> actions, Action action, boolean condition) {
-        if (condition) {
-            actions.add(action);
-        }
-        else {
-            actions.remove(action);
         }
     }
 }

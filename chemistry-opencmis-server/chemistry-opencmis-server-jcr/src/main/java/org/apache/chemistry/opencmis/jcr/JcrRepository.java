@@ -99,7 +99,7 @@ public class JcrRepository {
      *
      * @param repository  the JCR repository
      * @param pathManager
-     * @param typeManager  
+     * @param typeManager
      * @param typeHandlerManager
      */
     public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager) {
@@ -111,7 +111,7 @@ public class JcrRepository {
 
     /**
      * Logger into the underlying JCR repository.
-     * 
+     *
      * @param credentials
      * @param workspaceName
      * @return
@@ -169,7 +169,7 @@ public class JcrRepository {
      */
     public TypeDefinitionList getTypeChildren(Session session, String typeId, boolean includePropertyDefinitions,
             BigInteger maxItems, BigInteger skipCount) {
-        
+
         log.debug("getTypesChildren");
         return typeManager.getTypeChildren(typeId, includePropertyDefinitions, maxItems, skipCount);
     }
@@ -438,7 +438,7 @@ public class JcrRepository {
 
         // get the node
         JcrDocument jcrDocument = getJcrNode(session, objectId).asDocument();
-        return jcrDocument.getContentStream();        
+        return jcrDocument.getContentStream();
     }
 
     /**
@@ -479,7 +479,7 @@ public class JcrRepository {
         Set<String> splitFilter = splitFilter(filter);
         Iterator<JcrNode> childNodes = jcrFolder.getNodes();
         while (childNodes.hasNext()) {
-            JcrNode child = childNodes.next();            
+            JcrNode child = childNodes.next();
             count++;
 
             if (skip > 0) {
@@ -605,23 +605,28 @@ public class JcrRepository {
             boolean includeACL, ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
         log.debug("getObjectByPath");
+        checkPath(folderPath);
 
-        // check path 
+        ObjectDataCompiler compiler = new ObjectDataCompiler();
+        compiler.setIncludeAllowableActions(includeAllowableActions);
+        compiler.setObjectInfos(objectInfos);
+        compiler.setRequiresObjectInfo(requiresObjectInfo);
+        compiler.setFilters(splitFilter(filter));
+
+        JcrNode root = getJcrNode(session, PathManager.CMIS_ROOT_ID);
+        if (PathManager.isRoot(folderPath)) {
+            compiler.setNodeIsRoot(true);
+            return compiler.compileObjectType(root);
+        }
+
+        String path = PathManager.relativize(PathManager.CMIS_ROOT_PATH, folderPath);
+        return compiler.compileObjectType(root.getNode(path));
+    }
+
+    private void checkPath(String folderPath) {
         if (folderPath == null || !PathManager.isAbsolute(folderPath)) {
             throw new CmisInvalidArgumentException("Invalid folder path!");
         }
-
-        JcrNode root = getJcrNode(session, PathManager.CMIS_ROOT_ID);
-        JcrNode jcrNode;
-        if (PathManager.isRoot(folderPath)) {
-            jcrNode = root;
-        }
-        else {
-            String path = PathManager.relativize(PathManager.CMIS_ROOT_PATH, folderPath);
-            jcrNode = root.getNode(path);
-        }
-
-        return jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
     }
 
     /**
@@ -648,7 +653,7 @@ public class JcrRepository {
             // '//path/to/folderId//*[jcr:isCheckedOut='true' and (not(@jcr:createdBy) or @jcr:createdBy='admin')]'
             String xPath = "/*[jcr:isCheckedOut='true' " +
                     "and (not(@jcr:createdBy) or @jcr:createdBy='" + session.getUserID() + "')]";
-            
+
             if (folderId != null) {
                 JcrFolder jcrFolder = getJcrNode(session, folderId).asFolder();
                 String path = jcrFolder.getNode().getPath();
@@ -693,7 +698,7 @@ public class JcrRepository {
                     result.setHasMoreItems(true);
                     continue;
                 }
-                
+
                 // build and add child object
                 JcrPrivateWorkingCopy jcrVersion = jcrNode.asVersion().getPwc();
                 ObjectData objectData = jcrVersion.compileObjectType(splitFilter, includeAllowableActions, null, false);
@@ -776,7 +781,7 @@ public class JcrRepository {
         catch (CmisObjectNotFoundException e) {
             throw new CmisUpdateConflictException(e.getCause().getMessage(), e.getCause());
         }
-        
+
         if (!jcrNode.isVersionable()) {
             throw new CmisUpdateConflictException("Not a version: " + jcrNode);
         }
@@ -857,7 +862,7 @@ public class JcrRepository {
         }
 
         // skip and max
-        int skip = skipCount == null ? 0 : skipCount.intValue();  
+        int skip = skipCount == null ? 0 : skipCount.intValue();
         if (skip < 0) {
             skip = 0;
         }
@@ -897,7 +902,7 @@ public class JcrRepository {
         };
 
         String xPath = queryTranslator.translateToXPath(statement);
-        try {  
+        try {
             // Execute query
             QueryManager queryManager = session.getWorkspace().getQueryManager();
             Query query = queryManager.createQuery(xPath, Query.XPATH);
@@ -978,7 +983,7 @@ public class JcrRepository {
         capabilities.setSupportsGetFolderTree(true);
         capabilities.setCapabilityRendition(CapabilityRenditions.NONE);
         fRepositoryInfo.setCapabilities(capabilities);
-        
+
         return fRepositoryInfo;
     }
 
@@ -1012,12 +1017,12 @@ public class JcrRepository {
 
             Node node = session.getNodeByIdentifier(id);
             JcrNode jcrNode = typeHandlerManager.create(node);
-            
+
             // if node isn't under versioning, then return retrieved object 
             if (!jcrNode.isVersionable()) {
             	return jcrNode;
             }
-            
+
             JcrVersionBase versionNode = jcrNode.asVersion();
             if (JcrPrivateWorkingCopy.denotesPwc(versionNode.getVersionLabel())) {
                 return typeHandlerManager.create(versionNode.getPwc().getNode());
@@ -1127,11 +1132,11 @@ public class JcrRepository {
 
         return result;
     }
-    
+
     /**
-	 * Implementation of the Unified Search Discussion 
+	 * Implementation of the Unified Search Discussion
 	 * (see <a>http://dev.day.com/discussion-groups/content/lists/cmis-tc/2009-02/2009-02-18__cmis_Groups__Unified_Search_Discussion__17_February_2009__20090217_Unified_Search_Discussion_pdf_u.html</a>)
-	 * 
+	 *
 	 * @param session
 	 * @param changeLogToken
 	 *            the string is represented as a millisecond value of the latest
@@ -1148,68 +1153,68 @@ public class JcrRepository {
     public ObjectList getContentChanges(Session session, String changeLogToken, Boolean includeProperties,
     		String filter, Boolean includePolicyIds, Boolean includeAcl,
     		BigInteger maxItems, ExtensionsData extension) {
-    	
+
     	try {
     		Workspace workspace = session.getWorkspace();
 			EventJournal journal = workspace.getObservationManager().getEventJournal();
-			
+
 			if (null == journal || !hasCapability(session, CapabilityChanges.OBJECTIDSONLY)) {
 				return null;
 			}
-			
+
 			ObjectListImpl result = new ObjectListImpl();
 			if (!journal.hasNext()) {
 				result.setObjects(Collections.<ObjectData> emptyList());
 				return result;
 			}
-			
+
 			//Ensure that it isn't first page of the event list to be returned
 			if (null != changeLogToken){
 				long timestampToken = 0L;
 				try {
-					//try to parse 'changeLogToken' as a signed decimal long with assumption that one is a time stamp 
+					//try to parse 'changeLogToken' as a signed decimal long with assumption that one is a time stamp
 					timestampToken =  Long.parseLong(changeLogToken);
 				}catch(NumberFormatException e){
 					log.debug(e.getMessage(), e);
 	                throw new CmisRuntimeException("Cannot parse the 'changeLogToken' argument as a signed decimal long.", e);
 				}
-				
+
 				journal.skipTo(timestampToken);
 			}
-			List<ObjectData> objDataList = new ArrayList<ObjectData>(); 
+			List<ObjectData> objDataList = new ArrayList<ObjectData>();
 			Event event;
 			BigInteger itemsCounter = new BigInteger("0");
 			do {
 				event = journal.nextEvent();
 				if (event.getType() == Event.PERSIST)
 					continue;
-				
+
 				ObjectDataImpl objData =  new ObjectDataImpl();
 				objData.setChangeEventInfo(convertToChangeEventInfo(event));
 				PropertiesImpl props = new PropertiesImpl();
 				//add objectId property
 				props.addProperty(new PropertyIdImpl(PropertyIds.OBJECT_ID, event.getIdentifier()));
 				props.addProperty(new PropertyStringImpl(PropertyIds.LAST_MODIFIED_BY, event.getUserID()));
-				props.addProperty(new PropertyDateTimeImpl(PropertyIds.LAST_MODIFICATION_DATE, 
+				props.addProperty(new PropertyDateTimeImpl(PropertyIds.LAST_MODIFICATION_DATE,
 						objData.getChangeEventInfo().getChangeTime()));
-				
+
 				objData.setProperties(props);
-				
+
 				includePolicyIds(includePolicyIds, objData);
 				includeAcl(includeAcl, objData);
-				
+
 				objDataList.add(objData);
-				
+
 				//increment counter
 				itemsCounter = itemsCounter.add(BigInteger.ONE);
-				
+
 			} while (journal.hasNext() && !itemsCounter.equals(maxItems));
-			
+
 			result.setObjects(objDataList);
 			result.setHasMoreItems(journal.hasNext());
 			result.setNumItems(itemsCounter);
 			return result;
-			
+
 		} catch (UnsupportedRepositoryOperationException e) {
 			log.debug(e.getMessage(), e);
             throw new CmisRuntimeException(e.getMessage(), e);
@@ -1232,7 +1237,7 @@ public class JcrRepository {
 	private void includeAcl(Boolean includeAcl, ObjectDataImpl objData) {
 		if (!includeAcl)
 			return;
-		
+
 		//TODO Add ACL after JCR bridge will support it
 	}
 
@@ -1240,7 +1245,7 @@ public class JcrRepository {
 			ObjectDataImpl objData) {
 		if (!includePolicyIds)
 			return;
-		
+
 		//TODO Add policy list after JCR bridge will support it
 	}
 
@@ -1249,28 +1254,28 @@ public class JcrRepository {
 	}
 
     /**
-     * The method converts constants of the <code>javax.jcr.observation.Event</code> type to 
+     * The method converts constants of the <code>javax.jcr.observation.Event</code> type to
      * <code>org.apache.chemistry.opencmis.commons.enums.ChangeType</code>
      * @param eventTypeConst event type
-     * @return enum type of change event. 
+     * @return enum type of change event.
      */
     private ChangeType convertToChangeType(int eventTypeConst){
     	switch (eventTypeConst) {
-    		case Event.PROPERTY_ADDED: 
-    		case Event.NODE_ADDED : 
+    		case Event.PROPERTY_ADDED:
+    		case Event.NODE_ADDED :
     			return ChangeType.CREATED;
     		case Event.PROPERTY_CHANGED:
-    		case Event.NODE_MOVED : 
+    		case Event.NODE_MOVED :
     			return ChangeType.UPDATED;
     		case Event.PROPERTY_REMOVED:
-    		case Event.NODE_REMOVED : 
+    		case Event.NODE_REMOVED :
     			return ChangeType.DELETED;
-    		default: 
+    		default:
     			throw new RuntimeException("Unknown event type! Did spec change?");
     	}
-    	
+
     }
-	
+
     public Repository getRepository() {
         return repository;
     }
