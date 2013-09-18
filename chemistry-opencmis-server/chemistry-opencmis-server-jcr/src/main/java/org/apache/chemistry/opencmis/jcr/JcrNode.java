@@ -267,6 +267,10 @@ public abstract class JcrNode {
 
             if (Boolean.TRUE.equals(includeAllowableActions)) {
                 result.setAllowableActions(getAllowableActions());
+                if (this.isRoot()) {
+                    result.getAllowableActions().getAllowableActions().remove(Action.CAN_MOVE_OBJECT);
+                    result.getAllowableActions().getAllowableActions().remove(Action.CAN_DELETE_OBJECT);
+                }
             }
 
             if (requiresObjectInfo) {
@@ -589,6 +593,22 @@ public abstract class JcrNode {
         setAction(aas, Action.CAN_REMOVE_POLICY, false);
         setAction(aas, Action.CAN_CREATE_RELATIONSHIP, false);
         return aas;
+    }
+
+    /**
+     * Add <code>action</code> to <code>actions</code> iff <code>condition</code> is true.
+     *
+     * @param actions
+     * @param action
+     * @param condition
+     */
+    protected static void setAction(Set<Action> actions, Action action, boolean condition) {
+        if (condition) {
+            actions.add(action);
+        }
+        else {
+            actions.remove(action);
+        }
     }
 
     /**
@@ -962,22 +982,6 @@ public abstract class JcrNode {
         }
         else {
             return defaultValue;
-        }
-    }
-
-    /**
-     * Add <code>action</code> to <code>actions</code> iff <code>condition</code> is true.
-     *
-     * @param actions
-     * @param action
-     * @param condition
-     */
-    protected static void setAction(Set<Action> actions, Action action, boolean condition) {
-        if (condition) {
-            actions.add(action);
-        }
-        else {
-            actions.remove(action);
         }
     }
 }
