@@ -31,7 +31,7 @@ import org.junit.Test;
 /**
  * The test covers org.apache.chemistry.opencmis.jcr.JcrRepository class.
  */
-@Ignore
+
 public class JcrFolderTest extends AbstractJcrSessionTest {
 
     /**
