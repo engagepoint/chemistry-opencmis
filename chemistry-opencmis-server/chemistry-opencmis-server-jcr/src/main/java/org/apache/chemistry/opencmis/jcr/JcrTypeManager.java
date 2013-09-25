@@ -277,10 +277,10 @@ public class JcrTypeManager implements TypeManager {
 
     public static void addBasePropertyDefinitions(AbstractTypeDefinition type) {
         type.addPropertyDefinition(createPropDef(PropertyIds.BASE_TYPE_ID, "Base Type Id", "Base Type Id",
-                PropertyType.ID, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                PropertyType.ID, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.OBJECT_ID, "Object Id", "Object Id", PropertyType.ID,
-                Cardinality.SINGLE, Updatability.READONLY, false, true));
+                Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.OBJECT_TYPE_ID, "Type Id", "Type Id", PropertyType.ID,
                 Cardinality.SINGLE, Updatability.ONCREATE, false, true));
@@ -289,16 +289,16 @@ public class JcrTypeManager implements TypeManager {
                 Cardinality.SINGLE, Updatability.READWRITE, false, true));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.CREATED_BY, "Created By", "Created By",
-                PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.CREATION_DATE, "Creation Date", "Creation Date",
-                PropertyType.DATETIME, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                PropertyType.DATETIME, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.LAST_MODIFIED_BY, "Last Modified By", "Last Modified By",
-                PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.LAST_MODIFICATION_DATE, "Last Modification Date",
-                "Last Modification Date", PropertyType.DATETIME, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                "Last Modification Date", PropertyType.DATETIME, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.CHANGE_TOKEN, "Change Token", "Change Token",
                 PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, false));
@@ -334,11 +334,11 @@ public class JcrTypeManager implements TypeManager {
                 PropertyType.STRING, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.VERSION_SERIES_ID, "Version Series Id",
-                "Version Series Id", PropertyType.ID, Cardinality.SINGLE, Updatability.READONLY, false, true));
+                "Version Series Id", PropertyType.ID, Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.IS_VERSION_SERIES_CHECKED_OUT,
                 "Is Version Series Checked Out", "Is Version Series Checked Out", PropertyType.BOOLEAN,
-                Cardinality.SINGLE, Updatability.READONLY, false, true));
+                Cardinality.SINGLE, Updatability.READONLY, false, false));
 
         type.addPropertyDefinition(createPropDef(PropertyIds.VERSION_SERIES_CHECKED_OUT_ID,
                 "Version Series Checked Out Id", "Version Series Checked Out Id", PropertyType.ID, Cardinality.SINGLE,
