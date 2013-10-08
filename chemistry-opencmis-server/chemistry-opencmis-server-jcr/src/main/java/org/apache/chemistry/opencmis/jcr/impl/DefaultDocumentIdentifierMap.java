@@ -31,11 +31,11 @@ public class DefaultDocumentIdentifierMap extends DefaultIdentifierMapBase {
         super("nt:file");
         this.isVersionable = isVersionable;
         cmis2Jcr.put(PropertyIds.CREATED_BY, "jcr:content/@jcr:createdBy");
-        cmis2Jcr.put(PropertyIds.CREATION_DATE, "jcr:content/@jcr:created");
+        cmis2Jcr.put(PropertyIds.CREATION_DATE, "@jcr:created");
         cmis2Jcr.put(PropertyIds.LAST_MODIFIED_BY, "jcr:content/@jcr:lastModifiedBy");
-        cmis2Jcr.put(PropertyIds.LAST_MODIFICATION_DATE, "jcr:content/@jcr:lastModified");
+        cmis2Jcr.put(PropertyIds.LAST_MODIFICATION_DATE, "@jcr:lastModified");
         cmis2Jcr.put(PropertyIds.CONTENT_STREAM_MIME_TYPE, "jcr:content/@jcr:mimeType");
-        cmis2Jcr.put(PropertyIds.CONTENT_STREAM_FILE_NAME, "fn:name()");
+        cmis2Jcr.put(PropertyIds.CONTENT_STREAM_FILE_NAME, "@jcr:name");
         // xxx not supported: IS_IMMUTABLE, IS_LATEST_VERSION, IS_MAJOR_VERSION, IS_LATEST_MAJOR_VERSION,
         // VERSION_LABEL, VERSION_SERIES_ID, IS_VERSION_SERIES_CHECKED_OUT, VERSION_SERIES_CHECKED_OUT_ID
         // VERSION_SERIES_CHECKED_OUT_BY, CHECKIN_COMMENT, CONTENT_STREAM_ID, CONTENT_STREAM_LENGTH
