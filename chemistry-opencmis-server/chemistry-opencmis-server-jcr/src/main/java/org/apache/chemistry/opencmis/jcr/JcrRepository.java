@@ -88,6 +88,7 @@ import org.slf4j.LoggerFactory;
  */
 public class JcrRepository {
     private static final Logger log = LoggerFactory.getLogger(JcrRepository.class);
+    public static final String JCR_UNFILED = "jcr:unfiled";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -107,6 +108,12 @@ public class JcrRepository {
         this.typeManager = typeManager;
         this.typeHandlerManager = typeHandlerManager;
         this.pathManager = pathManager;
+    }
+
+
+    public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager,
+                         String customUnfiledFolder) {
+        this(repository, pathManager, typeManager, typeHandlerManager);
     }
 
     /**
@@ -208,7 +215,8 @@ public class JcrRepository {
 
         if (folderId == null) {
             try {
-                folderId = getUnfiledStorageNode(session).getIdentifier();
+                String primaryType = properties.getProperties().get(PropertyIds.OBJECT_TYPE_ID).getValues().get(0).toString();
+                folderId = getUnfiledStorageNode(session, primaryType).getIdentifier();
             } catch (RepositoryException e) {
                 throw new CmisObjectNotFoundException("Cannot get unfiled storage", e);
             }
@@ -344,6 +352,8 @@ public class JcrRepository {
 
         // get the node
         JcrNode jcrNode = getJcrNode(session, objectId);
+        if (isUnfiledStorage(jcrNode.getNode()))
+            throw new CmisObjectNotFoundException("no such node exists");
         try {
             // check on private copy
             boolean isPwc = jcrNode.isVersionable()
@@ -363,7 +373,10 @@ public class JcrRepository {
         log.debug("deleteTree");
 
         // get the folder
-        JcrFolder jcrFolder = getJcrNode(session, folderId).asFolder();
+        JcrNode jcrNode = getJcrNode(session, folderId);
+        if (isUnfiledStorage(jcrNode.getNode()))
+            throw new CmisObjectNotFoundException("no such node exists");
+        JcrFolder jcrFolder = jcrNode.asFolder();
         return jcrFolder.deleteTree();
     }
 
@@ -401,6 +414,8 @@ public class JcrRepository {
 
         // get the node
         JcrNode jcrNode = getJcrNode(session, objectId);
+        if (isUnfiledStorage(jcrNode.getNode()))
+            throw new CmisObjectNotFoundException("no such node exists");
 
         // gather properties
         return jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
@@ -462,7 +477,11 @@ public class JcrRepository {
         }
 
         // get the folder
-        JcrFolder jcrFolder = getJcrNode(session, folderId).asFolder();
+        JcrNode jcrNode = getJcrNode(session, folderId);
+        if (isUnfiledStorage(jcrNode.getNode()))
+            throw new CmisObjectNotFoundException("no such node exists");
+
+        JcrFolder jcrFolder = jcrNode.asFolder();
 
         // set object info of the the folder
         if (requiresObjectInfo) {
@@ -479,7 +498,10 @@ public class JcrRepository {
         Set<String> splitFilter = splitFilter(filter);
         Iterator<JcrNode> childNodes = jcrFolder.getNodes();
         while (childNodes.hasNext()) {
-            JcrNode child = childNodes.next();            
+            JcrNode child = childNodes.next();
+
+            if (child.getId().endsWith(JCR_UNFILED)) continue;
+
             count++;
 
             if (skip > 0) {
@@ -582,8 +604,14 @@ public class JcrRepository {
 
         // get parent
         JcrNode parent = jcrNode.getParent();
-        if (parent == null) {
-            return Collections.emptyList();
+        try {
+            if (parent.getNode().getIdentifier().endsWith(JCR_UNFILED)) {
+                return Collections.emptyList();
+            }
+        } catch (RepositoryException e) {
+            // todo
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e.getMessage(), e);
         }
 
         ObjectData object = parent.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos,
@@ -850,6 +878,7 @@ public class JcrRepository {
     public ObjectList query(final Session session, String statement, Boolean searchAllVersions,
             Boolean includeAllowableActions, BigInteger maxItems, BigInteger skipCount) {
 
+        // unfiled todo
         log.debug("query");
 
         if (searchAllVersions) {
@@ -921,6 +950,9 @@ public class JcrRepository {
             NodeIterator nodes = queryResult.getNodes();
             while (nodes.hasNext() && result.getObjects().size() < max) {
                 Node node = nodes.nextNode();
+
+                if (node.getIdentifier().endsWith(JCR_UNFILED)) continue;
+
                 JcrNode jcrNode = typeHandlerManager.create(node);
                 count++;
 
@@ -967,7 +999,7 @@ public class JcrRepository {
         capabilities.setAllVersionsSearchable(false);
         capabilities.setCapabilityJoin(CapabilityJoin.NONE);
         capabilities.setSupportsMultifiling(false);
-        capabilities.setSupportsUnfiling(false);
+        capabilities.setSupportsUnfiling(true);
         capabilities.setSupportsVersionSpecificFiling(false);
         capabilities.setIsPwcSearchable(false);
         capabilities.setIsPwcUpdatable(true);
@@ -1287,9 +1319,17 @@ public class JcrRepository {
         return typeHandlerManager;
     }
 
-    private Node getUnfiledStorageNode(Session session) throws RepositoryException {
-        // must exist
-        // todo add check for unfiled support somewhere
-        return session.getNode(Workspace.PATH_UNFILED_NODE);
+
+    // must be implemented by children
+    protected Node getUnfiledStorageNode(Session session, String primaryType) throws RepositoryException {
+        return null;
+    }
+
+    public boolean isUnfiledStorage(Node node) {
+        try {
+            return node.getIdentifier().endsWith(JCR_UNFILED);
+        } catch (RepositoryException e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
     }
 }
