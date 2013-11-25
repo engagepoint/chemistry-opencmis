@@ -191,11 +191,13 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
     @Override
     public XPathBuilder like(XPathBuilder op1, XPathBuilder op2) {
-        FunctionBuilder op11 = new FunctionBuilder("UPPER-CASE", op1);
-        XPathBuilder op21 = (op2 instanceof LiteralBuilder)
-                ? new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2))
-                : op2;
-        return new FunctionBuilder("jcr:like", op11, op21);
+        if (op2 instanceof LiteralBuilder) {
+            FunctionBuilder op11 = new FunctionBuilder("UPPER-CASE", op1);
+            XPathBuilder op21 = new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2));
+            return new FunctionBuilder("jcr:like", op11, op21);
+        } else {
+            return new FunctionBuilder("jcr:like", op1, op2);
+        }
     }
 
     @Override
