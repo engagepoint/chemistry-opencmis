@@ -68,12 +68,12 @@ public class XPathBuilderTest {
                 null);
 
         check("select * from cmis:document where cmis:isLatestVersion LIKE 'foo'",
-                "jcr:like(cmis:isLatestVersion, 'foo')",
+                "jcr:like(UPPER-CASE(cmis:isLatestVersion), 'FOO')",
                 list(),
                 null);
 
         check("select * from cmis:document where cmis:isLatestVersion NOT LIKE 'foo'",
-                "not(jcr:like(cmis:isLatestVersion, 'foo'))",
+                "not(jcr:like(UPPER-CASE(cmis:isLatestVersion), 'FOO'))",
                 list(),
                 null);
 
