@@ -58,6 +58,7 @@ public class JcrServiceFactory extends AbstractServiceFactory {
     public static final BigInteger DEFAULT_DEPTH_TYPES = BigInteger.valueOf(-1);
     public static final BigInteger DEFAULT_MAX_ITEMS_OBJECTS = BigInteger.valueOf(200);
     public static final BigInteger DEFAULT_DEPTH_OBJECTS = BigInteger.valueOf(10);
+    public static final String KEY_CUSTOM_UNFILED_PATH = "custom.unfiled.path";
 
     protected JcrTypeManager typeManager;
     protected Map<String, String> jcrConfig;
@@ -70,7 +71,11 @@ public class JcrServiceFactory extends AbstractServiceFactory {
         readConfiguration(parameters);
         PathManager pathManger = new PathManager(mountPath);
         JcrTypeHandlerManager typeHandlerManager = createTypeHandlerManager(pathManger, typeManager);
-        jcrRepository = new JcrRepository(acquireJcrRepository(jcrConfig), pathManger, typeManager, typeHandlerManager);
+
+        String customUnfiledPath = parameters.get(KEY_CUSTOM_UNFILED_PATH);
+        jcrRepository = new JcrRepository(acquireJcrRepository(jcrConfig),
+                pathManger, typeManager,
+                typeHandlerManager, customUnfiledPath);
     }
 
     @Override
