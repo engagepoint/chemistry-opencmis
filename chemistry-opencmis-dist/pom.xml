@@ -159,6 +159,7 @@
                                     <successCodes>
                                         <successCode>8</successCode>
                                     </successCodes>
+                                    <skip>true</skip>
                                 </configuration>
                             </execution>
                         </executions>
