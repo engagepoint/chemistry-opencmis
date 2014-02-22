@@ -31,6 +31,7 @@ import java.util.Set;
  * Instances of this class represent a non versionable cmis:document backed by an underlying JCR <code>Node</code>. 
  */
 public class JcrUnversionedDocument extends JcrDocument {
+    private Node contextNode;
     
     public JcrUnversionedDocument(Node node, JcrTypeManager typeManager, PathManager pathManager, JcrTypeHandlerManager typeHandlerManager) {
         super(node, typeManager, pathManager, typeHandlerManager);
@@ -40,7 +41,11 @@ public class JcrUnversionedDocument extends JcrDocument {
 
     @Override
     protected Node getContextNode() throws RepositoryException {
-        return getNode().getNode(Node.JCR_CONTENT);
+        if (contextNode != null) {
+            return contextNode;
+        }
+        contextNode = getNode().getNode(Node.JCR_CONTENT);
+        return contextNode;
     }
 
     @Override

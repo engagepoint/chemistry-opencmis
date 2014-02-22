@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class JcrPrivateWorkingCopy extends JcrVersionBase {
     private static final Logger log = LoggerFactory.getLogger(JcrPrivateWorkingCopy.class);
+    private Node contextNode;
 
     /**
      * Name of a private working copy
@@ -66,8 +67,12 @@ public class JcrPrivateWorkingCopy extends JcrVersionBase {
 
     @Override
     protected Node getContextNode() {
+        if (contextNode != null) {
+            return contextNode;
+        }
         try {
-            return getNode().getNode(Node.JCR_CONTENT);
+            contextNode = getNode().getNode(Node.JCR_CONTENT);
+            return contextNode;
         }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);

@@ -39,6 +39,7 @@ public class JcrVersion extends JcrVersionBase {
     private static final String JCR_UUID = "jcr:uuid";
 
     private final Version version;
+    private Node contextNode = null;
 
     public JcrVersion(Node node, Version version, JcrTypeManager typeManager, PathManager pathManager,
             JcrTypeHandlerManager typeHandlerManager) {
@@ -51,13 +52,17 @@ public class JcrVersion extends JcrVersionBase {
 
     @Override
     protected Node getContextNode() throws RepositoryException {
-        Node frozen = version.getFrozenNode();
+        if (contextNode != null) {
+            return contextNode;
+        }
+        final Node frozen = version.getFrozenNode();
         if (frozen.hasNode(Node.JCR_CONTENT)) {
-            return frozen.getNode(Node.JCR_CONTENT);
+            contextNode = frozen.getNode(Node.JCR_CONTENT);
         }
         else {
-            return getNode().getNode(Node.JCR_CONTENT);  // root version
+            contextNode = getNode().getNode(Node.JCR_CONTENT);  // root version
         }
+        return contextNode;
     }
     
     @Override
