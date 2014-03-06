@@ -18,6 +18,8 @@
  */
 package org.apache.chemistry.opencmis.jcr.util;
 
+import org.apache.chemistry.opencmis.commons.PropertyIds;
+
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
@@ -33,9 +35,15 @@ import javax.jcr.RepositoryException;
  */
 public final class Util {
     public static final String CMIS_QUERY_PATTERN_STR ="[sS][eE][lL][eE][cC][tT]\\s+(.*)\\s+[fF][rR][oO][mM].*";
-    private static final Pattern CMIS_QUERY_PATTERN = Pattern.compile(CMIS_QUERY_PATTERN_STR);
-    private static final String CMIS_QUERY_REQUIRED_COLUMNS[] = {"cmis:objectId", "cmis:objectTypeId"};
-    private static final String CMIS_QUERY_ALL_COLUMNS = "*";
+    public static final Pattern CMIS_QUERY_PATTERN = Pattern.compile(CMIS_QUERY_PATTERN_STR);
+
+    private static final String CMIS_QUERY_REQUIRED_COLUMNS[] = {
+            PropertyIds.OBJECT_ID,
+            PropertyIds.OBJECT_TYPE_ID,
+            PropertyIds.BASE_TYPE_ID
+    };
+
+    public static final String CMIS_QUERY_ALL_COLUMNS = "*";
 
     private Util() {}
 

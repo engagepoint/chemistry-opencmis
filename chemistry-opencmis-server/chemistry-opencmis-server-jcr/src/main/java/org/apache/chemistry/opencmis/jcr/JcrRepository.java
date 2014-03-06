@@ -966,9 +966,12 @@ public class JcrRepository {
                 if (jcrNode.isVersionable() && jcrNode.asVersion().isCheckedOut()) {
                     jcrNode = jcrNode.asVersion().getPwc();
                 }
-
+                final Set<String> columns = Util.getColumnsFromQueryStatement(statement);
+                final Set<String> filter =
+                        columns.size() == 1 && columns.contains(Util.CMIS_QUERY_ALL_COLUMNS)
+                                ? null : columns;
                 // build and add child object
-                ObjectData objectData = jcrNode.compileObjectType(Util.getColumnsFromQueryStatement(statement), includeAllowableActions, null, false);
+                ObjectData objectData = jcrNode.compileObjectType( filter, includeAllowableActions, null, false);
                 result.getObjects().add(objectData);
             }
 
