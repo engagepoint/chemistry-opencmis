@@ -20,6 +20,8 @@ package org.apache.chemistry.opencmis.jcr;
 
 import java.math.BigInteger;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.jcr.Credentials;
 import javax.jcr.ItemNotFoundException;
@@ -89,6 +91,7 @@ import org.slf4j.LoggerFactory;
 public class JcrRepository {
     private static final Logger log = LoggerFactory.getLogger(JcrRepository.class);
     public static final String JCR_UNFILED = "jcr:unfiled";
+    public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -951,7 +954,10 @@ public class JcrRepository {
             while (nodes.hasNext() && result.getObjects().size() < max) {
                 Node node = nodes.nextNode();
 
-                if (node.getIdentifier().endsWith(JCR_UNFILED)) continue;
+                if (node.getIdentifier().endsWith(JCR_UNFILED) ||
+                        node.getIdentifier().endsWith(JCR_UNFILED_FULL)) {
+                    continue;
+                }
 
                 JcrNode jcrNode = typeHandlerManager.create(node);
                 count++;
@@ -962,7 +968,7 @@ public class JcrRepository {
                 }
 
                 // build and add child object
-                ObjectData objectData = jcrNode.compileObjectType(null, includeAllowableActions, null, false);
+                ObjectData objectData = jcrNode.compileObjectType(Util.getColumnsFromQueryStatement(statement), includeAllowableActions, null, false);
                 result.getObjects().add(objectData);
             }
 
@@ -975,6 +981,9 @@ public class JcrRepository {
             throw new CmisRuntimeException(e.getMessage(), e);
         }
     }
+
+
+
 
     //------------------------------------------< protected >---
 
