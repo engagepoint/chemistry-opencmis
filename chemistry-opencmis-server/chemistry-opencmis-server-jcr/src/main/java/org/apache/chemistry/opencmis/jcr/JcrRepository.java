@@ -128,8 +128,11 @@ public class JcrRepository {
      * @throws RepositoryException
      */
     public Session login(Credentials credentials, String workspaceName) {
+        long startTime = System.currentTimeMillis();
         try {
-            return repository.login(credentials, workspaceName);
+            Session session = repository.login(credentials, workspaceName);
+            log.debug("Login to underlying JCR repository. Time: {} ms", System.currentTimeMillis() - startTime);   
+            return session;
         }
         catch (LoginException e) {
             log.debug(e.getMessage(), e);
@@ -149,21 +152,23 @@ public class JcrRepository {
      * See CMIS 1.0 section 2.2.2.2 getRepositoryInfo
      */
     public RepositoryInfo getRepositoryInfo(Session session) {
-        log.debug("getRepositoryInfo");
-
-        return compileRepositoryInfo(session.getWorkspace().getName());
+        long startTime = System.currentTimeMillis();
+        RepositoryInfo repositoryInfo = compileRepositoryInfo(session.getWorkspace().getName());
+        log.debug("Get repository info from session. Time: {} ms", System.currentTimeMillis() - startTime);   
+        return repositoryInfo;
     }
 
     /**
      * See CMIS 1.0 section 2.2.2.2 getRepositoryInfo
      */
     public List<RepositoryInfo> getRepositoryInfos(Session session) {
+        long startTime = System.currentTimeMillis();
         try {
             ArrayList<RepositoryInfo> infos = new ArrayList<RepositoryInfo>();
             for (String wspName : session.getWorkspace().getAccessibleWorkspaceNames()) {
                 infos.add(compileRepositoryInfo(wspName));
             }
-
+            log.debug("Get repository infos from session. Time: {} ms", System.currentTimeMillis() - startTime);   
             return infos;
         }
         catch (RepositoryException e) {
@@ -176,24 +181,27 @@ public class JcrRepository {
      * See CMIS 1.0 section 2.2.2.3 getTypeChildren
      */
     public TypeDefinitionList getTypeChildren(Session session, String typeId, boolean includePropertyDefinitions,
-            BigInteger maxItems, BigInteger skipCount) {
-        
-        log.debug("getTypesChildren");
-        return typeManager.getTypeChildren(typeId, includePropertyDefinitions, maxItems, skipCount);
+            BigInteger maxItems, BigInteger skipCount) {        
+        long startTime = System.currentTimeMillis();
+        TypeDefinitionList typeDefinitionList = typeManager.getTypeChildren(typeId, includePropertyDefinitions, maxItems, skipCount);
+        log.debug("Get type children from session with parameters typeId [{}] includePropertyDefinitions [{}] maxItems [{}] skipCount [{}]. Time: {} ms", typeId, includePropertyDefinitions,
+            maxItems, skipCount, System.currentTimeMillis() - startTime);   
+        return typeDefinitionList;
     }
 
     /**
      * See CMIS 1.0 section 2.2.2.5 getTypeDefinition
      */
     public TypeDefinition getTypeDefinition(Session session, String typeId) {
-        log.debug("getTypeDefinition");
+        long startTime = System.currentTimeMillis();
 
         TypeDefinition type = typeManager.getType(typeId);
         if (type == null) {
             throw new CmisObjectNotFoundException("Type '" + typeId + "' is unknown!");
         }
-
-        return JcrTypeManager.copyTypeDefinition(type);
+        TypeDefinition typeDefinition = JcrTypeManager.copyTypeDefinition(type);
+        log.debug("Get type definition for typeId [{}]. Time: {} ms", typeId, System.currentTimeMillis() - startTime); 
+        return typeDefinition;
     }
 
     /**
@@ -201,9 +209,10 @@ public class JcrRepository {
      */
     public List<TypeDefinitionContainer> getTypesDescendants(Session session, String typeId, BigInteger depth,
             Boolean includePropertyDefinitions) {
-
-        log.debug("getTypesDescendants");
-        return typeManager.getTypesDescendants(typeId, depth, includePropertyDefinitions);
+        long startTime = System.currentTimeMillis();
+        List<TypeDefinitionContainer> typesDescendants = typeManager.getTypesDescendants(typeId, depth, includePropertyDefinitions);
+        log.debug("Get type descendants for typeId [{}] with depth [{}] and includePropertyDefinitions [{}]. Time: {} ms", typeId, depth, includePropertyDefinitions,  System.currentTimeMillis() - startTime); 
+        return typesDescendants;
     }
 
     /**
@@ -212,7 +221,7 @@ public class JcrRepository {
     public String createDocument(Session session, Properties properties, String folderId, ContentStream contentStream,
             VersioningState versioningState) {
 
-        log.debug("createDocument");
+        long startTime = System.currentTimeMillis();
 
         if (folderId == null) {
             try {
@@ -250,7 +259,11 @@ public class JcrRepository {
         JcrFolder parent = getJcrNode(session, folderId).asFolder();
         JcrDocumentTypeHandler typeHandler = typeHandlerManager.getDocumentTypeHandler(typeId);
         JcrNode jcrNode = typeHandler.createDocument(parent, JcrConverter.toJcrName(name), properties, contentStream, versioningState);
-        return jcrNode.getId();
+        
+        String documentId = jcrNode.getId();
+        log.trace("Document with id [{}] succesfuly created with following input parameters: properties [{}], folderId [{}], versioningState [{}].", documentId, properties, folderId, versioningState); 
+        log.debug("Document with id [{}] succesfuly created. Time: {} ms", documentId,  System.currentTimeMillis() - startTime);         
+        return documentId;
     }
 
     /**
@@ -259,7 +272,7 @@ public class JcrRepository {
     public String createDocumentFromSource(Session session, String sourceId, Properties properties, String folderId,
             VersioningState versioningState) {
 
-        log.debug("createDocumentFromSource");
+        long startTime = System.currentTimeMillis();
 
         // get parent folder Node
         JcrFolder parent = getJcrNode(session, folderId).asFolder();
@@ -278,14 +291,17 @@ public class JcrRepository {
 
         // create child from source
         JcrNode jcrNode = parent.addNodeFromSource(source, properties);
-        return jcrNode.getId();
+        String documentId = jcrNode.getId();
+        log.trace("Document with id [{}] succesfuly created from source [{}] with following input parameters: properties [{}], folderId [{}], versioningState [{}].", documentId, sourceId, properties, folderId, versioningState); 
+        log.debug("Document with id [{}] succesfuly created from source [{}] . Time: {} ms", documentId, sourceId, System.currentTimeMillis() - startTime);                 
+        return documentId;
     }
 
     /**
      * See CMIS 1.0 section 2.2.4.3 createFolder
      */
     public String createFolder(Session session, Properties properties, String folderId) {
-        log.debug("createFolder");
+        long startTime = System.currentTimeMillis();
 
         // check properties
         if (properties == null || properties.getProperties() == null) {
@@ -305,7 +321,10 @@ public class JcrRepository {
         JcrFolder parent = getJcrNode(session, folderId).asFolder();
         JcrFolderTypeHandler typeHandler = typeHandlerManager.getFolderTypeHandler(typeId);
         JcrNode jcrNode = typeHandler.createFolder(parent, JcrConverter.toJcrName(name), properties);
-        return jcrNode.getId();
+        String id = jcrNode.getId();
+        log.trace("Folder with id [{}] succesfuly created with following input parameters: properties [{}], folderId [{}].", id, properties, folderId); 
+        log.debug("Folder with id [{}] succesfuly created. Time: {} ms", id, System.currentTimeMillis() - startTime);                         
+        return id;
     }
 
     /**
@@ -314,7 +333,7 @@ public class JcrRepository {
     public ObjectData moveObject(Session session, Holder<String> objectId, String targetFolderId,
             ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
-        log.debug("moveObject");
+        long startTime = System.currentTimeMillis();
 
         if (objectId == null || objectId.getValue() == null) {
             throw new CmisInvalidArgumentException("Id is not valid!");
@@ -325,7 +344,9 @@ public class JcrRepository {
         JcrFolder parent = getJcrNode(session, targetFolderId).asFolder();
         jcrNode = jcrNode.move(parent);
         objectId.setValue(jcrNode.getId());
-        return jcrNode.compileObjectType(null, false, objectInfos, requiresObjectInfo);
+        ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, requiresObjectInfo);
+        log.debug("Move object with id [{}] to target folder with id [{}]. Time: {} ms", objectId, targetFolderId, System.currentTimeMillis() - startTime);
+        return result;
     }
 
     /**
@@ -334,7 +355,7 @@ public class JcrRepository {
     public void setContentStream(Session session, Holder<String> objectId, Boolean overwriteFlag,
             ContentStream contentStream) {
 
-        log.debug("setContentStream or deleteContentStream");
+        long startTime = System.currentTimeMillis();
 
         if (objectId == null || objectId.getValue() == null) {
             throw new CmisInvalidArgumentException("Id is not valid!");
@@ -343,13 +364,14 @@ public class JcrRepository {
         JcrDocument jcrDocument = getJcrNode(session, objectId.getValue()).asDocument();
         String id = jcrDocument.setContentStream(contentStream, Boolean.TRUE.equals(overwriteFlag)).getId();
         objectId.setValue(id);
+        log.debug("Set content stream for object with id [{}] and overwriteFlag [{}]. Time: {} ms", objectId, overwriteFlag, System.currentTimeMillis() - startTime);
     }
 
     /**
      * See CMIS 1.0 section 2.2.4.14 deleteObject
      */
     public void deleteObject(Session session, String objectId, Boolean allVersions) {
-        log.debug("deleteObject");
+        long startTime = System.currentTimeMillis();
 
         // get the node
         JcrNode jcrNode = getJcrNode(session, objectId);
@@ -365,20 +387,24 @@ public class JcrRepository {
             log.debug(rex.getMessage(), rex);
             throw new CmisRuntimeException(rex.getMessage(), rex);
         }
+        log.debug("Delete object with id [{}] and allVersions [{}]. Time: {} ms", objectId, allVersions, System.currentTimeMillis() - startTime);
     }
 
     /**
      * See CMIS 1.0 section 2.2.4.15 deleteTree
      */
     public FailedToDeleteData deleteTree(Session session, String folderId) {
-        log.debug("deleteTree");
+        long startTime = System.currentTimeMillis();
 
         // get the folder
         JcrNode jcrNode = getJcrNode(session, folderId);
         if (isUnfiledStorage(jcrNode.getNode()))
             throw new CmisObjectNotFoundException("no such node exists");
         JcrFolder jcrFolder = jcrNode.asFolder();
-        return jcrFolder.deleteTree();
+        FailedToDeleteData failedToDeleteData = jcrFolder.deleteTree();
+        
+        log.debug("Delete tree for folder with id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);
+        return failedToDeleteData;
     }
 
     /**
@@ -387,7 +413,7 @@ public class JcrRepository {
     public ObjectData updateProperties(Session session, Holder<String> objectId, Properties properties,
             ObjectInfoHandler objectInfos, boolean objectInfoRequired) {
 
-        log.debug("updateProperties");
+        long startTime = System.currentTimeMillis();
 
         if (objectId == null) {
             throw new CmisInvalidArgumentException("Id is not valid!");
@@ -397,7 +423,10 @@ public class JcrRepository {
         JcrNode jcrNode = getJcrNode(session, objectId.getValue());
         String id = jcrNode.updateProperties(properties).getId();
         objectId.setValue(id);
-        return jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
+        ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
+        log.trace("Update properties for object with id [{}] and input parameters: properties [{}], objectInfos [{}]", objectId, properties, objectInfos);
+        log.debug("Update properties for object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);
+        return result;
     }
 
     /**
@@ -406,7 +435,7 @@ public class JcrRepository {
     public ObjectData getObject(Session session, String objectId, String filter, Boolean includeAllowableActions,
             ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
-        log.debug("getObject");
+        long startTime = System.currentTimeMillis();
 
         // check id
         if (objectId == null) {
@@ -419,7 +448,9 @@ public class JcrRepository {
             throw new CmisObjectNotFoundException("no such node exists");
 
         // gather properties
-        return jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
+        ObjectData result = jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
+        log.debug("Return object by id [{}] with filter {}. Time: {} ms", objectId, filter, System.currentTimeMillis() - startTime);
+        return result;
     }
 
     /**
@@ -428,8 +459,13 @@ public class JcrRepository {
     public Properties getProperties(Session session, String objectId, String filter, Boolean includeAllowableActions,
             ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
+        long startTime = System.currentTimeMillis();
+        
         ObjectData object = getObject(session, objectId, filter, includeAllowableActions, objectInfos, requiresObjectInfo);
-        return object.getProperties();
+        Properties properties = object.getProperties();
+        
+        log.debug("Return properties for object by id [{}] with filter {}. Time: {} ms", objectId, filter, System.currentTimeMillis() - startTime);
+        return properties;
     }
 
     /**
@@ -446,7 +482,7 @@ public class JcrRepository {
      * See CMIS 1.0 section 2.2.4.10 getContentStream
      */
     public ContentStream getContentStream(Session session, String objectId, BigInteger offset, BigInteger length) {
-        log.debug("getContentStream");
+        long startTime = System.currentTimeMillis();
 
         if (offset != null || length != null) {
             throw new CmisInvalidArgumentException("Offset and Length are not supported!");
@@ -454,7 +490,9 @@ public class JcrRepository {
 
         // get the node
         JcrDocument jcrDocument = getJcrNode(session, objectId).asDocument();
-        return jcrDocument.getContentStream();        
+        ContentStream contentStream = jcrDocument.getContentStream();       
+        log.debug("Return content stream for object id [{}] with offset [{}] and length [{}]. Time: {} ms", objectId, offset, length, System.currentTimeMillis() - startTime);
+        return contentStream;
     }
 
     /**
@@ -464,7 +502,7 @@ public class JcrRepository {
             Boolean includeAllowableActions, Boolean includePathSegment, BigInteger maxItems, BigInteger skipCount,
             ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
-        log.debug("getChildren");
+        long startTime = System.currentTimeMillis();
 
         // skip and max
         int skip = skipCount == null ? 0 : skipCount.intValue();
@@ -528,6 +566,9 @@ public class JcrRepository {
         }
 
         result.setNumItems(BigInteger.valueOf(count));
+        
+        log.trace("Return children for folder id [{}] with input parameters: filter [{}], includeAllowableActions [{}], includePathSegment [{}], maxItems [{}], skipCount [{}], requiresObjectInfo [{}].", folderId, filter, includeAllowableActions, includePathSegment, maxItems, skipCount, requiresObjectInfo);
+        log.debug("Return children for folder id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);
         return result;
     }
 
@@ -538,7 +579,7 @@ public class JcrRepository {
             String filter, Boolean includeAllowableActions, Boolean includePathSegment, ObjectInfoHandler objectInfos,
             boolean requiresObjectInfo, boolean foldersOnly) {
 
-        log.debug("getDescendants or getFolderTree");
+        long startTime = System.currentTimeMillis();
 
         // check depth
         int d = depth == null ? 2 : depth.intValue();
@@ -562,6 +603,8 @@ public class JcrRepository {
         gatherDescendants(jcrFolder, result, foldersOnly, d, splitFilter(filter), includeAllowableActions,
                 includePathSegment, objectInfos, requiresObjectInfo);
 
+        log.trace("Return descendants for folder id [{}] with input parameters: depth [{}], filter [{}], includeAllowableActions [{}], includePathSegment [{}], requiresObjectInfo [{}], foldersOnly [{}].", folderId, depth, filter, includeAllowableActions, includePathSegment, requiresObjectInfo, foldersOnly);
+        log.debug("Return descendants for folder id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);        
         return result;
     }
 
@@ -570,7 +613,8 @@ public class JcrRepository {
      */
     public ObjectData getFolderParent(Session session, String folderId, String filter, ObjectInfoHandler objectInfos,
             boolean requiresObjectInfo) {
-
+        
+        long startTime = System.currentTimeMillis();
         List<ObjectParentData> parents = getObjectParents(session, folderId, filter, false, false, objectInfos,
                 requiresObjectInfo);
 
@@ -578,7 +622,10 @@ public class JcrRepository {
             throw new CmisInvalidArgumentException("The root folder has no parent!");
         }
 
-        return parents.get(0).getObject();
+        ObjectData result = parents.get(0).getObject();
+        log.trace("Return folder parent for folder id [{}] with input parameters: filter [{}], requiresObjectInfo [{}]", folderId, filter, requiresObjectInfo);
+        log.debug("Return folder parent for folder id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);        
+        return result;
     }
 
     /**
@@ -588,7 +635,7 @@ public class JcrRepository {
             Boolean includeAllowableActions, Boolean includeRelativePathSegment, ObjectInfoHandler objectInfos,
             boolean requiresObjectInfo) {
 
-        log.debug("getObjectParents");
+        long startTime = System.currentTimeMillis();
 
         // get the file or folder
         JcrNode jcrNode = getJcrNode(session, objectId);
@@ -624,7 +671,10 @@ public class JcrRepository {
             result.setRelativePathSegment(parent.getName());
         }
 
-        return Collections.singletonList((ObjectParentData) result);
+        List<ObjectParentData> objectParents = Collections.singletonList((ObjectParentData) result);
+        log.trace("Return parents for object id [{}] with input parameters: filter [{}], includeAllowableActions [{}], includeRelativePathSegment [{}], objectInfos [{}], requiresObjectInfo [{}]", objectId, filter, includeAllowableActions, includeRelativePathSegment, objectInfos, requiresObjectInfo);
+        log.debug("Return parents for object id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);        
+        return objectParents;
     }
 
     /**
@@ -633,7 +683,7 @@ public class JcrRepository {
     public ObjectData getObjectByPath(Session session, String folderPath, String filter, boolean includeAllowableActions,
             boolean includeACL, ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
-        log.debug("getObjectByPath");
+        long startTime = System.currentTimeMillis();
 
         // check path 
         if (folderPath == null || !PathManager.isAbsolute(folderPath)) {
@@ -650,7 +700,12 @@ public class JcrRepository {
             jcrNode = root.getNode(path);
         }
 
-        return jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
+        ObjectData result = jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
+        
+        log.trace("Return object for folder path [{}] with input parameters: filter [{}], includeAllowableActions [{}], includeACL [{}], requiresObjectInfo [{}]", folderPath, filter, includeAllowableActions, includeACL, requiresObjectInfo);
+        log.debug("Return object for folder path [{}]. Time: {} ms", folderPath, System.currentTimeMillis() - startTime);                
+        
+        return result;
     }
 
     /**
@@ -821,7 +876,9 @@ public class JcrRepository {
     public List<ObjectData> getAllVersions(Session session, String objectId, String filter,
             Boolean includeAllowableActions, ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
 
-        log.debug("getAllVersions");
+        long startTime = System.currentTimeMillis();
+        
+        List<ObjectData> result;
 
         // check id
         if (objectId == null) {
@@ -861,16 +918,19 @@ public class JcrRepository {
 
             // CMIS mandates descending order
             Collections.reverse(allVersions);
-            return allVersions;
+            result = allVersions;
         }
         else {
             // Single version
             ObjectData objectData = jcrNode.compileObjectType(splitFilter, includeAllowableActions, objectInfos,
                     requiresObjectInfo);
 
-            return Collections.singletonList(objectData);
+            result = Collections.singletonList(objectData);
         }
-
+        
+        log.trace("Return all versions of object with id [{}] with input parameters: filter [{}], includeAllowableActions [{}], requiresObjectInfo [{}]", objectId, filter, includeAllowableActions, requiresObjectInfo);            
+        log.debug("Return all versions of object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis()-startTime); 
+        return result;
     }
 
     /**
@@ -880,7 +940,7 @@ public class JcrRepository {
             Boolean includeAllowableActions, BigInteger maxItems, BigInteger skipCount) {
 
         // unfiled todo
-        log.debug("query");
+        long startTime = System.currentTimeMillis();
 
         if (searchAllVersions) {
             throw new CmisNotSupportedException("Not supported: query for all versions");
@@ -990,6 +1050,9 @@ public class JcrRepository {
 
             result.setHasMoreItems(nodes.hasNext());
             result.setNumItems(BigInteger.valueOf(count));
+            
+            log.trace("Perform query [{}] with input parameters: searchAllVersions [{}], includeAllowableActions [{}], maxItems [{}], skipCount [{}]", statement, searchAllVersions, includeAllowableActions,  maxItems, skipCount);
+            log.debug("Perform query [{}] with results list size [{}]. Time: {} ms", statement, result.getNumItems(), System.currentTimeMillis() - startTime);    
             return result;
         }
         catch (RepositoryException e) {
