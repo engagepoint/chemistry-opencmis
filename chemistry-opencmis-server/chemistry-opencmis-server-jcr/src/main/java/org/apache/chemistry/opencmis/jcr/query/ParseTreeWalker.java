@@ -283,7 +283,8 @@ public class ParseTreeWalker<T> implements PredicateWalkerBase {
     }
 
     private T walkCol(Evaluator<T> evaluator, Tree node) {
-        return evaluator.col(node.getChild(0).getText());
+
+        return evaluator.col(node.getChild(node.getChildCount() - 1).getText());
     }
 
     private T walkTextAnd(Evaluator<T> evaluator, Tree node) {

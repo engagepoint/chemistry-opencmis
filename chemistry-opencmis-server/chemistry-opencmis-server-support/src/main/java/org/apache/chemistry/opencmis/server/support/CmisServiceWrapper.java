@@ -125,12 +125,14 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      * Converts the given exception into a CMIS exception.
      */
     protected CmisBaseException createCmisException(Exception e) {
+
         if (e == null) {
             // should never happen
             // if it happens its the fault of the framework...
-
+            LOG.error("Unknown exception!",e);
             return new CmisRuntimeException("Unknown exception!");
         } else if (e instanceof CmisBaseException) {
+            LOG.error("CMIS server exception!",e);
             return (CmisBaseException) e;
         } else {
             // should not happen if the connector works correctly

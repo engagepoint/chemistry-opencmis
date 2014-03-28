@@ -18,14 +18,8 @@
  */
 package org.apache.chemistry.opencmis.jcr.util;
 
-import org.apache.chemistry.opencmis.commons.PropertyIds;
-
 import java.util.Calendar;
 import java.util.GregorianCalendar;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
@@ -34,17 +28,6 @@ import javax.jcr.RepositoryException;
  * Miscellaneous utility functions
  */
 public final class Util {
-    public static final String CMIS_QUERY_PATTERN_STR ="[sS][eE][lL][eE][cC][tT]\\s+(.*)\\s+[fF][rR][oO][mM].*";
-    public static final Pattern CMIS_QUERY_PATTERN = Pattern.compile(CMIS_QUERY_PATTERN_STR);
-
-    private static final String CMIS_QUERY_REQUIRED_COLUMNS[] = {
-            PropertyIds.OBJECT_ID,
-            PropertyIds.OBJECT_TYPE_ID,
-            PropertyIds.BASE_TYPE_ID
-    };
-
-    public static final String CMIS_QUERY_ALL_COLUMNS = "*";
-
     private Util() {}
 
     /**
@@ -122,35 +105,4 @@ public final class Util {
     	return Boolean.valueOf(node.getSession().getRepository().getDescriptor(option));
     }
 
-    /**
-     * Parse statement and get set of columns
-     * @param statement query statetment string
-     * @return Set of columns
-     */
-    public static Set<String> getColumnsFromQueryStatement(final String statement) {
-        Matcher queryMatcher = CMIS_QUERY_PATTERN.matcher(statement.trim());
-        Set<String> res = new HashSet<String>(10);
-        if (queryMatcher.matches()) {
-            final String columnsStr = queryMatcher.group(1);
-
-            if (!CMIS_QUERY_ALL_COLUMNS.equals(columnsStr)) {
-                final String[] columns = columnsStr.split(",");
-                for(String col : columns) {
-                    String item = col.trim();
-                    if (!CMIS_QUERY_ALL_COLUMNS.equals(item)){
-                        res.add(item);
-                    }
-                }
-                for(String item : CMIS_QUERY_REQUIRED_COLUMNS){
-                    if (!res.contains(item)) {
-                        res.add(item);
-                    }
-                }
-            }
-        }
-        if (res.isEmpty()) {
-            res.add(CMIS_QUERY_ALL_COLUMNS);
-        }
-        return res;
-    }
 }
