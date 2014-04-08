@@ -568,6 +568,8 @@ public class QueryObject {
             } else if (TypeValidator.typeContainsPropertyWithQueryName(td, propName)) {
                 ++noFound;
                 tdFound = td;
+            } else {
+                noFound = 1;
             }
         }
         if (noFound == 0) {
