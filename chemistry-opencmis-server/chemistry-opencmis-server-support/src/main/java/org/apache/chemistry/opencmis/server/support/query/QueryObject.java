@@ -30,6 +30,7 @@ import java.util.Map.Entry;
 import org.antlr.runtime.tree.Tree;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
+import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.server.support.TypeManager;
 import org.apache.chemistry.opencmis.server.support.TypeValidator;
@@ -568,8 +569,8 @@ public class QueryObject {
             } else if (TypeValidator.typeContainsPropertyWithQueryName(td, propName)) {
                 ++noFound;
                 tdFound = td;
-            } else {
-                noFound = 1;
+            } else if((tdFound = findTypeDefinitionWithProperty(typeMgr.getTypeByQueryName(typeQueryName), propName)) != null){
+                ++noFound;
             }
         }
         if (noFound == 0) {
@@ -583,6 +584,20 @@ public class QueryObject {
                 validateColumnReferenceAndResolveType(tdFound, colRef);
             }
         }
+    }
+
+    protected TypeDefinition findTypeDefinitionWithProperty(TypeDefinition type, String propName){
+        if (TypeValidator.typeContainsPropertyWithQueryName(type, propName)){
+            return type;
+        } else {
+            TypeDefinition childrenType;
+            for (TypeDefinitionContainer typeDefinitionContainer : typeMgr.getTypeById(type.getId()).getChildren()){
+                if ((childrenType = findTypeDefinitionWithProperty(typeDefinitionContainer.getTypeDefinition(), propName)) != null){
+                    return childrenType;
+                }
+            }
+        }
+        return null;
     }
 
     public boolean isPredfinedQueryName(String name) {
