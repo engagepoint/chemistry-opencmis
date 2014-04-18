@@ -78,6 +78,7 @@ import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.jcr.query.QueryTranslator;
 import org.apache.chemistry.opencmis.jcr.type.JcrDocumentTypeHandler;
 import org.apache.chemistry.opencmis.jcr.type.JcrFolderTypeHandler;
+import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandler;
 import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.apache.chemistry.opencmis.jcr.util.Util;
 import org.slf4j.Logger;
@@ -911,7 +912,28 @@ public class JcrRepository {
 
             @Override
             protected String jcrPathFromCol(TypeDefinition fromType, String name) {
-                return typeHandlerManager.getIdentifierMap(fromType.getId()).jcrPathFromCol(name);
+                String jcrPathFromCol = getJcrPathFromCol(fromType, name);
+                if (jcrPathFromCol == null)
+                     throw new CmisRuntimeException("epta!!: " + fromType.getId() + "  and " + name);
+                return jcrPathFromCol;
+            }
+
+            protected String getJcrPathFromCol(TypeDefinition fromType, String name) {
+                try {
+                    return typeHandlerManager.getIdentifierMap(fromType.getId()).jcrPathFromCol(name);
+                } catch (CmisRuntimeException ee) {
+                    for (JcrTypeHandler jcrTypeHandler : typeHandlerManager.getTypeHandlers().values()) {
+                        if (jcrTypeHandler.getTypeDefinition().getParentTypeId() != null &&
+                                jcrTypeHandler.getTypeDefinition().getParentTypeId().equals(fromType.getId())) {
+                            String jcrPathFromCol = getJcrPathFromCol(jcrTypeHandler.getTypeDefinition(), name);
+                            if (jcrPathFromCol != null) {
+                                return jcrPathFromCol;
+                            }
+                        }
+                    }
+                }
+
+                return null;
             }
 
             @Override
