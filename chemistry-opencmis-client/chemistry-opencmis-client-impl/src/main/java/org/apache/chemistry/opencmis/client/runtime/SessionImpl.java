@@ -84,11 +84,14 @@ import org.apache.chemistry.opencmis.commons.spi.Holder;
 import org.apache.chemistry.opencmis.commons.spi.NavigationService;
 import org.apache.chemistry.opencmis.commons.spi.RelationshipService;
 import org.apache.chemistry.opencmis.commons.spi.RepositoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Persistent model session.
  */
 public class SessionImpl implements Session {
+    private static final Logger log = LoggerFactory.getLogger(SessionImpl.class);
 
     private static final OperationContext DEFAULT_CONTEXT = new OperationContextImpl(null, false, true, false,
             IncludeRelationships.NONE, null, true, null, true, 100);
@@ -389,6 +392,7 @@ public class SessionImpl implements Session {
     }
 
     public CmisObject getObject(String objectId, OperationContext context) {
+        long startTime = System.currentTimeMillis();
         if (objectId == null) {
             throw new IllegalArgumentException("Object Id must be set!");
         }
@@ -417,7 +421,9 @@ public class SessionImpl implements Session {
         if (context.isCacheEnabled()) {
             this.cache.put(result, context.getCacheKey());
         }
-
+        
+        log.debug("Get object by ID [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime); 
+        
         return result;
     }
 
@@ -426,6 +432,7 @@ public class SessionImpl implements Session {
     }
 
     public CmisObject getObjectByPath(String path, OperationContext context) {
+        long startTime = System.currentTimeMillis();
         if (path == null) {
             throw new IllegalArgumentException("Path must be set!");
         }
@@ -454,7 +461,7 @@ public class SessionImpl implements Session {
         if (context.isCacheEnabled()) {
             this.cache.putPath(path, result, context.getCacheKey());
         }
-
+        log.debug("Get object by path [{}]. Time: {} ms", path, System.currentTimeMillis() - startTime); 
         return result;
     }
 
@@ -583,6 +590,7 @@ public class SessionImpl implements Session {
 
     public ItemIterable<QueryResult> query(final String statement, final boolean searchAllVersions,
             OperationContext context) {
+        long startTime = System.currentTimeMillis();
         if (context == null) {
             throw new IllegalArgumentException("Operation context must be set!");
         }
@@ -590,8 +598,7 @@ public class SessionImpl implements Session {
         final DiscoveryService discoveryService = getBinding().getDiscoveryService();
         final ObjectFactory objectFactory = this.getObjectFactory();
         final OperationContext ctxt = new OperationContextImpl(context);
-
-        return new CollectionIterable<QueryResult>(new AbstractPageFetcher<QueryResult>(ctxt.getMaxItemsPerPage()) {
+        ItemIterable<QueryResult> result = new CollectionIterable<QueryResult>(new AbstractPageFetcher<QueryResult>(ctxt.getMaxItemsPerPage()) {
 
             @Override
             protected AbstractPageFetcher.Page<QueryResult> fetchPage(long skipCount) {
@@ -618,10 +625,14 @@ public class SessionImpl implements Session {
                         resultList.hasMoreItems());
             }
         });
+        log.debug("Perform query [{}] with parameters: searchAllVersions = [{}]. Time: {} ms", statement, searchAllVersions, System.currentTimeMillis() - startTime); 
+
+        return result;
     }
 
     public ItemIterable<CmisObject> queryObjects(String typeId, String where, final boolean searchAllVersions,
             OperationContext context) {
+        long startTime = System.currentTimeMillis();
         if (typeId == null || typeId.trim().length() == 0) {
             throw new IllegalArgumentException("Type id must be set!");
         }
@@ -656,8 +667,7 @@ public class SessionImpl implements Session {
             statement.append(" ORDER BY ");
             statement.append(orderBy);
         }
-
-        return new CollectionIterable<CmisObject>(new AbstractPageFetcher<CmisObject>(ctxt.getMaxItemsPerPage()) {
+        ItemIterable<CmisObject> result = new CollectionIterable<CmisObject>(new AbstractPageFetcher<CmisObject>(ctxt.getMaxItemsPerPage()) {
 
             @Override
             protected AbstractPageFetcher.Page<CmisObject> fetchPage(long skipCount) {
@@ -684,6 +694,8 @@ public class SessionImpl implements Session {
                         resultList.hasMoreItems());
             }
         });
+        log.debug("Perform queryObjects with parameters: typeId = [{}], where = [{}], searchAllVersions = [{}]. Time: {} ms", typeId, where, searchAllVersions, System.currentTimeMillis() - startTime); 
+        return result;
     }
 
     public QueryStatement createQueryStatement(final String statement) {
@@ -698,6 +710,7 @@ public class SessionImpl implements Session {
      * {@code WebService} or an {@code InMemory} provider is selected.
      */
     public void connect() {
+        long startTime = System.currentTimeMillis();
         lock.writeLock().lock();
         try {
             this.binding = CmisBindingHelper.createBinding(parameters, authenticationProvider);
@@ -713,6 +726,7 @@ public class SessionImpl implements Session {
         } finally {
             lock.writeLock().unlock();
         }
+        log.debug("Connect to CMIS provider. Time: {} ms", System.currentTimeMillis() - startTime);
     }
 
     public CmisBinding getBinding() {
@@ -744,6 +758,7 @@ public class SessionImpl implements Session {
 
     public ObjectId createDocument(Map<String, ?> properties, ObjectId folderId, ContentStream contentStream,
             VersioningState versioningState, List<Policy> policies, List<Ace> addAces, List<Ace> removeAces) {
+        long startTime = System.currentTimeMillis();
         if ((properties == null) || (properties.isEmpty())) {
             throw new IllegalArgumentException("Properties must not be empty!");
         }
@@ -760,8 +775,10 @@ public class SessionImpl implements Session {
         if (newId == null) {
             return null;
         }
-
-        return createObjectId(newId);
+        ObjectId result = createObjectId(newId);
+        log.trace("Create document with parameters: properties = [{}], folderId = [{}], versioningState = [{}].", properties, folderId == null ? "null" : folderId.getId(), versioningState);
+        log.debug("Create document. Time: {} ms", System.currentTimeMillis() - startTime);
+        return result;
     }
 
     public ObjectId createDocumentFromSource(ObjectId source, Map<String, ?> properties, ObjectId folderId,
@@ -803,7 +820,8 @@ public class SessionImpl implements Session {
     }
 
     public ObjectId createFolder(Map<String, ?> properties, ObjectId folderId, List<Policy> policies,
-            List<Ace> addAces, List<Ace> removeAces) {
+            List<Ace> addAces, List<Ace> removeAces) {        
+        long startTime = System.currentTimeMillis();
         if ((folderId == null) || (folderId.getId() == null)) {
             throw new IllegalArgumentException("Folder Id must be set!");
         }
@@ -819,8 +837,11 @@ public class SessionImpl implements Session {
         if (newId == null) {
             return null;
         }
-
-        return createObjectId(newId);
+        ObjectId result = createObjectId(newId);
+        log.trace("Create folder with parameters: properties = [{}], folderId = [{}].", properties, folderId == null ? "null" : folderId.getId());
+        log.debug("Create folder. Time: {} ms", System.currentTimeMillis() - startTime);
+        
+        return result;
     }
 
     public ObjectId createPolicy(Map<String, ?> properties, ObjectId folderId, List<Policy> policies,
