@@ -590,7 +590,6 @@ public class SessionImpl implements Session {
 
     public ItemIterable<QueryResult> query(final String statement, final boolean searchAllVersions,
             OperationContext context) {
-        long startTime = System.currentTimeMillis();
         if (context == null) {
             throw new IllegalArgumentException("Operation context must be set!");
         }
@@ -625,8 +624,8 @@ public class SessionImpl implements Session {
                         resultList.hasMoreItems());
             }
         });
-        log.debug("Perform query [{}] with parameters: searchAllVersions = [{}]. Time: {} ms", statement, searchAllVersions, System.currentTimeMillis() - startTime); 
-
+        log.debug("Perform query [{}] with parameters: searchAllVersions = [{}]", statement, searchAllVersions); 
+        
         return result;
     }
 
