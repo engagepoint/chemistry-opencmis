@@ -19,6 +19,7 @@
 
 package org.apache.chemistry.opencmis.jcr;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Instances of this class represent a cmis:folder backed by an underlying JCR <code>Node</code>. 
  */
-public class JcrFolder extends JcrNode {
+public class JcrFolder extends JcrNode {    
     private static final Logger log = LoggerFactory.getLogger(JcrFolder.class);
 
     public JcrFolder(Node node, JcrTypeManager typeManager, PathManager pathManager, JcrTypeHandlerManager typeHandlerManager) {
@@ -187,6 +188,7 @@ public class JcrFolder extends JcrNode {
             }
         }
         catch (RepositoryException e) {
+            log.error("Can't delete a tree.", e);            
             result.setIds(Collections.singletonList(id));
         }
 
@@ -323,21 +325,20 @@ public class JcrFolder extends JcrNode {
         }
     }
 
-    //------------------------------------------< private >---
-
+    //------------------------------------------< private >---        
     private static boolean hasCheckOuts(Node node) throws RepositoryException {
-        // Build xpath query of the form
-        // '//path/to/node//*[jcr:isCheckedOut='true']'
-        String xPath = "/*[jcr:isCheckedOut='true']";
+        // Build SQL query of the form
+        //SELECT * FROM [__ALLNODES__] AS nodeSet1 WHERE (PATH(nodeSet1) LIKE '%/path/to/node[%]/%' AND nodeSet1.[jcr:isCheckedOut] = 'true')
         String path = node.getPath();
         if ("/".equals(path)) {
             path = "";
         }
-        xPath = '/' + Util.escape(path) + xPath;
+        String sqlQuery = "SELECT * FROM [__ALLNODES__] AS nodeSet1 WHERE (PATH(nodeSet1) LIKE '%" + path + "[%]/%' AND nodeSet1.[jcr:isCheckedOut] = 'true')";
+        log.debug("Sql query to check outs {}", sqlQuery);
 
         // Execute query
         QueryManager queryManager = node.getSession().getWorkspace().getQueryManager();
-        Query query = queryManager.createQuery(xPath, Query.XPATH);
+        Query query =  queryManager.createQuery(sqlQuery, Query.JCR_SQL2);
         QueryResult queryResult = query.execute();
         return queryResult.getNodes().hasNext();
     }
