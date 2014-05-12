@@ -18,7 +18,7 @@
     <parent>
         <artifactId>chemistry-opencmis</artifactId>
         <groupId>org.apache.chemistry.opencmis</groupId>
-        <version>0.10.0.30-EP</version>
+        <version>0.10.0.31-EP-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
