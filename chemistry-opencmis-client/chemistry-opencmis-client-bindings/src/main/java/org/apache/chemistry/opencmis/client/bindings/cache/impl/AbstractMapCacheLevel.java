@@ -21,12 +21,15 @@ package org.apache.chemistry.opencmis.client.bindings.cache.impl;
 import java.util.Map;
 
 import org.apache.chemistry.opencmis.client.bindings.cache.CacheLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract Map cache.
  */
 public abstract class AbstractMapCacheLevel implements CacheLevel {
 
+    private static final Logger log = LoggerFactory.getLogger(AbstractMapCacheLevel.class);
     private static final long serialVersionUID = 1L;
 
     private Map<String, Object> fMap;
@@ -37,16 +40,21 @@ public abstract class AbstractMapCacheLevel implements CacheLevel {
     public abstract void initialize(Map<String, String> parameters);
 
     public Object get(String key) {
-        Object value = fMap.get(key);
+        Object value = null;
+        try {
+            value = fMap.get(key);
 
-        if ((value == null) && fFallbackEnabled) {
-            value = fMap.get(fFallbackKey);
-        }
-
-        if ((value == null) && fSingleValueEnabled) {
-            if (fMap.size() == 1) {
-                value = fMap.values().iterator().next();
+            if ((value == null) && fFallbackEnabled) {
+                value = fMap.get(fFallbackKey);
             }
+
+            if ((value == null) && fSingleValueEnabled) {
+                if (fMap.size() == 1) {
+                    value = fMap.values().iterator().next();
+                }
+            }
+        } catch (NullPointerException e) {
+            log.warn("Can't get value from cache due to exception {}. Skip exception and return null.", e.getMessage());            
         }
 
         return value;
