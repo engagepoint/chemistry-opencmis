@@ -491,6 +491,8 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected abstract Node getContextNode() throws RepositoryException;
+    
+    protected abstract Node getContextNode(boolean useChildrenCache) throws RepositoryException;
 
     /**
      * @return  the value of the <code>cmis:baseTypeId</code> property
@@ -511,6 +513,41 @@ public abstract class JcrNode {
      * @param objectInfo
      * @throws RepositoryException
      */
+    protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo, String fileName) throws RepositoryException {
+        String typeId = getTypeIdInternal();
+        BaseTypeId baseTypeId = getBaseTypeId();
+
+        objectInfo.setBaseType(baseTypeId);
+        objectInfo.setTypeId(typeId);
+        objectInfo.setHasAcl(false);
+        objectInfo.setVersionSeriesId(getVersionSeriesId());
+        objectInfo.setRelationshipSourceIds(null);
+        objectInfo.setRelationshipTargetIds(null);
+        objectInfo.setRenditionInfos(null);
+        objectInfo.setSupportsPolicies(false);
+        objectInfo.setSupportsRelationships(false);
+
+        compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId, fileName);
+
+        // created and modified by
+        String createdBy = getCreatedBy();
+        addPropertyString(properties, typeId, filter, PropertyIds.CREATED_BY, createdBy);
+        objectInfo.setCreatedBy(createdBy);
+
+        addPropertyString(properties, typeId, filter, PropertyIds.LAST_MODIFIED_BY, getLastModifiedBy());
+
+        // creation and modification date
+        GregorianCalendar created = getCreated();
+        addPropertyDateTime(properties, typeId, filter, PropertyIds.CREATION_DATE, created);
+        objectInfo.setCreationDate(created);
+
+        GregorianCalendar lastModified = getLastModified();
+        addPropertyDateTime(properties, typeId, filter, PropertyIds.LAST_MODIFICATION_DATE, lastModified);
+        objectInfo.setLastModificationDate(lastModified);
+
+        addPropertyString(properties, typeId, filter, PropertyIds.CHANGE_TOKEN, getChangeToken());
+    }
+    
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
 
@@ -548,6 +585,28 @@ public abstract class JcrNode {
         addPropertyString(properties, typeId, filter, PropertyIds.CHANGE_TOKEN, getChangeToken());
     }
 
+    
+            
+        protected void compileBaseProperties(PropertiesImpl properties,
+			Set<String> filter, ObjectInfoImpl objectInfo, String typeId,
+			BaseTypeId baseTypeId, String name) throws RepositoryException {       
+             // id
+            String objectId = getObjectId();
+            addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_ID, objectId);
+            objectInfo.setId(objectId);
+
+            if (PathManager.CMIS_ROOT_ID.equals(objectId) && "".equals(name)) {
+                //set default name for the root node
+                name = PathManager.CMIS_ROOT_ID;
+            }
+            addPropertyString(properties, typeId, filter, PropertyIds.NAME, name);
+            objectInfo.setName(name);
+
+            // base type and type name
+            addPropertyId(properties, typeId, filter, PropertyIds.BASE_TYPE_ID, baseTypeId.value());
+            addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_TYPE_ID, typeId);
+        }     
+            
 	protected void compileBaseProperties(PropertiesImpl properties,
 			Set<String> filter, ObjectInfoImpl objectInfo, String typeId,
 			BaseTypeId baseTypeId) throws RepositoryException {
@@ -632,7 +691,7 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getCreatedBy() throws RepositoryException {
-        return getPropertyOrElse(getContextNode(), Property.JCR_CREATED_BY, USER_UNKNOWN);
+        return getPropertyOrElse(getContextNode(true), Property.JCR_CREATED_BY, USER_UNKNOWN);
     }
 
     /**

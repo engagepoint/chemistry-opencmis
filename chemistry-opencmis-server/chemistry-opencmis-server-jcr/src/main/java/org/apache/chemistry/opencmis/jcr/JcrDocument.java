@@ -76,8 +76,12 @@ public abstract class JcrDocument extends JcrNode {
      * @throws CmisRuntimeException
      */
     public ContentStream getContentStream() {
+        return getContentStream(false);
+    }
+    
+    public ContentStream getContentStream(boolean useChildrenCache) {
         try {
-            Node contentNode = getContextNode();
+            Node contentNode = getContextNode(useChildrenCache);
             Property data = contentNode.getProperty(Property.JCR_DATA);
 
             // compile data
@@ -224,7 +228,10 @@ public abstract class JcrDocument extends JcrNode {
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
 
-        super.compileProperties(properties, filter, objectInfo);
+        // file name
+        String fileName = getNodeName();
+        
+        super.compileProperties(properties, filter, objectInfo, fileName);
 
         objectInfo.setHasContent(true);
         objectInfo.setHasParent(true);
@@ -246,8 +253,6 @@ public abstract class JcrDocument extends JcrNode {
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_MIME_TYPE, mimeType);
         objectInfo.setContentType(mimeType);
 
-        // file name
-        String fileName = getNodeName();
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_FILE_NAME, fileName);
         objectInfo.setFileName(fileName);
 

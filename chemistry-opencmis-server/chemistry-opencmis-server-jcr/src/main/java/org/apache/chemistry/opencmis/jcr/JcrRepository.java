@@ -130,7 +130,7 @@ public class JcrRepository {
     public Session login(Credentials credentials, String workspaceName) {
         long startTime = System.currentTimeMillis();
         try {
-            Session session = repository.login(credentials, workspaceName);
+            Session session = repository.login(credentials, workspaceName);         
             log.debug("Login to underlying JCR repository. Time: {} ms", System.currentTimeMillis() - startTime);   
             return session;
         }
@@ -490,7 +490,7 @@ public class JcrRepository {
 
         // get the node
         JcrDocument jcrDocument = getJcrNode(session, objectId).asDocument();
-        ContentStream contentStream = jcrDocument.getContentStream();       
+        ContentStream contentStream = jcrDocument.getContentStream(true);       
         log.debug("Return content stream for object id [{}] with offset [{}] and length [{}]. Time: {} ms", objectId, offset, length, System.currentTimeMillis() - startTime);
         return contentStream;
     }

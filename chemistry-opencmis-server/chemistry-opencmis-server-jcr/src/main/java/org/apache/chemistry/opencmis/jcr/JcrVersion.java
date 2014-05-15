@@ -122,4 +122,9 @@ public class JcrVersion extends JcrVersionBase {
     	return version.getName();
     }
 
+    @Override
+    protected Node getContextNode(boolean useChildrenCache) throws RepositoryException {
+        return getContextNode();
+    }
+
 }

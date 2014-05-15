@@ -115,4 +115,9 @@ public class JcrPrivateWorkingCopy extends JcrVersionBase {
         return "";
     }
 
+    @Override
+    protected Node getContextNode(boolean useChildrenCache) throws RepositoryException {
+        return getContextNode();
+    }
+
 }

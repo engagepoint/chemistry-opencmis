@@ -19,7 +19,6 @@
 
 package org.apache.chemistry.opencmis.jcr;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,7 +52,6 @@ import org.apache.chemistry.opencmis.commons.impl.server.ObjectInfoImpl;
 import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.apache.chemistry.opencmis.jcr.util.FilterIterator;
 import org.apache.chemistry.opencmis.jcr.util.Predicate;
-import org.apache.chemistry.opencmis.jcr.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -361,5 +359,10 @@ public class JcrFolder extends JcrNode {
         }
 		addPropertyList(properties, typeId, filter, PropertyIds.ALLOWED_CHILD_OBJECT_TYPE_IDS, typeIds);
 	}
+
+    @Override
+    protected Node getContextNode(boolean useChildrenCache) throws RepositoryException {
+        return getContextNode();
+    }
     
 }

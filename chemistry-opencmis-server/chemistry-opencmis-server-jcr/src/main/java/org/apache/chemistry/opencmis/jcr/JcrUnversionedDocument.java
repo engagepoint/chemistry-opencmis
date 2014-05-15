@@ -31,6 +31,7 @@ import java.util.Set;
  * Instances of this class represent a non versionable cmis:document backed by an underlying JCR <code>Node</code>. 
  */
 public class JcrUnversionedDocument extends JcrDocument {
+    private static final String USE_CHILDREN_CACHE_FLAG = "~use_children_cache~";
     private Node contextNode;
     
     public JcrUnversionedDocument(Node node, JcrTypeManager typeManager, PathManager pathManager, JcrTypeHandlerManager typeHandlerManager) {
@@ -41,10 +42,19 @@ public class JcrUnversionedDocument extends JcrDocument {
 
     @Override
     protected Node getContextNode() throws RepositoryException {
+        return getContextNode(false);
+    }
+    
+    @Override
+    protected Node getContextNode(boolean useChildrenCache) throws RepositoryException {
         if (contextNode != null) {
             return contextNode;
         }
-        contextNode = getNode().getNode(Node.JCR_CONTENT);
+        if (useChildrenCache) {
+            contextNode = getNode().getNode(Node.JCR_CONTENT+USE_CHILDREN_CACHE_FLAG);        
+        } else {
+            contextNode = getNode().getNode(Node.JCR_CONTENT);  
+        }
         return contextNode;
     }
 
