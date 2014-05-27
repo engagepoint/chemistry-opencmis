@@ -375,9 +375,16 @@ public abstract class JcrNode {
             if (rename) {
                 String destPath = PathManager.createCmisPath(node.getParent().getPath(), newName);
                 session.move(node.getPath(), destPath);
-                newNode = session.getNode(destPath);
-            }
-            else {
+                session.save();
+                newNode = session.getNodeByIdentifier(node.getIdentifier());
+
+                if(!newNode.getPath().equals(destPath)||!newNode.getName().equals(newName)){
+                throw new PathNotFoundException(String.format("Problems encountered while" +
+                        " renaming! No node was found using new path '%s' or new" +
+                        " node name '%s' hasn't been updated",destPath,newName));
+                }
+
+            } else {
                 newNode = node;
             }
 
