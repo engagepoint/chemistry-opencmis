@@ -90,6 +90,7 @@ import org.slf4j.LoggerFactory;
 public class JcrRepository {
     private static final Logger log = LoggerFactory.getLogger(JcrRepository.class);
     public static final String JCR_UNFILED = "jcr:unfiled";
+    public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -1033,7 +1034,12 @@ public class JcrRepository {
             while (nodes.hasNext() && result.getObjects().size() < max) {
                 Node node = nodes.nextNode();
 
-                if (node.getIdentifier().endsWith(JCR_UNFILED)) continue;
+                String nodeIdentifier = node.getIdentifier();
+
+                if (nodeIdentifier.contains("{")) {
+                    if (nodeIdentifier.endsWith(JCR_UNFILED_FULL) || nodeIdentifier.endsWith(JCR_UNFILED))  continue;
+                }
+                else if (nodeIdentifier.endsWith(JCR_UNFILED)) continue;
 
                 JcrNode jcrNode = typeHandlerManager.create(node);
                 count++;
