@@ -379,9 +379,9 @@ public abstract class JcrNode {
                 newNode = session.getNodeByIdentifier(node.getIdentifier());
 
                 if(!newNode.getPath().equals(destPath)||!newNode.getName().equals(newName)){
-                throw new PathNotFoundException(String.format("Problems encountered while" +
-                        " renaming! No node was found using new path '%s' or new" +
-                        " node name '%s' hasn't been updated",destPath,newName));
+                throw new PathNotFoundException(
+                        String.format("No node was found using new path '%s' or node name '%s' hasn't been updated",
+                        destPath,newName));
                 }
 
             } else {

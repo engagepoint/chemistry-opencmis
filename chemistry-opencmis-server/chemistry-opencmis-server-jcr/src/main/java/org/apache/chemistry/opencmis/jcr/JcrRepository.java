@@ -1035,12 +1035,11 @@ public class JcrRepository {
                 Node node = nodes.nextNode();
 
                 String nodeIdentifier = node.getIdentifier();
-                boolean isJcrUnfiled =  node.getIdentifier().endsWith(JCR_UNFILED);
-                boolean isJcrUnfiledFull = node.getIdentifier().endsWith(JCR_UNFILED_FULL);
-                if(nodeIdentifier.contains("{")){
-                    if (isJcrUnfiledFull||isJcrUnfiled)  continue;
+
+                if (nodeIdentifier.contains("{")) {
+                    if (nodeIdentifier.endsWith(JCR_UNFILED_FULL) || nodeIdentifier.endsWith(JCR_UNFILED))  continue;
                 }
-                else if (isJcrUnfiled) continue;
+                else if (nodeIdentifier.endsWith(JCR_UNFILED)) continue;
 
                 JcrNode jcrNode = typeHandlerManager.create(node);
                 count++;
