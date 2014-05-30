@@ -18,13 +18,17 @@
  */
 package org.apache.chemistry.opencmis.commons.exceptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigInteger;
+import java.util.UUID;
 
 /**
  * Base exception class for all CMIS client exceptions.
  */
 public abstract class CmisBaseException extends RuntimeException {
-
+    private static final Logger LOG = LoggerFactory.getLogger(CmisBaseException.class);
     private static final long serialVersionUID = 1L;
 
     /** Error code used by the Web Services binding. */
@@ -33,11 +37,15 @@ public abstract class CmisBaseException extends RuntimeException {
     /** Content the of the error page returned by the AtomPub server. */
     private String errorContent;
 
+    /**Uid for the error to find exception quickly in logs.*/
+    private String uid = UUID.randomUUID().toString();
+
     /**
      * Default constructor.
      */
     protected CmisBaseException() {
         super();
+
     }
 
     /**
@@ -159,4 +167,19 @@ public abstract class CmisBaseException extends RuntimeException {
      * Returns the name of the exception as defined in the CMIS specification.
      */
     public abstract String getExceptionName();
+
+
+    @Override
+    public String getMessage(){
+         StringBuilder messageBuilder = new StringBuilder();
+        messageBuilder.append("IncidentID: ")
+                .append(uid)
+                .append("\n")
+                .append(super.getMessage());
+        return messageBuilder.toString();
+    }
+
+    public String getUid() {
+        return uid;
+    }
 }
