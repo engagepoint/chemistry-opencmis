@@ -40,6 +40,8 @@ public abstract class CmisBaseException extends RuntimeException {
     /**Uid for the error to find exception quickly in logs.*/
     private String uid = UUID.randomUUID().toString();
 
+    /**indicates is exception logged or not*/
+    private boolean logged = false;
     /**
      * Default constructor.
      */
@@ -169,17 +171,15 @@ public abstract class CmisBaseException extends RuntimeException {
     public abstract String getExceptionName();
 
 
-    @Override
-    public String getMessage(){
-         StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append("IncidentID: ")
-                .append(uid)
-                .append("\n")
-                .append(super.getMessage());
-        return messageBuilder.toString();
-    }
-
     public String getUid() {
         return uid;
+    }
+
+    public boolean isLogged() {
+        return logged;
+    }
+
+    public void setLogged(boolean logged) {
+        this.logged = logged;
     }
 }
