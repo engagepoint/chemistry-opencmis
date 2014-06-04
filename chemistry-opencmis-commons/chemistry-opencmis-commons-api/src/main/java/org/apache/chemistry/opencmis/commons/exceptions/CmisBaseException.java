@@ -18,9 +18,6 @@
  */
 package org.apache.chemistry.opencmis.commons.exceptions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigInteger;
 import java.util.UUID;
 
@@ -28,7 +25,6 @@ import java.util.UUID;
  * Base exception class for all CMIS client exceptions.
  */
 public abstract class CmisBaseException extends RuntimeException {
-    private static final Logger LOG = LoggerFactory.getLogger(CmisBaseException.class);
     private static final long serialVersionUID = 1L;
 
     /** Error code used by the Web Services binding. */
@@ -42,6 +38,7 @@ public abstract class CmisBaseException extends RuntimeException {
 
     /**indicates is exception logged or not*/
     private boolean logged = false;
+
     /**
      * Default constructor.
      */
@@ -182,4 +179,5 @@ public abstract class CmisBaseException extends RuntimeException {
     public void setLogged(boolean logged) {
         this.logged = logged;
     }
+
 }
