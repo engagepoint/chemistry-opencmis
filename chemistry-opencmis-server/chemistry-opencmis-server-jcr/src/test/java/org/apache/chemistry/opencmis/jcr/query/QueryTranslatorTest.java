@@ -194,6 +194,18 @@ public class QueryTranslatorTest {
         assertEquals(
                 "/jcr:root//element(*,jcr:document)[not(((@jcr:name = 1 or @jcr:name = 2) or @jcr:name = 3))]",
                 queryTranslator.translateToXPath("select * from cmis:document where cmis:name not in (1,2,3)"));
+
+        assertEquals(
+                "/jcr:root//element(*,jcr:document)[@jcr:name = 'foo']",
+                queryTranslator.translateToXPath("select * from cmis:document where 'foo' = any cmis:name"));
+
+        assertEquals(
+                "/jcr:root//element(*,jcr:document)[((@jcr:name = 1 or @jcr:name = 2) or @jcr:name = 3)]",
+                queryTranslator.translateToXPath("select * from cmis:document where any cmis:name in (1,2,3)"));
+
+        assertEquals(
+                "/jcr:root//element(*,jcr:document)[not(((@jcr:name = 1 or @jcr:name = 2) or @jcr:name = 3))]",
+                queryTranslator.translateToXPath("select * from cmis:document where any cmis:name not in (1,2,3)"));
     }
 
     @Test
@@ -291,15 +303,6 @@ public class QueryTranslatorTest {
             fail();
         }
         catch (CmisInvalidArgumentException expected) { }
-    }
-
-    @Test
-    public void testNotImplemented() {
-        try {
-            queryTranslator.translateToXPath("select * from cmis:document where 'foo' = ANY cmis:name");
-            fail();
-        }
-        catch (CmisNotSupportedException expected) {}
     }
 
     @Test

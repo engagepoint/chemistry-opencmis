@@ -188,6 +188,21 @@ public class XPathBuilderTest {
                 "not(((cmis:name = 1 or cmis:name = 2) or cmis:name = 3))",
                 list(),
                 null);
+
+        check("select * from cmis:document where 'foo' = any cmis:name",
+                "cmis:name = 'foo'",
+                list(),
+                null);
+
+        check("select * from cmis:document where any cmis:name in (1,2,3)",
+                "((cmis:name = 1 or cmis:name = 2) or cmis:name = 3)",
+                list(),
+                null);
+
+        check("select * from cmis:document where any cmis:name not in (1,2,3)",
+                "not(((cmis:name = 1 or cmis:name = 2) or cmis:name = 3))",
+                list(),
+                null);
     }
 
     @Test
@@ -221,15 +236,6 @@ public class XPathBuilderTest {
                 "false()",
                 list("folder1Id/", "folder2Id//"),
                 false);
-    }
-
-    @Test
-    public void testNotImplemented() {
-        try {
-            execute("select * from cmis:document where 'foo' = ANY cmis:name");
-            fail();
-        }
-        catch (CmisNotSupportedException expected) {}
     }
 
     @Test

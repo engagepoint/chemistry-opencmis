@@ -7,17 +7,21 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertiesImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyIdImpl;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl;
 import org.apache.chemistry.opencmis.jcr.AbstractJcrSessionTest;
+import org.apache.chemistry.opencmis.jcr.impl.DefaultDocumentTypeHandler;
+import org.apache.chemistry.opencmis.jcr.impl.DefaultUnversionedDocumentTypeHandler;
+import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 
 /**
- * That test checks the results of CMIS queries
+ * That test checks the results of CMIS queries.
  *
  * @author: vadym.karko
  * @since: 6/3/14 3:02 PM
@@ -25,6 +29,14 @@ import static org.junit.Assert.assertArrayEquals;
 public class QueryTest extends AbstractJcrSessionTest
 {
     private List<String> garbage = new ArrayList<String>(); // used for deleting all created documents
+
+    @Override
+    protected void addToTypeHandlerManager(final JcrTypeHandlerManager typeHandlerManager)
+    {
+        typeHandlerManager.addHandler(new DefaultDocumentTypeHandler());
+        typeHandlerManager.addHandler(new DefaultUnversionedDocumentTypeHandler());
+        typeHandlerManager.addHandler(new DefaultTestTypeHandler());
+    }
 
     @Override
     @Before
@@ -35,8 +47,9 @@ public class QueryTest extends AbstractJcrSessionTest
         String root = getRootFolder().getId();
         createFolder("TemplateG1", root);
         createFolder("TemplateG2", root);
-        createFolder("TemplateG3", root);
-        createFolder("TemplateG4", root);
+        createFolder("TemplateG3", root, "tag1", "tag2", "tag3");
+        createFolder("TemplateG4", root, "tag1", "tag2", "tag3", "tag4");
+        createFolder("TemplateG5", root, "tag1", "tag2", "tag3", "tag5");
     }
 
     @After
@@ -53,7 +66,7 @@ public class QueryTest extends AbstractJcrSessionTest
     public void shouldQueryIn() throws Exception
     {
         verifyQueryResults(
-                "SELECT * FROM cmis:folder WHERE cmis:name IN ('TemplateG1', 'TemplateG2', 'TemplateG3')", "cmis:name",
+                "SELECT * FROM cmis:folder WHERE cmis:name IN ('TemplateG1', 'TemplateG2', 'TemplateG3')",
                 "TemplateG1", "TemplateG2", "TemplateG3"
         );
     }
@@ -62,8 +75,35 @@ public class QueryTest extends AbstractJcrSessionTest
     public void shouldQueryNotIn() throws Exception
     {
         verifyQueryResults(
-                "SELECT * FROM cmis:folder WHERE cmis:name NOT IN ('TemplateG1', 'TemplateG2', 'TemplateG3')", "cmis:name",
+                "SELECT * FROM cmis:folder WHERE cmis:name NOT IN ('TemplateG1', 'TemplateG2', 'TemplateG3')",
+                "TemplateG4", "TemplateG5"
+        );
+    }
+
+    @Test
+    public void shouldQueryNotEqualsAny() throws Exception
+    {
+        verifyQueryResults(
+                "SELECT * FROM cmis:folder WHERE 'tag4' = ANY my:tags",
                 "TemplateG4"
+        );
+    }
+
+    @Test
+    public void shouldQueryNotAnyIn() throws Exception
+    {
+        verifyQueryResults(
+                "SELECT * FROM cmis:folder WHERE ANY my:tags IN ('tag4', 'tag5')",
+                "TemplateG4", "TemplateG5"
+        );
+    }
+
+    @Test
+    public void shouldQueryNotAnyNotIn() throws Exception
+    {
+        verifyQueryResults(
+                "SELECT * FROM cmis:folder WHERE ANY my:tags NOT IN ('tag4', 'tag5')",
+                "TemplateG1", "TemplateG2", "TemplateG3"
         );
     }
 
@@ -74,28 +114,27 @@ public class QueryTest extends AbstractJcrSessionTest
      * @param field name of filed, to extract values from results
      * @param expected array of expected results
      */
-    private void verifyQueryResults(String sql, String field, Object... expected)
+    private void verifyQueryResults(String sql, Object... expected)
     {
         ObjectList results = getJcrRepository().query(getSession(), sql, false, false, null, null);
 
-        Object[] actual = extractFromQueryResults(results, field);
+        Object[] actual = extractNamesFromQueryResults(results);
 
         assertArrayEquals("Query result should be equals", expected, actual);
     }
 
     /**
-     * Retrieves values from query results from specified field into array
+     * Retrieves names from query into array
      * @param results query results
-     * @param field name of filed, which values should be extracted
-     * @return array of values from all query results
+     * @return array of names from all query results
      */
-    private Object[] extractFromQueryResults(ObjectList results, String field)
+    private Object[] extractNamesFromQueryResults(ObjectList results)
     {
         List<Object> list = new ArrayList<Object>();
 
         for (ObjectData i : results.getObjects())
         {
-            list.add(i.getProperties().getProperties().get(field).getFirstValue());
+            list.add(i.getProperties().getProperties().get("cmis:name").getFirstValue());
         }
 
         return list.toArray();
@@ -107,12 +146,14 @@ public class QueryTest extends AbstractJcrSessionTest
      * @param parent folder's parent ID
      * @return an ID of created folder
      */
-    private String createFolder(String name, String parent)
+    private String createFolder(String name, String parent, String... tags)
     {
         PropertiesImpl properties = new PropertiesImpl();
 
         properties.addProperty(new PropertyIdImpl(PropertyIds.OBJECT_TYPE_ID, "cmis:folder"));
         properties.addProperty(new PropertyStringImpl(PropertyIds.NAME, name));
+
+        if (tags.length > 0) properties.addProperty(new PropertyStringImpl("my:tags", Arrays.asList(tags)));
 
         String id = getJcrRepository().createFolder(getSession(), properties, parent);
         garbage.add(id);
