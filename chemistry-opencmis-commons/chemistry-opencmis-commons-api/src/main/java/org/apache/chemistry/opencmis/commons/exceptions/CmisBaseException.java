@@ -180,4 +180,13 @@ public abstract class CmisBaseException extends RuntimeException {
         this.logged = logged;
     }
 
+    @Override
+    public String getMessage(){
+         StringBuilder messageSrting = new StringBuilder()
+                .append("IncidentID: ")
+                .append(getUid())
+                .append(" ")
+                .append(super.getMessage());
+        return messageSrting.toString();
+    }
 }
