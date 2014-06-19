@@ -183,9 +183,9 @@ public abstract class CmisBaseException extends RuntimeException {
     @Override
     public String getMessage(){
          StringBuilder messageSrting = new StringBuilder()
-                .append("IncidentID: ")
+                .append("[IncidentID: ")
                 .append(getUid())
-                .append(" ")
+                .append("] ")
                 .append(super.getMessage());
         return messageSrting.toString();
     }

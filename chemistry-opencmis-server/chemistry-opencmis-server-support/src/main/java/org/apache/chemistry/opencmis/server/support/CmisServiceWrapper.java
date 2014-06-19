@@ -143,16 +143,21 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
     }
 
+    private CmisBaseException logCmisException(CmisBaseException ex){
+        LOG.error(ex.getMessage(),ex);
+        return ex;
+    }
+
     /**
      * Throws an exception if the given id is <code>null</code> or empty.
      */
     protected void checkId(String name, String id) {
         if (id == null) {
-            throw new CmisInvalidArgumentException(name + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must be set!"));
         }
 
         if (id.length() == 0) {
-            throw new CmisInvalidArgumentException(name + " must not be empty!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must not be empty!"));
         }
     }
 
@@ -166,7 +171,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
             }
         }
 
-        throw new CmisInvalidArgumentException(name + " must be set!");
+        throw logCmisException(new CmisInvalidArgumentException(name + " must be set!"));
     }
 
     /**
@@ -175,7 +180,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkHolderId(String name, Holder<String> holder) {
         if (holder == null) {
-            throw new CmisInvalidArgumentException(name + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must be set!"));
         }
 
         checkId(name, holder.getValue());
@@ -193,15 +198,15 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkPath(String name, String path) {
         if (path == null) {
-            throw new CmisInvalidArgumentException(name + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must be set!"));
         }
 
         if (path.length() == 0) {
-            throw new CmisInvalidArgumentException(name + " must not be empty!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must not be empty!"));
         }
 
         if (path.charAt(0) != '/') {
-            throw new CmisInvalidArgumentException(name + " must start with '/'!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must start with '/'!"));
         }
     }
 
@@ -210,7 +215,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkProperties(Properties properties) {
         if (properties == null) {
-            throw new CmisInvalidArgumentException("Properties must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Properties must be set!"));
         }
     }
 
@@ -219,21 +224,21 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkProperty(Properties properties, String propertyId, Class<?> clazz) {
         if (properties.getProperties() == null) {
-            throw new CmisInvalidArgumentException("Property " + propertyId + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Property " + propertyId + " must be set!"));
         }
 
         PropertyData<?> property = properties.getProperties().get(propertyId);
         if (property == null) {
-            throw new CmisInvalidArgumentException("Property " + propertyId + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Property " + propertyId + " must be set!"));
         }
 
         Object value = property.getFirstValue();
         if (value == null) {
-            throw new CmisInvalidArgumentException("Property " + propertyId + " must have a value!");
+            throw logCmisException(new CmisInvalidArgumentException("Property " + propertyId + " must have a value!"));
         }
 
         if (!clazz.isAssignableFrom(value.getClass())) {
-            throw new CmisInvalidArgumentException("Property " + propertyId + " has the wrong type!");
+            throw logCmisException(new CmisInvalidArgumentException("Property " + propertyId + " has the wrong type!"));
         }
     }
 
@@ -242,7 +247,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkContentStream(ContentStream content) {
         if (content == null) {
-            throw new CmisInvalidArgumentException("Content must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Content must be set!"));
         }
     }
 
@@ -252,11 +257,11 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkQueryStatement(String statement) {
         if (statement == null) {
-            throw new CmisInvalidArgumentException("Statement must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Statement must be set!"));
         }
 
         if (statement.length() == 0) {
-            throw new CmisInvalidArgumentException("Statement must not be empty!");
+            throw logCmisException(new CmisInvalidArgumentException("Statement must not be empty!"));
         }
     }
 
@@ -265,7 +270,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkTypeDefinition(TypeDefinition typeDef) {
         if (typeDef == null) {
-            throw new CmisInvalidArgumentException("Type definition must be set!");
+            throw logCmisException(new CmisInvalidArgumentException("Type definition must be set!"));
         }
     }
 
@@ -274,11 +279,11 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
      */
     protected void checkList(String name, List<?> list) {
         if (list == null) {
-            throw new CmisInvalidArgumentException(name + " must be set!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must be set!"));
         }
 
         if (list.isEmpty()) {
-            throw new CmisInvalidArgumentException(name + " must not be empty!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must not be empty!"));
         }
     }
 
@@ -387,7 +392,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (maxItems.compareTo(BigInteger.ZERO) == -1) {
-            throw new CmisInvalidArgumentException("maxItems must not be negative!");
+            throw logCmisException(new CmisInvalidArgumentException("maxItems must not be negative!"));
         }
 
         return maxItems;
@@ -403,11 +408,11 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (depth.compareTo(BigInteger.ZERO) == 0) {
-            throw new CmisInvalidArgumentException("depth must not be 0!");
+            throw logCmisException(new CmisInvalidArgumentException("depth must not be 0!"));
         }
 
         if (depth.compareTo(MINUS_ONE) == -1) {
-            throw new CmisInvalidArgumentException("depth must not be <-1!");
+            throw logCmisException(new CmisInvalidArgumentException("depth must not be <-1!"));
         }
 
         return depth;
@@ -424,7 +429,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (maxItems.compareTo(BigInteger.ZERO) == -1) {
-            throw new CmisInvalidArgumentException("maxItems must not be negative!");
+            throw logCmisException(new CmisInvalidArgumentException("maxItems must not be negative!"));
         }
 
         return maxItems;
@@ -441,7 +446,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (skipCount.compareTo(BigInteger.ZERO) == -1) {
-            throw new CmisInvalidArgumentException("skipCount must not be negative!");
+            throw logCmisException(new CmisInvalidArgumentException("skipCount must not be negative!"));
         }
 
         return skipCount;
@@ -457,11 +462,11 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (depth.compareTo(BigInteger.ZERO) == 0) {
-            throw new CmisInvalidArgumentException("depth must not be 0!");
+            throw logCmisException(new CmisInvalidArgumentException("depth must not be 0!"));
         }
 
         if (depth.compareTo(MINUS_ONE) == -1) {
-            throw new CmisInvalidArgumentException("depth must not be <-1!");
+            throw logCmisException(new CmisInvalidArgumentException("depth must not be <-1!"));
         }
 
         return depth;
@@ -476,7 +481,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
         }
 
         if (value.compareTo(BigInteger.ZERO) == -1) {
-            throw new CmisInvalidArgumentException(name + " must not be negative!");
+            throw logCmisException(new CmisInvalidArgumentException(name + " must not be negative!"));
         }
     }
 
