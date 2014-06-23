@@ -182,11 +182,15 @@ public abstract class CmisBaseException extends RuntimeException {
 
     @Override
     public String getMessage(){
+        String oldMessage = super.getMessage();
+        if(!oldMessage.contains("IncidentID")){
          StringBuilder messageSrting = new StringBuilder()
                 .append("[IncidentID: ")
                 .append(getUid())
                 .append("] ")
-                .append(super.getMessage());
+                .append(oldMessage);
         return messageSrting.toString();
+        }
+        return oldMessage;
     }
 }

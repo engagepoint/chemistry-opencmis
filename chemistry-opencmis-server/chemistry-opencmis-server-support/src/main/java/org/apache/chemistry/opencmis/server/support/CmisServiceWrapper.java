@@ -130,21 +130,30 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
             // should never happen
             // if it happens its the fault of the framework...
             LOG.error("Unknown exception!",e);
-            return new CmisRuntimeException("Unknown exception!");
+            CmisRuntimeException cmisRuntimeException = new CmisRuntimeException("Unknown exception!");
+            cmisRuntimeException.setLogged(true);
+            return cmisRuntimeException;
         } else if (e instanceof CmisBaseException) {
+            if(!((CmisBaseException) e).isLogged()){
             LOG.error("CMIS server exception!",e);
+            ((CmisBaseException) e).setLogged(true);
+            }
             return (CmisBaseException) e;
         } else {
             // should not happen if the connector works correctly
             // it's alarming enough to log the exception
-            LOG.warn(e.toString(), e);
-
-            return new CmisRuntimeException(e.getMessage(), e);
+            CmisRuntimeException cmisRuntimeException = new  CmisRuntimeException(e.getMessage(), e);
+            LOG.warn(cmisRuntimeException.getMessage(),cmisRuntimeException);
+            cmisRuntimeException.setLogged(true);
+            return cmisRuntimeException;
         }
     }
 
     private CmisBaseException logCmisException(CmisBaseException ex){
+        if(!ex.isLogged()){
         LOG.error(ex.getMessage(),ex);
+        ex.setLogged(true);
+        }
         return ex;
     }
 
