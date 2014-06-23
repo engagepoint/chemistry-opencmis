@@ -187,6 +187,13 @@ public class QueryTranslatorTest {
                 "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo -\"bar phrase\"')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo -\"bar phrase\"')"));
 
+        assertEquals(
+                "/jcr:root//element(*,jcr:document)[((@jcr:name = 1 or @jcr:name = 2) or @jcr:name = 3)]",
+                queryTranslator.translateToXPath("select * from cmis:document where cmis:name in (1,2,3)"));
+
+        assertEquals(
+                "/jcr:root//element(*,jcr:document)[not(((@jcr:name = 1 or @jcr:name = 2) or @jcr:name = 3))]",
+                queryTranslator.translateToXPath("select * from cmis:document where cmis:name not in (1,2,3)"));
     }
 
     @Test
@@ -288,12 +295,6 @@ public class QueryTranslatorTest {
 
     @Test
     public void testNotImplemented() {
-        try {
-            queryTranslator.translateToXPath("select * from cmis:document where cmis:name in (1,2,3)");
-            fail();
-        }
-        catch (CmisNotSupportedException expected) {}
-
         try {
             queryTranslator.translateToXPath("select * from cmis:document where 'foo' = ANY cmis:name");
             fail();

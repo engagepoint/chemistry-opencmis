@@ -156,12 +156,27 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
     @Override
     public XPathBuilder in(XPathBuilder op1, XPathBuilder op2) {
-        return super.in(op1, op2);    // todo implement in
+        /**
+         * @param op1 contains the column name (like <code>cmis:name</code>)
+         * @param op2 contains a list on values in <code>IN</code> operator (like <code>IN (x1, x2, x3)</code>
+         * Main idea: ...WHERE column IN (x1, x2, x3) => ...WHERE column = x1 OR column = x2 OR column = x3</code>
+         */
+        if (!(op2 instanceof ListBuilder)) throw new UnsupportedOperationException("Unpredicted behavior. Parameter op2 should be instance of ListBuilder");
+
+        List<XPathBuilder> list = ((ListBuilder)op2).list;
+
+        XPathBuilder result = eq(op1, list.get(0));
+        for (int i = 1; i < list.size(); i++)
+        {
+            result = or(result, eq(op1, list.get(i)));
+        }
+
+        return result;
     }
 
     @Override
     public XPathBuilder notIn(XPathBuilder op1, XPathBuilder op2) {
-        return super.notIn(op1, op2);    // todo implement notIn
+        return not(in(op1, op2));
     }
 
     @Override
@@ -251,7 +266,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
     @Override
     public XPathBuilder list(List<XPathBuilder> ops) {
-        return super.list(ops);    // todo implement list
+        return new ListBuilder(ops);
     }
 
     @Override
@@ -425,6 +440,26 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
         public Iterable<XPathBuilder> folderPredicates() {
             return Iterables.empty();
+        }
+    }
+
+    /**
+     * Helper class, used to store all list values.
+     * Does not used in building XPath query.
+     * @see EvaluatorXPath#list
+     */
+    private static class ListBuilder extends PrimitiveBuilder
+    {
+        List<XPathBuilder> list;
+
+        private ListBuilder(List<XPathBuilder> list)
+        {
+            this.list = list;
+        }
+
+        public String xPath()
+        {
+            throw new UnsupportedOperationException("Unsupported behavior. ListBuilder is not designed to execute in XPath.");
         }
     }
 

@@ -178,6 +178,16 @@ public class XPathBuilderTest {
                 "jcr:contains(jcr:content, 'foo -\"bar phrase\"')",
                 list(),
                 null);
+
+        check("select * from cmis:document where cmis:name in (1,2,3)",
+                "((cmis:name = 1 or cmis:name = 2) or cmis:name = 3)",
+                list(),
+                null);
+
+        check("select * from cmis:document where cmis:name not in (1,2,3)",
+                "not(((cmis:name = 1 or cmis:name = 2) or cmis:name = 3))",
+                list(),
+                null);
     }
 
     @Test
@@ -215,12 +225,6 @@ public class XPathBuilderTest {
 
     @Test
     public void testNotImplemented() {
-        try {
-            execute("select * from cmis:document where cmis:name in (1,2,3)");
-            fail();
-        }
-        catch (CmisNotSupportedException expected) {}
-
         try {
             execute("select * from cmis:document where 'foo' = ANY cmis:name");
             fail();
