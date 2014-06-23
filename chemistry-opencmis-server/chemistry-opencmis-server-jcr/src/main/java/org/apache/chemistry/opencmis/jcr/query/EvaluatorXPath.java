@@ -181,17 +181,23 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
     @Override
     public XPathBuilder inAny(XPathBuilder op1, XPathBuilder op2) {
-        return super.inAny(op1, op2);    // todo implement inAny
+        return in(op1, op2);
     }
 
     @Override
     public XPathBuilder notInAny(XPathBuilder op1, XPathBuilder op2) {
-        return super.notInAny(op1, op2);    // todo implement notInAny
+        return notIn(op1, op2);
     }
 
     @Override
     public XPathBuilder eqAny(XPathBuilder op1, XPathBuilder op2) {
-        return super.eqAny(op1, op2);    // todo implement eqAny
+        /**
+         * Accirding to JCR Specification, general comparisons (=, !=, <, >, <= and >=), when applied to
+         * a list type attribute value, will return true if the specified relation
+         * evaluates to true for at least one of the values of in the list.
+         * So, ANY is already supported simply by = operator.
+         */
+        return eq(op2, op1);
     }
 
     @Override

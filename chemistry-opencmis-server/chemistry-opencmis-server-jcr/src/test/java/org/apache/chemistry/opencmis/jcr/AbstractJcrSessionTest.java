@@ -50,7 +50,8 @@ public abstract class AbstractJcrSessionTest {
         session = transientRepository.login(new SimpleCredentials("adminId", "admin".toCharArray()));
         typeManager = new JcrTypeManager();
         PathManager pathManger = new PathManager(MOUNT_PATH);
-        JcrTypeHandlerManager typeHandlerManager = createTypeHandlerManager(pathManger, typeManager);
+        JcrTypeHandlerManager typeHandlerManager = new JcrTypeHandlerManager(pathManger, typeManager);
+        addToTypeHandlerManager(typeHandlerManager);
         jcrRepository = new JcrRepository(transientRepository, pathManger, typeManager, typeHandlerManager);
     }
 
@@ -59,12 +60,11 @@ public abstract class AbstractJcrSessionTest {
         transientRepository.shutdown();
     }
 
-    private static JcrTypeHandlerManager createTypeHandlerManager(PathManager pathManager, JcrTypeManager typeManager) {
-        JcrTypeHandlerManager typeHandlerManager = new JcrTypeHandlerManager(pathManager, typeManager);
+    protected void addToTypeHandlerManager(final JcrTypeHandlerManager typeHandlerManager)
+    {
         typeHandlerManager.addHandler(new DefaultFolderTypeHandler());
         typeHandlerManager.addHandler(new DefaultDocumentTypeHandler());
         typeHandlerManager.addHandler(new DefaultUnversionedDocumentTypeHandler());
-        return typeHandlerManager;
     }
 
     protected Session getSession() {
