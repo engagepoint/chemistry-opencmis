@@ -143,7 +143,7 @@ public class CmisServiceWrapper<T extends CmisService> implements CmisService {
             // should not happen if the connector works correctly
             // it's alarming enough to log the exception
             CmisRuntimeException cmisRuntimeException = new  CmisRuntimeException(e.getMessage(), e);
-            LOG.warn(cmisRuntimeException.getMessage(),cmisRuntimeException);
+            LOG.warn(String.format("[IncidentID: %s] %s",cmisRuntimeException.getUid(),e.getMessage()),e);
             cmisRuntimeException.setLogged(true);
             return cmisRuntimeException;
         }
