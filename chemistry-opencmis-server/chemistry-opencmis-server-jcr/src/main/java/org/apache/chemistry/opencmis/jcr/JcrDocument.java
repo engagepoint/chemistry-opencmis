@@ -49,6 +49,8 @@ import java.util.Set;
  */
 public abstract class JcrDocument extends JcrNode {
     private static final Logger log = LoggerFactory.getLogger(JcrDocument.class);
+    public static final String JCR_CONTENT_STREAM_LENGTH = "{http://www.jcp.org/jcr/1.0}contentStreamLength";
+    public static final String JCR_CONTENT_STREAM_FILE_NAME = "{http://www.jcp.org/jcr/1.0}contentStreamFileName";
 
     public static final String MIME_UNKNOWN = "application/octet-stream";
 
@@ -232,22 +234,45 @@ public abstract class JcrDocument extends JcrNode {
         objectInfo.setSupportsFolderTree(false);
 
         String typeId = getTypeIdInternal();
-        Node contextNode = getContextNode();
+        //Node contextNode = getContextNode();
 
         // mutability
         addPropertyBoolean(properties, typeId, filter, PropertyIds.IS_IMMUTABLE, getIsImmutable());
 
+        Node contextNode = null;
         // content stream
-        long length = getPropertyLength(contextNode, Property.JCR_DATA);
+        long length;
+        if (getNode().hasProperty(JCR_CONTENT_STREAM_LENGTH)) {
+            length = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH).getLong();            
+        } else {
+            contextNode = getContextNode();
+            length = getPropertyLength(contextNode, Property.JCR_DATA);
+        }
         addPropertyInteger(properties, typeId, filter, PropertyIds.CONTENT_STREAM_LENGTH, length);
 
         // mime type
-        String mimeType = getPropertyOrElse(contextNode, Property.JCR_MIMETYPE, MIME_UNKNOWN);
+        String mimeType;
+        if (getNode().hasProperty(Property.JCR_MIMETYPE)) {
+            mimeType = getPropertyOrElse(getNode(), Property.JCR_MIMETYPE, MIME_UNKNOWN);           
+        } else {
+            if (contextNode == null) {
+                contextNode = getContextNode();
+            }
+            mimeType = getPropertyOrElse(contextNode, Property.JCR_MIMETYPE, MIME_UNKNOWN);
+        }
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_MIME_TYPE, mimeType);
         objectInfo.setContentType(mimeType);
 
         // file name
-        String fileName = getNodeName();
+        String fileName;
+        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
+            fileName = getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();          
+        } else {
+            if (contextNode == null) {
+                contextNode = getContextNode();
+            }
+            fileName = getNodeName();
+        }
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_FILE_NAME, fileName);
         objectInfo.setFileName(fileName);
 
