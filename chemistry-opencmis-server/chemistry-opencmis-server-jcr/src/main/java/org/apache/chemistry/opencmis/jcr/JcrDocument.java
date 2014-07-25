@@ -84,8 +84,15 @@ public abstract class JcrDocument extends JcrNode {
 
             // compile data
             ContentStreamImpl result = new ContentStreamImpl();
-            result.setFileName(getNodeName());
-            result.setLength(BigInteger.valueOf(data.getLength()));
+            result.setFileName(getFileName());
+
+            long length;
+            if (getNode().hasProperty(JCR_CONTENT_STREAM_LENGTH)) {
+                length = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH).getLong();
+            } else {
+                length = data.getLength();
+            }
+            result.setLength(BigInteger.valueOf(length));
             result.setMimeType(getPropertyOrElse(contentNode, Property.JCR_MIMETYPE, MIME_UNKNOWN));
             result.setStream(new BufferedInputStream(data.getBinary().getStream()));  // stream closed by consumer
 
@@ -243,7 +250,7 @@ public abstract class JcrDocument extends JcrNode {
         // content stream
         long length;
         if (getNode().hasProperty(JCR_CONTENT_STREAM_LENGTH)) {
-            length = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH).getLong();            
+            length = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH).getLong();
         } else {
             contextNode = getContextNode();
             length = getPropertyLength(contextNode, Property.JCR_DATA);
@@ -253,7 +260,7 @@ public abstract class JcrDocument extends JcrNode {
         // mime type
         String mimeType;
         if (getNode().hasProperty(Property.JCR_MIMETYPE)) {
-            mimeType = getPropertyOrElse(getNode(), Property.JCR_MIMETYPE, MIME_UNKNOWN);           
+            mimeType = getPropertyOrElse(getNode(), Property.JCR_MIMETYPE, MIME_UNKNOWN);
         } else {
             if (contextNode == null) {
                 contextNode = getContextNode();
@@ -264,15 +271,7 @@ public abstract class JcrDocument extends JcrNode {
         objectInfo.setContentType(mimeType);
 
         // file name
-        String fileName;
-        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
-            fileName = getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();          
-        } else {
-            if (contextNode == null) {
-                contextNode = getContextNode();
-            }
-            fileName = getNodeName();
-        }
+        String fileName = getFileName();
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_FILE_NAME, fileName);
         objectInfo.setFileName(fileName);
 
@@ -308,6 +307,14 @@ public abstract class JcrDocument extends JcrNode {
     @Override
     protected BaseTypeId getBaseTypeId() {
         return BaseTypeId.CMIS_DOCUMENT;
+    }
+
+    protected String getFileName() throws RepositoryException {
+        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
+            return getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
+        } else {
+            return getNodeName();
+        }
     }
 
 }
