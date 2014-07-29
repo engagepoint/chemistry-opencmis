@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -32,6 +33,7 @@ import org.apache.chemistry.opencmis.client.api.CmisObject;
 import org.apache.chemistry.opencmis.client.api.Session;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
+import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 
 /**
  * Synchronized cache implementation. The cache is limited to a specific size of
@@ -47,9 +49,12 @@ public class CacheImpl implements Cache {
     private int cacheTtl;
     private int pathToIdSize;
     private int pathToIdTtl;
+    private int idToParentsSize;
+    private int idToParentsTtl;
 
     private LinkedHashMap<String, CacheItem<Map<String, CmisObject>>> objectMap;
     private LinkedHashMap<String, CacheItem<String>> pathToIdMap;
+    private LinkedHashMap<String, CacheItem<List<ObjectParentData>>> idToParentsMap;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -101,6 +106,26 @@ public class CacheImpl implements Cache {
             } catch (Exception e) {
                 pathToIdTtl = 30 * 60 * 1000;
             }
+            
+            // id-to-parents size
+            try {
+                idToParentsSize = Integer.valueOf(parameters.get(SessionParameter.CACHE_SIZE_PATHTOID));
+                if (idToParentsSize < 0) {
+                    idToParentsSize = 0;
+                }
+            } catch (Exception e) {
+                idToParentsSize = 1000;
+            }
+
+            // id-to-parents time-to-live
+            try {
+                idToParentsTtl = Integer.valueOf(parameters.get(SessionParameter.CACHE_TTL_PATHTOID));
+                if (idToParentsTtl < 0) {
+                    idToParentsTtl = 30 * 60 * 1000;
+                }
+            } catch (Exception e) {
+                idToParentsTtl = 30 * 60 * 1000;
+            }
 
             initializeInternals();
         } finally {
@@ -144,6 +169,22 @@ public class CacheImpl implements Cache {
                     return size() > ptis;
                 }
             };
+            
+            // id-to-parents mapping
+            int idtoparentsHashTableCapacity = (int) Math.ceil(idToParentsSize / HASHTABLE_LOAD_FACTOR) + 1;
+
+            final int itps = idToParentsSize;
+
+            idToParentsMap = new LinkedHashMap<String, CacheItem<List<ObjectParentData>>>(idtoparentsHashTableCapacity, HASHTABLE_LOAD_FACTOR) {
+
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CacheItem<List<ObjectParentData>>> eldest) {
+                    return size() > itps;
+                }
+            };
+            
         } finally {
             lock.writeLock().unlock();
         }
@@ -190,6 +231,25 @@ public class CacheImpl implements Cache {
             lock.writeLock().unlock();
         }
     }
+    
+    public boolean containsParents(String objectId) {
+        lock.writeLock().lock();
+        try {
+            if (!idToParentsMap.containsKey(objectId)) {
+                return false;
+            }
+
+            CacheItem<List<ObjectParentData>> item = idToParentsMap.get(objectId);
+            if (item.isExpired()) {
+                idToParentsMap.remove(objectId);
+                return false;
+            }
+
+            return true;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
 
     public CmisObject getById(String objectId, String cacheKey) {
         lock.writeLock().lock();
@@ -214,6 +274,20 @@ public class CacheImpl implements Cache {
 
             CacheItem<String> item = pathToIdMap.get(path);
             return getById(item.getItem(), cacheKey);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    public List<ObjectParentData> getParents(String objectId) {
+        lock.writeLock().lock();
+        try {
+            if (!containsParents(objectId)) {
+                return null;
+            }
+
+            CacheItem<List<ObjectParentData>> item = idToParentsMap.get(objectId);
+            return (item == null ? null : item.getItem());
         } finally {
             lock.writeLock().unlock();
         }
@@ -271,6 +345,22 @@ public class CacheImpl implements Cache {
             lock.writeLock().unlock();
         }
     }
+    
+    public void putParents(String objectId, List<ObjectParentData> parents) {
+        if (objectId == null) {
+            return;
+        }
+
+        lock.writeLock().lock();
+        try {
+            if ((parents != null)) {
+                CacheItem<List<ObjectParentData>> item = new CacheItem<List<ObjectParentData>>(parents, idToParentsTtl);                
+                idToParentsMap.put(objectId, item);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
 
     public void remove(String objectId) {
         if(objectId == null) {
@@ -280,6 +370,19 @@ public class CacheImpl implements Cache {
         lock.writeLock().lock();
         try {
             objectMap.remove(objectId);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    public void removeParents(String objectId) {
+        if(objectId == null) {
+            return;
+        }
+
+        lock.writeLock().lock();
+        try {
+            idToParentsMap.remove(objectId);
         } finally {
             lock.writeLock().unlock();
         }

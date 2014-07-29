@@ -19,10 +19,12 @@
 package org.apache.chemistry.opencmis.client.runtime.cache;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.chemistry.opencmis.client.api.CmisObject;
 import org.apache.chemistry.opencmis.client.api.Session;
+import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 
 /**
  * Implements a session cache providing following capabilities:
@@ -53,4 +55,13 @@ public interface Cache extends Serializable {
     void clear();
 
     int getCacheSize();
+    
+    boolean containsParents(String objectId);
+    
+    List<ObjectParentData> getParents(String objectId);
+    
+    void putParents(String objectId, List<ObjectParentData> parents);
+    
+    public void removeParents(String objectId);
+    
 }

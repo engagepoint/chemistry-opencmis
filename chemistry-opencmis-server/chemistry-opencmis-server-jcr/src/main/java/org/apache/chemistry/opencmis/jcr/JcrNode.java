@@ -65,6 +65,7 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.PropertyStringImpl
 import org.apache.chemistry.opencmis.commons.impl.server.ObjectInfoImpl;
 import org.apache.chemistry.opencmis.commons.server.ObjectInfoHandler;
 import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
+import org.apache.chemistry.opencmis.jcr.util.GenericCacheContainer;
 import org.apache.chemistry.opencmis.jcr.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,7 +130,7 @@ public abstract class JcrNode {
     public String getName() {
         try {
             return getNodeName();
-        }
+            }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
             throw new CmisRuntimeException(e.getMessage(), e);
@@ -647,7 +648,12 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getNodeName() throws RepositoryException {
-        return node.getName();
+        String name = (String) GenericCacheContainer.getInstance().get(node.getIdentifier());
+        if (name == null) {
+            name = node.getName();
+            GenericCacheContainer.getInstance().put(node.getIdentifier(), name);
+        }
+        return name;
     }
 
     /**
