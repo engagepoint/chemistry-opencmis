@@ -20,6 +20,7 @@ package org.apache.chemistry.opencmis.jcr;
 
 import java.math.BigInteger;
 import java.util.*;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.jcr.Credentials;
 import javax.jcr.ItemNotFoundException;
@@ -96,6 +97,7 @@ public class JcrRepository {
     protected final JcrTypeManager typeManager;
     protected final PathManager pathManager;
     protected final JcrTypeHandlerManager typeHandlerManager;
+    protected final ConcurrentMap distributedCache;
 
     /**
      * Create a new <code>JcrRepository</code> instance backed by a JCR repository.
@@ -105,17 +107,18 @@ public class JcrRepository {
      * @param typeManager  
      * @param typeHandlerManager
      */
-    public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager) {
+    public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager, ConcurrentMap distributedCache) {
         this.repository = repository;
         this.typeManager = typeManager;
         this.typeHandlerManager = typeHandlerManager;
         this.pathManager = pathManager;
+        this.distributedCache = distributedCache;
     }
 
 
     public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager,
-                         String customUnfiledFolder) {
-        this(repository, pathManager, typeManager, typeHandlerManager);
+                         String customUnfiledFolder, ConcurrentMap distributedCache) {
+        this(repository, pathManager, typeManager, typeHandlerManager, distributedCache);
     }
 
     /**
@@ -427,6 +430,9 @@ public class JcrRepository {
         ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
         log.trace("Update properties for object with id [{}] and input parameters: properties [{}], objectInfos [{}]", objectId, properties, objectInfos);
         log.debug("Update properties for object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);
+        if (distributedCache != null) {
+            distributedCache.remove(id+"_ObjectData");
+        }
         return result;
     }
 
@@ -556,8 +562,18 @@ public class JcrRepository {
 
             // build and add child object
             ObjectInFolderDataImpl objectInFolder = new ObjectInFolderDataImpl();
-            objectInFolder.setObject(child.compileObjectType(splitFilter, includeAllowableActions, objectInfos,
-                    requiresObjectInfo));
+            String chacheKey = child.getId()+"_ObjectData";
+            ObjectData data = null;
+            if (distributedCache != null) {
+                data = (ObjectData) distributedCache.get(chacheKey);
+            }
+            if (data == null) {
+                data = child.compileObjectType(splitFilter, includeAllowableActions, objectInfos, requiresObjectInfo);
+                if (distributedCache != null) {
+                    distributedCache.put(chacheKey, data);
+                }
+            }            
+            objectInFolder.setObject(data);
 
             if (Boolean.TRUE.equals(includePathSegment)) {
                 objectInFolder.setPathSegment(child.getName());
