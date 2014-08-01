@@ -92,6 +92,7 @@ public class JcrRepository {
     private static final Logger log = LoggerFactory.getLogger(JcrRepository.class);
     public static final String JCR_UNFILED = "jcr:unfiled";
     public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
+    public static final String OBJECT_DATA_SUFFIX = "_ObjectData";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -426,12 +427,15 @@ public class JcrRepository {
         // get the node
         JcrNode jcrNode = getJcrNode(session, objectId.getValue());
         String id = jcrNode.updateProperties(properties).getId();
+        if (distributedCache != null) {
+            distributedCache.remove(id+OBJECT_DATA_SUFFIX);
+        }
         objectId.setValue(id);
         ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
         log.trace("Update properties for object with id [{}] and input parameters: properties [{}], objectInfos [{}]", objectId, properties, objectInfos);
         log.debug("Update properties for object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);
         if (distributedCache != null) {
-            distributedCache.remove(id+"_ObjectData");
+            distributedCache.remove(id+OBJECT_DATA_SUFFIX);
         }
         return result;
     }
@@ -562,7 +566,7 @@ public class JcrRepository {
 
             // build and add child object
             ObjectInFolderDataImpl objectInFolder = new ObjectInFolderDataImpl();
-            String chacheKey = child.getId()+"_ObjectData";
+            String chacheKey = child.getId()+OBJECT_DATA_SUFFIX;
             ObjectData data = null;
             if (distributedCache != null) {
                 data = (ObjectData) distributedCache.get(chacheKey);
