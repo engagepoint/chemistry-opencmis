@@ -615,7 +615,7 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getLastModifiedBy() throws RepositoryException {
-        return getPropertyOrElse(getContextNode(), Property.JCR_LAST_MODIFIED_BY, USER_UNKNOWN);
+        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED_BY, USER_UNKNOWN);
     }
 
     /**
@@ -623,7 +623,7 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected GregorianCalendar getLastModified() throws RepositoryException {
-        return getPropertyOrElse(getContextNode(), Property.JCR_LAST_MODIFIED, DATE_UNKNOWN);
+        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED, DATE_UNKNOWN);
     }
 
     /**
@@ -631,7 +631,7 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected GregorianCalendar getCreated() throws RepositoryException {
-        return getPropertyOrElse(getContextNode(), Property.JCR_CREATED, DATE_UNKNOWN);
+        return getPropertyOrElse(node, Property.JCR_CREATED, DATE_UNKNOWN);
     }
 
     /**
@@ -639,7 +639,7 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getCreatedBy() throws RepositoryException {
-        return getPropertyOrElse(getContextNode(), Property.JCR_CREATED_BY, USER_UNKNOWN);
+        return getPropertyOrElse(node, Property.JCR_CREATED_BY, USER_UNKNOWN);
     }
 
     /**
