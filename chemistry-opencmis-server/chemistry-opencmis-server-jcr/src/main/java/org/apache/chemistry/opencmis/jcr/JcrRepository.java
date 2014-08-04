@@ -93,6 +93,7 @@ public class JcrRepository {
     public static final String JCR_UNFILED = "jcr:unfiled";
     public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
     public static final String OBJECT_DATA_SUFFIX = "_ObjectData";
+    public static final String NAME_SUFFIX = "_Name";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -427,17 +428,20 @@ public class JcrRepository {
         // get the node
         JcrNode jcrNode = getJcrNode(session, objectId.getValue());
         String id = jcrNode.updateProperties(properties).getId();
-        if (distributedCache != null) {
-            distributedCache.remove(id+OBJECT_DATA_SUFFIX);
-        }
         objectId.setValue(id);
         ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
+        invalidateCache(id);
         log.trace("Update properties for object with id [{}] and input parameters: properties [{}], objectInfos [{}]", objectId, properties, objectInfos);
         log.debug("Update properties for object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);
-        if (distributedCache != null) {
-            distributedCache.remove(id+OBJECT_DATA_SUFFIX);
-        }
         return result;
+    }
+    
+    private void invalidateCache(String cacheKey) {
+        if (distributedCache != null) {
+            distributedCache.remove(cacheKey+OBJECT_DATA_SUFFIX);
+            distributedCache.remove(cacheKey+NAME_SUFFIX);
+            distributedCache.remove(cacheKey);
+        } 
     }
 
     /**
