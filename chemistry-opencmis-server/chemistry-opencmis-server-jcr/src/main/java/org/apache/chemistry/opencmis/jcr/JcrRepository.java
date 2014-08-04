@@ -93,7 +93,6 @@ public class JcrRepository {
     public static final String JCR_UNFILED = "jcr:unfiled";
     public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
     public static final String OBJECT_DATA_SUFFIX = "_ObjectData";
-    public static final String NAME_SUFFIX = "_Name";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
@@ -439,7 +438,6 @@ public class JcrRepository {
     private void invalidateCache(String cacheKey) {
         if (distributedCache != null) {
             distributedCache.remove(cacheKey+OBJECT_DATA_SUFFIX);
-            distributedCache.remove(cacheKey+NAME_SUFFIX);
             distributedCache.remove(cacheKey);
         } 
     }
