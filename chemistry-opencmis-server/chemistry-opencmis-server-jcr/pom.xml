@@ -147,7 +147,7 @@
         <dependency>
             <groupId>org.modeshape</groupId>
             <artifactId>modeshape-jcr</artifactId>
-            <version>3.7.34-EP-SNAPSHOT</version>
+            <version>3.7.35-EP-SNAPSHOT</version>
             <type>jar</type>
             <scope>provided</scope>
         </dependency>
