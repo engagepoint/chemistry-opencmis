@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
-import org.modeshape.jcr.AbstractJcrNode;
 
 /**
  * Utility class for mapping JCR paths to CMIS paths
