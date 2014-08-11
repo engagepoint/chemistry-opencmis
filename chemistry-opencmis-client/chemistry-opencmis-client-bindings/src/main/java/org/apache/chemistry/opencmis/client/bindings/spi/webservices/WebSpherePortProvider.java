@@ -52,6 +52,7 @@ public class WebSpherePortProvider extends AbstractPortProvider {
      * Creates a port object.
      */
     protected BindingProvider createPortObject(CmisServiceHolder serviceHolder) {
+        long startTime = System.currentTimeMillis();
         if (LOG.isDebugEnabled()) {
             LOG.debug("Creating Web Service port object of " + serviceHolder.getServiceName() + "...");
         }
@@ -111,6 +112,10 @@ public class WebSpherePortProvider extends AbstractPortProvider {
             throw ce;
         } catch (Exception e) {
             throw new CmisConnectionException("Cannot initalize Web Services port object: " + e.getMessage(), e);
-        }
+        } finally {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("WebSpherePortProvider::createPortObject::finish. Time: " + (System.currentTimeMillis() - startTime) + " ms");
+            }
+        }                
     }
 }

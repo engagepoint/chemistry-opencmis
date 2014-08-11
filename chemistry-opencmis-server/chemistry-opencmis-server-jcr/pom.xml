@@ -144,6 +144,13 @@
             <artifactId>jackrabbit-jcr-commons</artifactId>
             <version>2.5.1</version>
         </dependency>
+        <dependency>
+            <groupId>org.modeshape</groupId>
+            <artifactId>modeshape-jcr</artifactId>
+            <version>3.7.34-EP-SNAPSHOT</version>
+            <type>jar</type>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

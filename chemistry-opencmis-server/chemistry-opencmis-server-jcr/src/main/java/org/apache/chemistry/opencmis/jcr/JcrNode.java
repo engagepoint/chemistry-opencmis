@@ -141,8 +141,12 @@ public abstract class JcrNode {
      * @throws  CmisRuntimeException
      */
     public String getId() {
+        return getId(false);
+    }
+    
+    public String getId(boolean skipChildren) {
         try {
-            return getObjectId();
+            return getObjectId(skipChildren);
         }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
@@ -161,7 +165,11 @@ public abstract class JcrNode {
      * @return  <code>true</code> iff this instance represent the root of the CMIS folder hierarchy.
      */
     public boolean isRoot() {
-        return pathManager.isRoot(node);
+        return isRoot(false);
+    }
+    
+    public boolean isRoot(boolean skipChildren) {
+        return pathManager.isRoot(node, skipChildren);
     }
 
     /**
@@ -252,8 +260,14 @@ public abstract class JcrNode {
     /**
      * Compile the <code>ObjectData</code> for this node
      */
+    
     public ObjectData compileObjectType(Set<String> filter, Boolean includeAllowableActions,
             ObjectInfoHandler objectInfos, boolean requiresObjectInfo) {
+        return compileObjectType(filter, includeAllowableActions, objectInfos, requiresObjectInfo, false);
+    }
+            
+    public ObjectData compileObjectType(Set<String> filter, Boolean includeAllowableActions,
+            ObjectInfoHandler objectInfos, boolean requiresObjectInfo, boolean skipChildren) {
 
         try {
             ObjectDataImpl result = new ObjectDataImpl();
@@ -261,7 +275,7 @@ public abstract class JcrNode {
 
             PropertiesImpl properties = new PropertiesImpl();
             filter = filter == null ? null : new HashSet<String>(filter);
-            compileProperties(properties, filter, objectInfo);
+            compileProperties(properties, filter, objectInfo, skipChildren);
             result.setProperties(properties);
             if (filter != null && !filter.isEmpty()) {
                 log.debug("Unknown filter properties: " + filter.toString());
@@ -341,10 +355,20 @@ public abstract class JcrNode {
      * @throws  CmisRuntimeException
      */
     public JcrFolder getParent() {
+        return getParent(false);
+    }
+    
+    public JcrFolder getParent(boolean skipChildren) {
         try {
-            return (node.getParent().getPath().startsWith(JCR_SYSTEM_FOLDER))
+            if (node instanceof org.modeshape.jcr.JcrNode) {               
+                        return (((org.modeshape.jcr.JcrNode)node).getParent(skipChildren).getPath().startsWith(JCR_SYSTEM_FOLDER))
+                    ? null
+                    : create(((org.modeshape.jcr.JcrNode)node).getParent(skipChildren)).asFolder();
+            } else {
+                return (node.getParent().getPath().startsWith(JCR_SYSTEM_FOLDER))
                     ? null
                     : create(node.getParent()).asFolder();
+            }                        
         }
         catch (ItemNotFoundException e) {
             log.debug(e.getMessage(), e);
@@ -479,7 +503,11 @@ public abstract class JcrNode {
     @Override
     public String toString() {
         try {
-            return node.getPath();
+            if (node instanceof  org.modeshape.jcr.JcrNode) {
+                return (( org.modeshape.jcr.JcrNode) node).getPath(true);
+            } else {
+                return node.getPath();
+            }            
         }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
@@ -520,6 +548,10 @@ public abstract class JcrNode {
      */
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
+        compileProperties(properties, filter, objectInfo, false);
+    }
+    protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo, boolean skipChildren)
+            throws RepositoryException {
 
         String typeId = getTypeIdInternal();
         BaseTypeId baseTypeId = getBaseTypeId();
@@ -534,37 +566,43 @@ public abstract class JcrNode {
         objectInfo.setSupportsPolicies(false);
         objectInfo.setSupportsRelationships(false);
 
-        compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId);
+        compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId, skipChildren);
 
         // created and modified by
-        String createdBy = getCreatedBy();
+        String createdBy = getCreatedBy(skipChildren);
         addPropertyString(properties, typeId, filter, PropertyIds.CREATED_BY, createdBy);
         objectInfo.setCreatedBy(createdBy);
 
-        addPropertyString(properties, typeId, filter, PropertyIds.LAST_MODIFIED_BY, getLastModifiedBy());
+        addPropertyString(properties, typeId, filter, PropertyIds.LAST_MODIFIED_BY, getLastModifiedBy(skipChildren));
 
         // creation and modification date
-        GregorianCalendar created = getCreated();
+        GregorianCalendar created = getCreated(skipChildren);
         addPropertyDateTime(properties, typeId, filter, PropertyIds.CREATION_DATE, created);
         objectInfo.setCreationDate(created);
 
-        GregorianCalendar lastModified = getLastModified();
+        GregorianCalendar lastModified = getLastModified(skipChildren);
         addPropertyDateTime(properties, typeId, filter, PropertyIds.LAST_MODIFICATION_DATE, lastModified);
         objectInfo.setLastModificationDate(lastModified);
 
         addPropertyString(properties, typeId, filter, PropertyIds.CHANGE_TOKEN, getChangeToken());
     }
 
-	protected void compileBaseProperties(PropertiesImpl properties,
+    protected void compileBaseProperties(PropertiesImpl properties,
 			Set<String> filter, ObjectInfoImpl objectInfo, String typeId,
 			BaseTypeId baseTypeId) throws RepositoryException {
+        compileBaseProperties(properties, filter, objectInfo, typeId, baseTypeId, false);
+    }
+    
+    protected void compileBaseProperties(PropertiesImpl properties,
+			Set<String> filter, ObjectInfoImpl objectInfo, String typeId,
+			BaseTypeId baseTypeId, boolean skipChildren) throws RepositoryException {
 		// id
-        String objectId = getObjectId();
+        String objectId = getObjectId(skipChildren);
         addPropertyId(properties, typeId, filter, PropertyIds.OBJECT_ID, objectId);
         objectInfo.setId(objectId);
 
         // name
-        String name = getNodeName();
+        String name = getNodeName(skipChildren);
         if (PathManager.CMIS_ROOT_ID.equals(objectId) && "".equals(name)) {
         	//set default name for the root node
         	name = PathManager.CMIS_ROOT_ID;
@@ -615,15 +653,23 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getLastModifiedBy() throws RepositoryException {
-        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED_BY, USER_UNKNOWN);
+        return getLastModifiedBy(false);
+    }
+    
+    protected String getLastModifiedBy(boolean skipChildren) throws RepositoryException {
+        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED_BY, USER_UNKNOWN, skipChildren);
     }
 
     /**
      * @return  the last modification date of the CMIS object represented by this instance
      * @throws RepositoryException
      */
+    
     protected GregorianCalendar getLastModified() throws RepositoryException {
-        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED, DATE_UNKNOWN);
+        return getLastModified(false);
+    }
+    protected GregorianCalendar getLastModified(boolean skipChildren) throws RepositoryException {
+        return getPropertyOrElse(node, Property.JCR_LAST_MODIFIED, DATE_UNKNOWN, skipChildren);
     }
 
     /**
@@ -631,7 +677,10 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected GregorianCalendar getCreated() throws RepositoryException {
-        return getPropertyOrElse(node, Property.JCR_CREATED, DATE_UNKNOWN);
+        return getCreated(false);
+    }
+    protected GregorianCalendar getCreated(boolean skipChildren) throws RepositoryException {
+        return getPropertyOrElse(node, Property.JCR_CREATED, DATE_UNKNOWN, skipChildren);
     }
 
     /**
@@ -639,7 +688,10 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getCreatedBy() throws RepositoryException {
-        return getPropertyOrElse(node, Property.JCR_CREATED_BY, USER_UNKNOWN);
+        return getCreatedBy(false);
+    }
+    protected String getCreatedBy(boolean skipChildren) throws RepositoryException {
+        return getPropertyOrElse(node, Property.JCR_CREATED_BY, USER_UNKNOWN, skipChildren);
     }
 
     /**
@@ -647,7 +699,15 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getNodeName() throws RepositoryException {
-        return node.getName();
+        return getNodeName(false);
+    }
+    
+    protected String getNodeName(boolean skipChildren) throws RepositoryException {
+        if (node instanceof org.modeshape.jcr.JcrNode) {
+            return ((org.modeshape.jcr.JcrNode) node).getName(skipChildren);
+        } else {
+            return node.getName();
+        }        
     }
 
     /**
@@ -655,7 +715,11 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getObjectId() throws RepositoryException {
-        return getVersionSeriesId();
+        return getObjectId(false);
+    }
+    
+    protected String getObjectId(boolean skipChildren) throws RepositoryException {
+        return getVersionSeriesId(skipChildren);
     }
 
     /**
@@ -663,6 +727,13 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getVersionSeriesId() throws RepositoryException {
+        return getVersionSeriesId(false);
+    }
+    
+    protected String getVersionSeriesId(boolean skipChildren) throws RepositoryException {
+        if (node instanceof org.modeshape.jcr.JcrNode) {
+            return ((org.modeshape.jcr.JcrNode) node).getIdentifier(skipChildren);
+        } 
         return node.getIdentifier();
     }
 
@@ -947,9 +1018,19 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected static String getPropertyOrElse(Node node, String propertyName, String defaultValue)
+            throws RepositoryException { 
+        return getPropertyOrElse(node, propertyName, defaultValue, false);
+    }
+    
+    protected static String getPropertyOrElse(Node node, String propertyName, String defaultValue, boolean skipChildren)
             throws RepositoryException {        
         try {
-            return node.getProperty(propertyName).getString();
+            if (node instanceof org.modeshape.jcr.AbstractJcrNode) {
+                return ((org.modeshape.jcr.AbstractJcrNode) node).getProperty(propertyName, skipChildren).getString(skipChildren);
+            } else {
+                return node.getProperty(propertyName).getString();
+            }
+            
         } catch (RepositoryException e) {
             return defaultValue;
         }
@@ -967,8 +1048,18 @@ public abstract class JcrNode {
      */
     protected static GregorianCalendar getPropertyOrElse(Node node, String propertyName, GregorianCalendar defaultValue)
             throws RepositoryException {
+        return getPropertyOrElse(node, propertyName, defaultValue, false);
+    }
+    
+    protected static GregorianCalendar getPropertyOrElse(Node node, String propertyName, GregorianCalendar defaultValue, boolean skipChildren)
+            throws RepositoryException {
         try {
-            Calendar date = node.getProperty(propertyName).getDate();
+            Calendar date;
+            if (node instanceof org.modeshape.jcr.AbstractJcrNode) {
+                date = ((org.modeshape.jcr.AbstractJcrNode) node).getProperty(propertyName, skipChildren).getDate(skipChildren);
+            } else {
+                date = node.getProperty(propertyName).getDate();
+            }
             return Util.toCalendar(date);
         } catch (RepositoryException e) {
             return defaultValue;

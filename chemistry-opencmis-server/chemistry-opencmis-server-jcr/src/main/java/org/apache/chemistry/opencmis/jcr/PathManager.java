@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
+import org.modeshape.jcr.AbstractJcrNode;
 
 /**
  * Utility class for mapping JCR paths to CMIS paths
@@ -70,8 +71,17 @@ public class PathManager {
      *      this <code>PathManager</code> instance.
      */
     public boolean isRoot(Node node) {
+        return isRoot(node, false);
+    }
+    
+    public boolean isRoot(Node node, boolean skipChildren) {
         try {
-            return node.getPath().equals(jcrRootPath);
+            if (node instanceof org.modeshape.jcr.JcrNode) {
+                return ((org.modeshape.jcr.JcrNode) node).getPath(skipChildren).equals(jcrRootPath);
+            } else {
+                return node.getPath().equals(jcrRootPath);
+            }
+            
         }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
@@ -87,12 +97,22 @@ public class PathManager {
      * @throws IllegalArgumentException  when <code>node</code> is not part of the hierarchy
      */
     public String getPath(Node node) {
+        return getPath(node, false);
+    }
+    
+    public String getPath(Node node, boolean skipChildren) {
         try {
-            if (jcrRootPath.length() > node.getPath().length()) {
-                throw new IllegalArgumentException("Node is not part of the hierarchy: " + node.getPath());
+            String nodePath;
+            if (node instanceof org.modeshape.jcr.JcrNode) {
+                nodePath = ((org.modeshape.jcr.JcrNode) node).getPath(skipChildren);
+            } else {
+                nodePath = node.getPath();
+            }
+            if (jcrRootPath.length() > nodePath.length()) {
+                throw new IllegalArgumentException("Node is not part of the hierarchy: " + nodePath);
             }
 
-            String path = node.getPath().substring(jcrRootPath.length());
+            String path = nodePath.substring(jcrRootPath.length());
             return path.startsWith("/") ? path : '/' + path;
         }
         catch (RepositoryException e) {

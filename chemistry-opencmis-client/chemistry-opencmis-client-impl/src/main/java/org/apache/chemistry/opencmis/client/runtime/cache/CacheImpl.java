@@ -232,29 +232,6 @@ public class CacheImpl implements Cache {
         }
     }
     
-//    public boolean containsParents(String objectId) {
-//        lock.writeLock().lock();
-//        try {
-//            if (!idToParentsMap.containsKey(objectId)) {
-//                return false;
-//            }
-//
-//            CacheItem<List<ObjectParentData>> item = idToParentsMap.get(objectId);
-//            if (item.isExpired()) {
-//                idToParentsMap.remove(objectId);
-//                return false;
-//            }
-//
-//            return true;
-//        } finally {
-//            lock.writeLock().unlock();
-//        }
-//    }
-    
-    public boolean containsParents(String objectId) {
-        return false;
-    }
-
     public CmisObject getById(String objectId, String cacheKey) {
         lock.writeLock().lock();
         try {
@@ -281,24 +258,6 @@ public class CacheImpl implements Cache {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-    
-//    public List<ObjectParentData> getParents(String objectId) {
-//        lock.writeLock().lock();
-//        try {
-//            if (!containsParents(objectId)) {
-//                return null;
-//            }
-//
-//            CacheItem<List<ObjectParentData>> item = idToParentsMap.get(objectId);
-//            return (item == null ? null : item.getItem());
-//        } finally {
-//            lock.writeLock().unlock();
-//        }
-//    }
-    
-    public List<ObjectParentData> getParents(String objectId) {
-        return null;
     }
 
     public void put(CmisObject object, String cacheKey) {
@@ -353,25 +312,6 @@ public class CacheImpl implements Cache {
             lock.writeLock().unlock();
         }
     }
-    
-//    public void putParents(String objectId, List<ObjectParentData> parents) {
-//        if (objectId == null) {
-//            return;
-//        }
-//
-//        lock.writeLock().lock();
-//        try {
-//            if ((parents != null)) {
-//                CacheItem<List<ObjectParentData>> item = new CacheItem<List<ObjectParentData>>(parents, idToParentsTtl);                
-//                idToParentsMap.put(objectId, item);
-//            }
-//        } finally {
-//            lock.writeLock().unlock();
-//        }
-//    }
-    
-    public void putParents(String objectId, List<ObjectParentData> parents) {        
-    }
 
     public void remove(String objectId) {
         if(objectId == null) {
@@ -384,22 +324,6 @@ public class CacheImpl implements Cache {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-    
-//    public void removeParents(String objectId) {
-//        if(objectId == null) {
-//            return;
-//        }
-//
-//        lock.writeLock().lock();
-//        try {
-//            idToParentsMap.remove(objectId);
-//        } finally {
-//            lock.writeLock().unlock();
-//        }
-//    }
-    
-    public void removeParents(String objectId) {        
     }
 
     public int getCacheSize() {

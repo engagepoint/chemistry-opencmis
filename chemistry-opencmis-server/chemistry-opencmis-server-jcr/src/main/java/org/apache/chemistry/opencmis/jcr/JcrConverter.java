@@ -169,6 +169,10 @@ public final class JcrConverter {
      * @throws RepositoryException
      */
     public static PropertyData<?> convert(Property jcrProperty) throws RepositoryException {
+         return convert(jcrProperty, false);
+    }
+    
+    public static PropertyData<?> convert(Property jcrProperty, boolean skipChildren) throws RepositoryException {
         AbstractPropertyData<?> propertyData;
 
         switch (jcrProperty.getType()) {
@@ -178,9 +182,19 @@ public final class JcrConverter {
             case PropertyType.REFERENCE:
             case PropertyType.WEAKREFERENCE:
             case PropertyType.STRING:
-                propertyData = jcrProperty.isMultiple()
+                if (jcrProperty instanceof org.modeshape.jcr.JcrSingleValueProperty) {
+                    propertyData = jcrProperty.isMultiple()
+                    ? new PropertyStringImpl(jcrProperty.getName(), toStrings(((org.modeshape.jcr.JcrSingleValueProperty) jcrProperty).getValues()))
+                    : new PropertyStringImpl(jcrProperty.getName(), ((org.modeshape.jcr.JcrSingleValueProperty) jcrProperty).getString(skipChildren));
+                } else if (jcrProperty instanceof org.modeshape.jcr.JcrMultiValueProperty) {
+                    propertyData = jcrProperty.isMultiple()
+                    ? new PropertyStringImpl(jcrProperty.getName(), toStrings(((org.modeshape.jcr.JcrMultiValueProperty) jcrProperty).getValues(skipChildren)))
+                    : new PropertyStringImpl(jcrProperty.getName(), ((org.modeshape.jcr.JcrMultiValueProperty) jcrProperty).getString(skipChildren));
+                } else {
+                    propertyData = jcrProperty.isMultiple()
                     ? new PropertyStringImpl(jcrProperty.getName(), toStrings(jcrProperty.getValues()))
                     : new PropertyStringImpl(jcrProperty.getName(), jcrProperty.getString());
+                }
                 break;
 
             case PropertyType.LONG:

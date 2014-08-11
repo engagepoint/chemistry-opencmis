@@ -200,8 +200,14 @@ public class JcrFolder extends JcrNode {
     @Override
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
+        compileProperties(properties, filter, objectInfo, false);
+    }
+    
+    @Override
+    protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo, boolean skipChildren)
+            throws RepositoryException {
 
-        super.compileProperties(properties, filter, objectInfo);
+        super.compileProperties(properties, filter, objectInfo, skipChildren);
 
         objectInfo.setHasContent(false);
         objectInfo.setSupportsDescendants(true);
@@ -209,16 +215,16 @@ public class JcrFolder extends JcrNode {
 
         String typeId = getTypeIdInternal();
 
-        addPropertyString(properties, typeId, filter, PropertyIds.PATH, pathManager.getPath(getNode()));
+        addPropertyString(properties, typeId, filter, PropertyIds.PATH, pathManager.getPath(getNode(), skipChildren));
 
         // folder properties
-        if (pathManager.isRoot(getNode())) {
+        if (pathManager.isRoot(getNode(), skipChildren)) {
             objectInfo.setHasParent(false);
             addPropertyList(properties, typeId, filter, PropertyIds.PARENT_ID, Collections.<String>emptyList());
         }
         else {
             objectInfo.setHasParent(true);
-            addPropertyId(properties, typeId, filter, PropertyIds.PARENT_ID, getParent().getObjectId());
+            addPropertyId(properties, typeId, filter, PropertyIds.PARENT_ID, getParent(skipChildren).getObjectId());
         }
 
         addPropertyAllowedChildObjectTypeIds(properties, filter, typeId);
@@ -242,12 +248,17 @@ public class JcrFolder extends JcrNode {
     protected Node getContextNode() {
         return getNode();
     }
-
+    
     @Override
     protected String getObjectId() throws RepositoryException {
-        return isRoot()
+        return getObjectId(false);
+    }
+    
+    @Override
+    protected String getObjectId(boolean skipChildren) throws RepositoryException {
+        return isRoot(skipChildren)
                 ? PathManager.CMIS_ROOT_ID
-                : super.getObjectId();
+                : super.getObjectId(skipChildren);
     }
 
     @Override

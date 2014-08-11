@@ -27,7 +27,6 @@ import org.apache.chemistry.opencmis.client.api.Folder;
 import org.apache.chemistry.opencmis.client.api.ObjectId;
 import org.apache.chemistry.opencmis.client.api.ObjectType;
 import org.apache.chemistry.opencmis.client.api.OperationContext;
-import org.apache.chemistry.opencmis.client.runtime.cache.Cache;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 import org.apache.chemistry.opencmis.commons.data.PropertyData;
@@ -54,19 +53,10 @@ public abstract class AbstractFilableCmisObject extends AbstractCmisObject imple
         String objectId = getObjectId();
 
         // get object ids of the parent folders
-        Cache cache = getSession().getCache();
-        List<ObjectParentData> bindingParents = null;
-        // ask the cache first
-        if (context.isCacheEnabled()) {
-            bindingParents = cache.getParents(objectId);
-            if (bindingParents == null) {
-                bindingParents = getBinding().getNavigationService().getObjectParents(getRepositoryId(),
+        List<ObjectParentData> bindingParents = getBinding().getNavigationService().getObjectParents(getRepositoryId(),
                 objectId, getPropertyQueryName(PropertyIds.OBJECT_ID), false, IncludeRelationships.NONE, null, false,
                 null);
-                cache.putParents(objectId, bindingParents);
-            }
-        }
-
+        
         List<Folder> parents = new ArrayList<Folder>();
 
         for (ObjectParentData p : bindingParents) {

@@ -228,12 +228,18 @@ public abstract class JcrDocument extends JcrNode {
     protected boolean getIsImmutable() {
         return false;
     }
-
+    
     @Override
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
+        compileProperties(properties, filter, objectInfo, false);
+    }
+    
+    @Override
+    protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo, boolean skipChildren)
+            throws RepositoryException {
 
-        super.compileProperties(properties, filter, objectInfo);
+        super.compileProperties(properties, filter, objectInfo, skipChildren);
 
         objectInfo.setHasContent(true);
         objectInfo.setHasParent(true);
@@ -283,7 +289,7 @@ public abstract class JcrDocument extends JcrNode {
         addPropertyBoolean(properties, typeId, filter, PropertyIds.IS_MAJOR_VERSION, isMajorVersion());
         addPropertyBoolean(properties, typeId, filter, PropertyIds.IS_LATEST_MAJOR_VERSION, isLatestMajorVersion());
         addPropertyString(properties, typeId, filter, PropertyIds.VERSION_LABEL, getVersionLabel());
-        addPropertyId(properties, typeId, filter, PropertyIds.VERSION_SERIES_ID, getVersionSeriesId());
+        addPropertyId(properties, typeId, filter, PropertyIds.VERSION_SERIES_ID, getVersionSeriesId(skipChildren));
         addPropertyString(properties, typeId, filter, PropertyIds.CHECKIN_COMMENT, getCheckInComment());
 
         boolean isCheckedOut = isCheckedOut();

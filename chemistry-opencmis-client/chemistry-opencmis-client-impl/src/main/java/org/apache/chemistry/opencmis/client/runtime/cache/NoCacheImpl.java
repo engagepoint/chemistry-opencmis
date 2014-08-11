@@ -18,12 +18,10 @@
  */
 package org.apache.chemistry.opencmis.client.runtime.cache;
 
-import java.util.List;
 import java.util.Map;
 
 import org.apache.chemistry.opencmis.client.api.CmisObject;
 import org.apache.chemistry.opencmis.client.api.Session;
-import org.apache.chemistry.opencmis.commons.data.ObjectParentData;
 
 public class NoCacheImpl implements Cache {
 
@@ -62,19 +60,5 @@ public class NoCacheImpl implements Cache {
 
     public int getCacheSize() {
         return 0;
-    }
-
-    public boolean containsParents(String objectId) {
-        return false;
-    }
-
-    public List<ObjectParentData> getParents(String objectId) {
-        return null;
-    }
-
-    public void putParents(String objectId, List<ObjectParentData> parents) {        
-    }
-
-    public void removeParents(String objectId) {        
     }
 }

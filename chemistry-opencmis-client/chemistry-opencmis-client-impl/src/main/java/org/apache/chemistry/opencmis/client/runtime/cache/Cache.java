@@ -56,12 +56,4 @@ public interface Cache extends Serializable {
 
     int getCacheSize();
     
-    boolean containsParents(String objectId);
-    
-    List<ObjectParentData> getParents(String objectId);
-    
-    void putParents(String objectId, List<ObjectParentData> parents);
-    
-    public void removeParents(String objectId);
-    
 }

@@ -250,8 +250,14 @@ public abstract class JcrVersionBase extends JcrDocument {
     @Override
     protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo)
             throws RepositoryException {
+        compileProperties(properties, filter, objectInfo, false);
+    }
+    
+    @Override
+    protected void compileProperties(PropertiesImpl properties, Set<String> filter, ObjectInfoImpl objectInfo, boolean skipChildren)
+            throws RepositoryException {
 
-        super.compileProperties(properties, filter, objectInfo);
+        super.compileProperties(properties, filter, objectInfo, skipChildren);
 
         objectInfo.setWorkingCopyOriginalId(getBaseNodeId());
         objectInfo.setWorkingCopyId(getPwcId());

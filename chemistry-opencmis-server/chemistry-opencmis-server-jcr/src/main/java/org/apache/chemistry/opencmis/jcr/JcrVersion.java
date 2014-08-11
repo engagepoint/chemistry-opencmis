@@ -67,9 +67,14 @@ public class JcrVersion extends JcrVersionBase {
     
     @Override
     protected String getObjectId() throws RepositoryException {
+        return getObjectId(false);
+    }
+    
+    @Override
+    protected String getObjectId(boolean skipChildren) throws RepositoryException {
         return version.hasProperty(JCR_UUID)
                 ? version.getProperty(JCR_UUID).getString()
-                : getVersionSeriesId();
+                : getVersionSeriesId(skipChildren);
     }
 
     @Override

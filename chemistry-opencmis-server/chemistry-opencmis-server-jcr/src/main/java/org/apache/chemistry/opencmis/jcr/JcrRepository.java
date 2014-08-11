@@ -46,6 +46,7 @@ import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
+import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityAcl;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdates;
@@ -461,7 +462,7 @@ public class JcrRepository {
             throw new CmisObjectNotFoundException("no such node exists");
 
         // gather properties
-        ObjectData result = jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo);
+        ObjectData result = jcrNode.compileObjectType(splitFilter(filter), includeAllowableActions, objectInfos, requiresObjectInfo, false);
         log.debug("Return object by id [{}] with filter {}. Time: {} ms", objectId, filter, System.currentTimeMillis() - startTime);
         return result;
     }
@@ -551,8 +552,9 @@ public class JcrRepository {
         Iterator<JcrNode> childNodes = jcrFolder.getNodes();
         while (childNodes.hasNext()) {
             JcrNode child = childNodes.next();
-
-            if (child.getId().endsWith(JCR_UNFILED)) continue;
+            String id = child.getId(true);
+            
+            if (id.endsWith(JCR_UNFILED)) continue;
 
             count++;
 
@@ -568,14 +570,14 @@ public class JcrRepository {
 
             // build and add child object
             ObjectInFolderDataImpl objectInFolder = new ObjectInFolderDataImpl();
-            String chacheKey = child.getId()+OBJECT_DATA_SUFFIX;
+            String chacheKey = id+OBJECT_DATA_SUFFIX;
             ObjectData data = null;
             if (distributedCache != null) {
                 data = (ObjectData) distributedCache.get(chacheKey);
             }
             if (data == null) {
-                data = child.compileObjectType(splitFilter, includeAllowableActions, objectInfos, requiresObjectInfo);
-                if (distributedCache != null) {
+                data = child.compileObjectType(splitFilter, includeAllowableActions, objectInfos, requiresObjectInfo, true); // getPath()
+                if (distributedCache != null && !data.getBaseTypeId().equals(BaseTypeId.CMIS_FOLDER)) {
                     distributedCache.put(chacheKey, data);
                 }
             }            
@@ -590,8 +592,8 @@ public class JcrRepository {
 
         result.setNumItems(BigInteger.valueOf(count));
         
-        log.trace("Return children for folder id [{}] with input parameters: filter [{}], includeAllowableActions [{}], includePathSegment [{}], maxItems [{}], skipCount [{}], requiresObjectInfo [{}].", folderId, filter, includeAllowableActions, includePathSegment, maxItems, skipCount, requiresObjectInfo);
-        log.debug("Return children for folder id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);
+        log.trace("Return children count [{}] for folder id [{}] with input parameters: filter [{}], includeAllowableActions [{}], includePathSegment [{}], maxItems [{}], skipCount [{}], requiresObjectInfo [{}].", count, folderId, filter, includeAllowableActions, includePathSegment, maxItems, skipCount, requiresObjectInfo);
+        log.debug("Return children count [{}] for folder id [{}]. Time: {} ms", count,  folderId, System.currentTimeMillis() - startTime);
         return result;
     }
 
@@ -1245,7 +1247,7 @@ public class JcrRepository {
     /**
      * Splits a filter statement into a collection of properties.
      */
-    private static Set<String> splitFilter(String filter) {
+    protected static Set<String> splitFilter(String filter) {
         if (filter == null) {
             return null;
         }

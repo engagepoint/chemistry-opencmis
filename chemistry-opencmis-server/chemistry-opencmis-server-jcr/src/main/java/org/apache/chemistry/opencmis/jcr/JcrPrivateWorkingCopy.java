@@ -84,10 +84,15 @@ public class JcrPrivateWorkingCopy extends JcrVersionBase {
     protected String getPwcId() throws RepositoryException {
         return getObjectId();
     }
-
+    
     @Override
     protected String getObjectId() throws RepositoryException {
-        return getVersionSeriesId();
+        return getObjectId(false);
+    }
+
+    @Override
+    protected String getObjectId(boolean skipChildren) throws RepositoryException {
+        return getVersionSeriesId(skipChildren);
     }
 
     @Override
