@@ -249,9 +249,10 @@ public abstract class JcrDocument extends JcrNode {
         Node contextNode = null;
         // content stream
         long length;
-        if (getNode().hasProperty(JCR_CONTENT_STREAM_LENGTH)) {
-            length = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH).getLong();
-        } else {
+        try {
+            Property streamLength = getNode().getProperty(JCR_CONTENT_STREAM_LENGTH);
+            length = streamLength.getLong();
+        } catch (RepositoryException e) {
             contextNode = getContextNode();
             length = getPropertyLength(contextNode, Property.JCR_DATA);
         }
@@ -259,14 +260,14 @@ public abstract class JcrDocument extends JcrNode {
 
         // mime type
         String mimeType;
-        if (getNode().hasProperty(Property.JCR_MIMETYPE)) {
+        try {
             mimeType = getPropertyOrElse(getNode(), Property.JCR_MIMETYPE, MIME_UNKNOWN);
-        } else {
+        } catch (RepositoryException e) {
             if (contextNode == null) {
                 contextNode = getContextNode();
             }
             mimeType = getPropertyOrElse(contextNode, Property.JCR_MIMETYPE, MIME_UNKNOWN);
-        }
+        }        
         addPropertyString(properties, typeId, filter, PropertyIds.CONTENT_STREAM_MIME_TYPE, mimeType);
         objectInfo.setContentType(mimeType);
 

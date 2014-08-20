@@ -20,7 +20,7 @@ package org.apache.chemistry.opencmis.jcr;
 
 import java.math.BigInteger;
 import java.util.*;
-
+import java.util.concurrent.ConcurrentMap;
 import javax.jcr.Credentials;
 import javax.jcr.ItemNotFoundException;
 import javax.jcr.LoginException;
@@ -38,13 +38,13 @@ import javax.jcr.observation.EventJournal;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryManager;
 import javax.jcr.query.QueryResult;
-
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.*;
 import org.apache.chemistry.opencmis.commons.data.Properties;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionList;
+import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityAcl;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityChanges;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityContentStreamUpdates;
@@ -91,11 +91,13 @@ public class JcrRepository {
     private static final Logger log = LoggerFactory.getLogger(JcrRepository.class);
     public static final String JCR_UNFILED = "jcr:unfiled";
     public static final String JCR_UNFILED_FULL = "{http://www.jcp.org/jcr/1.0}unfiled";
+    public static final String OBJECT_DATA_SUFFIX = "_ObjectData";
 
     protected final Repository repository;
     protected final JcrTypeManager typeManager;
     protected final PathManager pathManager;
     protected final JcrTypeHandlerManager typeHandlerManager;
+    protected final ConcurrentMap distributedCache;
 
     /**
      * Create a new <code>JcrRepository</code> instance backed by a JCR repository.
@@ -105,17 +107,18 @@ public class JcrRepository {
      * @param typeManager  
      * @param typeHandlerManager
      */
-    public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager) {
+    public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager, ConcurrentMap distributedCache) {
         this.repository = repository;
         this.typeManager = typeManager;
         this.typeHandlerManager = typeHandlerManager;
         this.pathManager = pathManager;
+        this.distributedCache = distributedCache;
     }
 
 
     public JcrRepository(Repository repository, PathManager pathManager, JcrTypeManager typeManager, JcrTypeHandlerManager typeHandlerManager,
-                         String customUnfiledFolder) {
-        this(repository, pathManager, typeManager, typeHandlerManager);
+                         String customUnfiledFolder, ConcurrentMap distributedCache) {
+        this(repository, pathManager, typeManager, typeHandlerManager, distributedCache);
     }
 
     /**
@@ -425,9 +428,17 @@ public class JcrRepository {
         String id = jcrNode.updateProperties(properties).getId();
         objectId.setValue(id);
         ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, objectInfoRequired);
+        invalidateCache(id);
         log.trace("Update properties for object with id [{}] and input parameters: properties [{}], objectInfos [{}]", objectId, properties, objectInfos);
         log.debug("Update properties for object with id [{}]. Time: {} ms", objectId, System.currentTimeMillis() - startTime);
         return result;
+    }
+    
+    private void invalidateCache(String cacheKey) {
+        if (distributedCache != null) {
+            distributedCache.remove(cacheKey+OBJECT_DATA_SUFFIX);
+            distributedCache.remove(cacheKey);
+        } 
     }
 
     /**
@@ -539,8 +550,9 @@ public class JcrRepository {
         Iterator<JcrNode> childNodes = jcrFolder.getNodes();
         while (childNodes.hasNext()) {
             JcrNode child = childNodes.next();
+            String id = child.getId();
 
-            if (child.getId().endsWith(JCR_UNFILED)) continue;
+            if (id.endsWith(JCR_UNFILED)) continue;
 
             count++;
 
@@ -556,8 +568,18 @@ public class JcrRepository {
 
             // build and add child object
             ObjectInFolderDataImpl objectInFolder = new ObjectInFolderDataImpl();
-            objectInFolder.setObject(child.compileObjectType(splitFilter, includeAllowableActions, objectInfos,
-                    requiresObjectInfo));
+            String cacheKey = id+OBJECT_DATA_SUFFIX;
+            ObjectData data = null;
+            if (distributedCache != null) {
+                data = (ObjectData) distributedCache.get(cacheKey);
+            }
+            if (data == null) {
+                data = child.compileObjectType(splitFilter, includeAllowableActions, objectInfos, requiresObjectInfo); // getPath()
+                if (distributedCache != null && !data.getBaseTypeId().equals(BaseTypeId.CMIS_FOLDER)) {
+                    distributedCache.put(cacheKey, data);
+                }
+            }            
+            objectInFolder.setObject(data);
 
             if (Boolean.TRUE.equals(includePathSegment)) {
                 objectInFolder.setPathSegment(child.getName());

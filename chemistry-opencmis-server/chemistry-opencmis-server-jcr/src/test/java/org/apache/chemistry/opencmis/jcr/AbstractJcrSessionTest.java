@@ -52,7 +52,7 @@ public abstract class AbstractJcrSessionTest {
         PathManager pathManger = new PathManager(MOUNT_PATH);
         JcrTypeHandlerManager typeHandlerManager = new JcrTypeHandlerManager(pathManger, typeManager);
         addToTypeHandlerManager(typeHandlerManager);
-        jcrRepository = new JcrRepository(transientRepository, pathManger, typeManager, typeHandlerManager);
+        jcrRepository = new JcrRepository(transientRepository, pathManger, typeManager, typeHandlerManager, null);
     }
 
     @After

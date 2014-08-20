@@ -129,7 +129,7 @@ public abstract class JcrNode {
     public String getName() {
         try {
             return getNodeName();
-        }
+            }
         catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
             throw new CmisRuntimeException(e.getMessage(), e);
@@ -947,11 +947,12 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected static String getPropertyOrElse(Node node, String propertyName, String defaultValue)
-            throws RepositoryException {
-
-        return node.hasProperty(propertyName)
-            ? node.getProperty(propertyName).getString()
-            : defaultValue;
+            throws RepositoryException {        
+        try {
+            return node.getProperty(propertyName).getString();
+        } catch (RepositoryException e) {
+            return defaultValue;
+        }
     }
 
     /**
@@ -966,12 +967,10 @@ public abstract class JcrNode {
      */
     protected static GregorianCalendar getPropertyOrElse(Node node, String propertyName, GregorianCalendar defaultValue)
             throws RepositoryException {
-
-        if (node.hasProperty(propertyName)) {
+        try {
             Calendar date = node.getProperty(propertyName).getDate();
             return Util.toCalendar(date);
-        }
-        else {
+        } catch (RepositoryException e) {
             return defaultValue;
         }
     }

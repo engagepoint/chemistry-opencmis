@@ -75,7 +75,7 @@ public class JcrServiceFactory extends AbstractServiceFactory {
         String customUnfiledPath = parameters.get(KEY_CUSTOM_UNFILED_PATH);
         jcrRepository = new JcrRepository(acquireJcrRepository(jcrConfig),
                 pathManger, typeManager,
-                typeHandlerManager, customUnfiledPath);
+                typeHandlerManager, customUnfiledPath, null);
     }
 
     @Override
