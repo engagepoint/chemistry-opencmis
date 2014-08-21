@@ -350,6 +350,7 @@ public class JcrRepository {
         objectId.setValue(jcrNode.getId());
         ObjectData result = jcrNode.compileObjectType(null, false, objectInfos, requiresObjectInfo);
         log.debug("Move object with id [{}] to target folder with id [{}]. Time: {} ms", objectId, targetFolderId, System.currentTimeMillis() - startTime);
+        invalidateCache(objectId.getValue());
         return result;
     }
 
@@ -368,6 +369,7 @@ public class JcrRepository {
         JcrDocument jcrDocument = getJcrNode(session, objectId.getValue()).asDocument();
         String id = jcrDocument.setContentStream(contentStream, Boolean.TRUE.equals(overwriteFlag)).getId();
         objectId.setValue(id);
+        invalidateCache(objectId.getValue());
         log.debug("Set content stream for object with id [{}] and overwriteFlag [{}]. Time: {} ms", objectId, overwriteFlag, System.currentTimeMillis() - startTime);
     }
 
@@ -391,6 +393,7 @@ public class JcrRepository {
             log.debug(rex.getMessage(), rex);
             throw new CmisRuntimeException(rex.getMessage(), rex);
         }
+        invalidateCache(objectId);
         log.debug("Delete object with id [{}] and allVersions [{}]. Time: {} ms", objectId, allVersions, System.currentTimeMillis() - startTime);
     }
 
@@ -435,8 +438,15 @@ public class JcrRepository {
     }
     
     private void invalidateCache(String cacheKey) {
+        String cacheConteinerKey = cacheKey+OBJECT_DATA_SUFFIX;
         if (distributedCache != null) {
-            distributedCache.remove(cacheKey+OBJECT_DATA_SUFFIX);
+            List<String> caches = (List<String>) distributedCache.get(cacheConteinerKey);                        
+            if (caches != null) {
+                for (String key : caches) {
+                    distributedCache.remove(key);
+                }                
+                distributedCache.remove(cacheConteinerKey);
+            } 
             distributedCache.remove(cacheKey);
         } 
     }
@@ -568,8 +578,13 @@ public class JcrRepository {
 
             // build and add child object
             ObjectInFolderDataImpl objectInFolder = new ObjectInFolderDataImpl();
-            String cacheKey = id+OBJECT_DATA_SUFFIX;
+            //ObjectData data = compileObjectData(splitFilter, includeAllowableActions, requiresObjectInfo, id, child, objectInfos);            
+            
+            String parametersHash = hash(new String[]{splitFilter == null ? "null" : splitFilter.toString(), String.valueOf(includeAllowableActions), String.valueOf(requiresObjectInfo)});
+            String cacheConteinerKey = id + OBJECT_DATA_SUFFIX;
+            String cacheKey = cacheConteinerKey + "_" + parametersHash;
             ObjectData data = null;
+            
             if (distributedCache != null) {
                 data = (ObjectData) distributedCache.get(cacheKey);
             }
@@ -577,8 +592,17 @@ public class JcrRepository {
                 data = child.compileObjectType(splitFilter, includeAllowableActions, objectInfos, requiresObjectInfo); // getPath()
                 if (distributedCache != null && !data.getBaseTypeId().equals(BaseTypeId.CMIS_FOLDER)) {
                     distributedCache.put(cacheKey, data);
+                    List<String> caches = (List<String>) distributedCache.get(cacheConteinerKey);
+                    if (caches != null) {
+                        caches.add(cacheKey);
+                    } else {
+                        caches = new ArrayList<String>();
+                        caches.add(cacheKey);
+                    }
+                    distributedCache.put(cacheConteinerKey, caches);
                 }
-            }            
+            }
+            
             objectInFolder.setObject(data);
 
             if (Boolean.TRUE.equals(includePathSegment)) {
@@ -593,6 +617,17 @@ public class JcrRepository {
         log.trace("Return children for folder id [{}] with input parameters: filter [{}], includeAllowableActions [{}], includePathSegment [{}], maxItems [{}], skipCount [{}], requiresObjectInfo [{}].", folderId, filter, includeAllowableActions, includePathSegment, maxItems, skipCount, requiresObjectInfo);
         log.debug("Return children for folder id [{}]. Time: {} ms", folderId, System.currentTimeMillis() - startTime);
         return result;
+    }
+    
+    /**
+     * Calculation of hash for array of strings
+     */
+    private String hash(String[] values) {
+        long result = 17;
+        for (String v : values) {
+            result = 37 * result + v.hashCode();
+        }
+        return String.valueOf(result);
     }
 
     /**
