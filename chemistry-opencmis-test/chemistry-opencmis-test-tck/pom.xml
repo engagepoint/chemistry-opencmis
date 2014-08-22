@@ -112,9 +112,6 @@
     <profiles>
         <profile>
             <id>tck-tests</id>
-          <!-- <properties>
-            <properties.path>${properties.path}</properties.path>
-            </properties>-->
             <build>
                 <plugins>
                     <plugin>
