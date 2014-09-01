@@ -113,7 +113,9 @@ public abstract class JcrDocument extends JcrNode {
      *
      * @throws CmisStorageException
      */
+    
     public JcrNode setContentStream(ContentStream contentStream, boolean overwriteFlag) {
+        Binary binary = null;
         try {
             // get content node. For version series this is *not* the same as the
             // context node. See CMIS-438.
@@ -135,19 +137,12 @@ public abstract class JcrDocument extends JcrNode {
             }
 
             // write content, if available
-            Binary binary = contentStream == null || contentStream.getStream() == null
-                    ? JcrBinary.EMPTY
-                    : new JcrBinary(new BufferedInputStream(contentStream.getStream()));
-            try {
-                contentNode.setProperty(Property.JCR_DATA, binary);
-                if (contentStream != null && contentStream.getMimeType() != null) {
-                    contentNode.setProperty(Property.JCR_MIMETYPE, contentStream.getMimeType());
-                }
+            binary = getBinary(this, contentStream);
+            contentNode.setProperty(Property.JCR_DATA, binary);
+            if (contentStream != null && contentStream.getMimeType() != null) {
+                contentNode.setProperty(Property.JCR_MIMETYPE, contentStream.getMimeType());
             }
-            finally {
-                binary.dispose();
-            }
-
+            
             contentNode.getSession().save();
 
             if (autoCheckout) {
@@ -162,19 +157,30 @@ public abstract class JcrDocument extends JcrNode {
                 // non versionable -> return this
                 return this;
             }
-        }
-        catch (RepositoryException e) {
+        } catch (RepositoryException e) {
             log.debug(e.getMessage(), e);
             throw new CmisStorageException(e.getMessage(), e);
-        }
-        catch (IOException e) {
-            log.debug(e.getMessage(), e);
-            throw new CmisStorageException(e.getMessage(), e);
-        }
+        } finally {
+            disposeBinary(binary);
+        }   
 
     }
 
     //------------------------------------------< protected >---
+    
+    protected Binary getBinary(JcrDocument node, ContentStream contentStream) {
+        try {
+            return contentStream == null || contentStream.getStream() == null
+                    ? JcrBinary.EMPTY
+                    : new JcrBinary(new BufferedInputStream(contentStream.getStream()));
+        } catch (IOException e) {
+            throw new CmisStorageException(e.getMessage(), e);
+        }  
+    }
+    
+    protected void disposeBinary(Binary binary) {
+        binary.dispose();
+    }
 
     /**
      * @return  the value of the <code>cmis:isLatestVersion</code> property
