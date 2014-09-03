@@ -210,7 +210,7 @@ public abstract class JcrNode {
             return (JcrFolder) this;
         }
         else {
-            throw new CmisObjectNotFoundException("Not a folder: " + this);
+            throw new CmisInvalidArgumentException("Id of target folder is not a folder " + this);
         }
     }
 
