@@ -267,7 +267,7 @@ public abstract class JcrDocument extends JcrNode {
         // mime type
         String mimeType;
         try {
-            mimeType = getPropertyOrElse(getNode(), Property.JCR_MIMETYPE, MIME_UNKNOWN);
+            mimeType = getNode().getProperty(Property.JCR_MIMETYPE).getString();
         } catch (RepositoryException e) {
             if (contextNode == null) {
                 contextNode = getContextNode();
