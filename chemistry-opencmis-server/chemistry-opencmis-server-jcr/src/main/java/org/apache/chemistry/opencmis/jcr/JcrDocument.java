@@ -49,9 +49,7 @@ import java.util.Set;
  */
 public abstract class JcrDocument extends JcrNode {
     private static final Logger log = LoggerFactory.getLogger(JcrDocument.class);
-    public static final String JCR_CONTENT_STREAM_LENGTH = "{http://www.jcp.org/jcr/1.0}contentStreamLength";
-    public static final String JCR_CONTENT_STREAM_FILE_NAME = "{http://www.jcp.org/jcr/1.0}contentStreamFileName";
-
+    
     public static final String MIME_UNKNOWN = "application/octet-stream";
 
     protected JcrDocument(Node node, JcrTypeManager typeManager, PathManager pathManager, JcrTypeHandlerManager typeHandlerManager) {
@@ -317,11 +315,7 @@ public abstract class JcrDocument extends JcrNode {
     }
 
     protected String getFileName() throws RepositoryException {
-        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
-            return getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
-        } else {
-            return getNodeName();
-        }
+        return getNodeName();
     }
 
 }

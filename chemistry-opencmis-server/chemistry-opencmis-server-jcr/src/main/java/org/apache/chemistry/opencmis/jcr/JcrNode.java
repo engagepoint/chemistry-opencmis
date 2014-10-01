@@ -78,6 +78,8 @@ public abstract class JcrNode {
     private static final Logger log = LoggerFactory.getLogger(JcrNode.class);
 
     private static final String JCR_SYSTEM_FOLDER = "/jcr:system";
+    public static final String JCR_CONTENT_STREAM_LENGTH = "{http://www.jcp.org/jcr/1.0}contentStreamLength";
+    public static final String JCR_CONTENT_STREAM_FILE_NAME = "{http://www.jcp.org/jcr/1.0}contentStreamFileName";
 
     /**
      * Default value for last cmis:createdBy and cmis:modifiedBy
@@ -564,7 +566,7 @@ public abstract class JcrNode {
         objectInfo.setId(objectId);
 
         // name
-        String name = getNodeName();
+        String name = getNodeName();        
         if (PathManager.CMIS_ROOT_ID.equals(objectId) && "".equals(name)) {
         	//set default name for the root node
         	name = PathManager.CMIS_ROOT_ID;
@@ -647,7 +649,11 @@ public abstract class JcrNode {
      * @throws RepositoryException
      */
     protected String getNodeName() throws RepositoryException {
-        return node.getName();
+        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
+            return getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
+        } else {
+            return node.getName();
+        }        
     }
 
     /**
