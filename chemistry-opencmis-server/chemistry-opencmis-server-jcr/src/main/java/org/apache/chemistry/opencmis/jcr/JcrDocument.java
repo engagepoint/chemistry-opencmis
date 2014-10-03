@@ -315,7 +315,11 @@ public abstract class JcrDocument extends JcrNode {
     }
 
     protected String getFileName() throws RepositoryException {
-        return getNodeName();
+        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
+            return getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
+        } else {
+            return getNodeName();
+        }
     }
 
 }
