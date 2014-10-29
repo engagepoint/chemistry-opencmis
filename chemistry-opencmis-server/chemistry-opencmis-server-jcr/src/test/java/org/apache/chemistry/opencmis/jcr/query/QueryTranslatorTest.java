@@ -164,27 +164,27 @@ public class QueryTranslatorTest {
                                 CalendarHelper.toString(date) + "')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, '\u4E2D\u6587')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., '\u4E2D\u6587')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('\u4E2D\u6587')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo bar')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., 'foo bar')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo AND bar')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo OR bar')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., 'foo OR bar')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo OR bar')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo -bar')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., 'foo -bar')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo -bar')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo \"bar phrase\"')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., 'foo \"bar phrase\"')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo \"bar phrase\"')"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:contains(jcr:content, 'foo -\"bar phrase\"')]",
+                "/jcr:root//element(*,jcr:document)[jcr:contains(., 'foo -\"bar phrase\"')]",
                 queryTranslator.translateToXPath("select * from cmis:document where contains('foo -\"bar phrase\"')"));
 
         assertEquals(

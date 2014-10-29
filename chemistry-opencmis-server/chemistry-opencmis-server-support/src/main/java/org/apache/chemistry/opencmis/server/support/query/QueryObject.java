@@ -554,8 +554,9 @@ public class QueryObject {
 
         // it is property query name without a type, so find type
         int noFound = 0;
+        int noFoundInChildrens = 0;
         TypeDefinition tdFound = null;
-        
+
         if (isPredfinedQueryName(propName))
             return;
         
@@ -569,14 +570,15 @@ public class QueryObject {
             } else if (TypeValidator.typeContainsPropertyWithQueryName(td, propName)) {
                 ++noFound;
                 tdFound = td;
-            } else if((tdFound = findTypeDefinitionWithProperty(typeMgr.getTypeByQueryName(typeQueryName), propName)) != null){
-                ++noFound;
+            } else if ((td = findTypeDefinitionWithProperty(typeMgr.getTypeByQueryName(typeQueryName), propName)) != null){
+                ++noFoundInChildrens;
+                tdFound = td;
             }
         }
-        if (noFound == 0) {
+        if (noFound == 0 && noFoundInChildrens == 0) {
             throw new CmisQueryException(propName
                     + " is not a property query name in any of the types in from ...");
-        } else if (noFound > 1 && !isStar) {
+        } else if ((noFound > 1 || noFoundInChildrens > 1) && !isStar) {
             throw new CmisQueryException(propName
                     + " is not a unique property query name within the types in from ...");
         } else {

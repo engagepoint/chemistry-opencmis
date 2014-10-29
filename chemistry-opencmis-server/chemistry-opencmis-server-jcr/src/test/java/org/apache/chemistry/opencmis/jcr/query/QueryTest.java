@@ -84,7 +84,7 @@ public class QueryTest extends AbstractJcrSessionTest
     public void shouldQueryNotEqualsAny() throws Exception
     {
         verifyQueryResults(
-                "SELECT * FROM cmis:folder WHERE 'tag4' = ANY my:tags",
+                "SELECT * FROM cmis:folder WHERE 'tag4' = ANY test:tags",
                 "TemplateG4"
         );
     }
@@ -93,7 +93,7 @@ public class QueryTest extends AbstractJcrSessionTest
     public void shouldQueryNotAnyIn() throws Exception
     {
         verifyQueryResults(
-                "SELECT * FROM cmis:folder WHERE ANY my:tags IN ('tag4', 'tag5')",
+                "SELECT * FROM cmis:folder WHERE ANY test:tags IN ('tag4', 'tag5')",
                 "TemplateG4", "TemplateG5"
         );
     }
@@ -102,7 +102,7 @@ public class QueryTest extends AbstractJcrSessionTest
     public void shouldQueryNotAnyNotIn() throws Exception
     {
         verifyQueryResults(
-                "SELECT * FROM cmis:folder WHERE ANY my:tags NOT IN ('tag4', 'tag5')",
+                "SELECT * FROM cmis:folder WHERE ANY test:tags NOT IN ('tag4', 'tag5')",
                 "TemplateG1", "TemplateG2", "TemplateG3"
         );
     }
@@ -153,7 +153,7 @@ public class QueryTest extends AbstractJcrSessionTest
         properties.addProperty(new PropertyIdImpl(PropertyIds.OBJECT_TYPE_ID, "cmis:folder"));
         properties.addProperty(new PropertyStringImpl(PropertyIds.NAME, name));
 
-        if (tags.length > 0) properties.addProperty(new PropertyStringImpl("my:tags", Arrays.asList(tags)));
+        if (tags.length > 0) properties.addProperty(new PropertyStringImpl("test:tags", Arrays.asList(tags)));
 
         String id = getJcrRepository().createFolder(getSession(), properties, parent);
         garbage.add(id);

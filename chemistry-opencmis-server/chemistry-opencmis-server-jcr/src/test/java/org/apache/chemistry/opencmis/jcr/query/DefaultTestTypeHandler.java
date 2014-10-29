@@ -22,8 +22,9 @@ import java.io.InputStreamReader;
  * @author: vadym.karko
  * @since: 6/6/14 10:16 AM
  */
-public class DefaultTestTypeHandler extends DefaultFolderTypeHandler
-{
+public class DefaultTestTypeHandler extends DefaultFolderTypeHandler {
+
+    private boolean isMixinsInitialized = false;
     @Override
     public TypeDefinition getTypeDefinition() {
         FolderTypeDefinitionImpl type = (FolderTypeDefinitionImpl) super.getTypeDefinition();
@@ -48,7 +49,16 @@ public class DefaultTestTypeHandler extends DefaultFolderTypeHandler
     }
 
     public JcrFolder getJcrNode(Node node) {
-        return new JcrTestType(node, typeManager, pathManager, typeHandlerManager);
+        JcrFolder folder = new JcrTestType(node, typeManager, pathManager, typeHandlerManager);
+        if (!isMixinsInitialized) {
+            try {
+                this.addMixins(node);
+                isMixinsInitialized = true;
+            } catch (RepositoryException e) {
+                e.printStackTrace();
+            }
+        }
+        return folder;
     }
 
     @Override
