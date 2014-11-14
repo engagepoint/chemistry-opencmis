@@ -3,3 +3,9 @@ target/
 overlays/
 *.iml
 *.log
+*.class
+bin/
+.settings/
+.project
+.gitignore
+.classpath
