@@ -20,7 +20,7 @@
     <groupId>org.apache.chemistry.opencmis</groupId>
     <artifactId>chemistry-opencmis</artifactId>
     <name>Apache Chemistry OpenCMIS</name>
-    <version>0.10.0.41-EP-SNAPSHOT</version>
+    <version>0.11.0.2-EP-SNAPSHOT</version>
     <packaging>pom</packaging>
 
 	
