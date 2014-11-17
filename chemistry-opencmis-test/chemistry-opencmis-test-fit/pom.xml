@@ -15,7 +15,7 @@
 	<parent>
 		<groupId>org.apache.chemistry.opencmis</groupId>
 		<artifactId>chemistry-opencmis</artifactId>
-		<version>0.11.0.2-EP</version>
+		<version>0.11.0.3-EP-SNAPSHOT</version>
 		<relativePath>../../pom.xml</relativePath>
 	</parent>
 
@@ -324,8 +324,4 @@
 	        </dependencies>
 	    </profile>	    
     </profiles>
-
-  <scm>
-    <tag>0.11.0.2-EP</tag>
-  </scm>
 </project>
