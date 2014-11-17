@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * This implementation of {@link Evaluator} results in an instance of a {@link XPathBuilder} which
  * can be used to validated the where clause of the original CMIS query and translate it to a
- * corresponding (i.e. semantically equal) XPath condition. 
+ * corresponding (i.e. semantically equal) XPath condition.
  */
 public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
@@ -55,11 +55,11 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             public String xPath() {
                 if (eval(true) != null) {
                     return eval(true) ? "true()" : "false()";
-                }
-                else {
+                } else {
                     return "not(" + op.xPath() + ")";
                 }
             }
+
             public Boolean eval(Boolean folderPredicateValuation) {
                 return not(op.eval(folderPredicateValuation));
             }
@@ -76,17 +76,15 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             public String xPath() {
                 if (eval(true) != null) {
                     return eval(true) ? "true()" : "false()";
-                }
-                else if (op1.eval(true) != null) {  // if not null, op1 must be true -> shortcut evaluation to op2
+                } else if (op1.eval(true) != null) {  // if not null, op1 must be true -> shortcut evaluation to op2
                     return op2.xPath();
-                }
-                else if (op2.eval(true) != null) {  // if not null, op2 must be true -> shortcut evaluation to op1
+                } else if (op2.eval(true) != null) {  // if not null, op2 must be true -> shortcut evaluation to op1
                     return op1.xPath();
-                }
-                else {
+                } else {
                     return op1.xPath() + " and " + op2.xPath();
                 }
             }
+
             public Boolean eval(Boolean folderPredicateValuation) {
                 return and(op1.eval(folderPredicateValuation), op2.eval(folderPredicateValuation));
             }
@@ -103,17 +101,15 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             public String xPath() {
                 if (eval(true) != null) {
                     return eval(true) ? "true()" : "false()";
-                }
-                else if (op1.eval(true) != null) {  // if not null, op1 must be false -> shortcut evaluation to op2
+                } else if (op1.eval(true) != null) {  // if not null, op1 must be false -> shortcut evaluation to op2
                     return op2.xPath();
-                }
-                else if (op2.eval(true) != null) {  // if not null, op2 must be false -> shortcut evaluation to op2
+                } else if (op2.eval(true) != null) {  // if not null, op2 must be false -> shortcut evaluation to op2
                     return op1.xPath();
-                }
-                else {
+                } else {
                     return "(" + op1.xPath() + " or " + op2.xPath() + ")";
                 }
             }
+
             public Boolean eval(Boolean folderPredicateValuation) {
                 return or(op1.eval(folderPredicateValuation), op2.eval(folderPredicateValuation));
             }
@@ -161,13 +157,13 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
          * @param op2 contains a list on values in <code>IN</code> operator (like <code>IN (x1, x2, x3)</code>
          * Main idea: ...WHERE column IN (x1, x2, x3) => ...WHERE column = x1 OR column = x2 OR column = x3</code>
          */
-        if (!(op2 instanceof ListBuilder)) throw new UnsupportedOperationException("Unpredicted behavior. Parameter op2 should be instance of ListBuilder");
+        if (!(op2 instanceof ListBuilder))
+            throw new UnsupportedOperationException("Unpredicted behavior. Parameter op2 should be instance of ListBuilder");
 
-        List<XPathBuilder> list = ((ListBuilder)op2).list;
+        List<XPathBuilder> list = ((ListBuilder) op2).list;
 
         XPathBuilder result = eq(op1, list.get(0));
-        for (int i = 1; i < list.size(); i++)
-        {
+        for (int i = 1; i < list.size(); i++) {
             result = or(result, eq(op1, list.get(i)));
         }
 
@@ -232,13 +228,13 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         return new FunctionBuilder("jcr:like", op11, op21) {
             @Override
             public String xPath() {
-                return "not(" + super.xPath() + ")"; 
+                return "not(" + super.xPath() + ")";
             }
         };
     }
 
     // wrapper that makes text upper case for LIKE operation
-    private static class LiteralBuilderForLikeWrapper extends PrimitiveBuilder  {
+    private static class LiteralBuilderForLikeWrapper extends PrimitiveBuilder {
 
         private LiteralBuilder delegate;
 
@@ -261,7 +257,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
     }
 
     @Override
-    public XPathBuilder inFolder(XPathBuilder op1,XPathBuilder op2) {
+    public XPathBuilder inFolder(XPathBuilder op1, XPathBuilder op2) {
         return new FolderPredicateBuilder(op2.xPath(), false);
     }
 
@@ -340,50 +336,54 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         return id;
     }
 
+    private String jcrPathFromPath(String folderId) {
+        if(folderId.endsWith("/")&folderId.length()!=1){
+            throw new IllegalArgumentException(String.format("Wrong folder Id argument: %s. It can't be ended with '/'",folderId));
+        }
+        return folderId;
+    }
     /**
      * Resolve from a column name in the query to the corresponding
      * relative JCR path. The path must be relative to the context node.
      * This default implementations simply returns <code>name</code>.
      */
     protected String jcrPathFromCol(String name) {
-        return name; 
+        return name;
     }
 
     //------------------------------------------< private >---
 
     /**
-     * @return  <code>null</code> if <code>b</code> is <code>null</code>, <code>!b</code> otherwise.
+     * @return <code>null</code> if <code>b</code> is <code>null</code>, <code>!b</code> otherwise.
      */
     private static Boolean not(Boolean b) {
         return b == null ? null : !b;
     }
 
     /**
-     * @return 
-     *  <ul><li><code>true</code> if either of <code>b1</code> and <code>b2</code> is <code>true</code>,</li>
-     *      <li><code>false</code> if both <code>b1</code> and <code>b2</code> are <code>false</code>,</li>
-     *      <li><code>null</code> otherwise.</li></ul>
+     * @return <ul><li><code>true</code> if either of <code>b1</code> and <code>b2</code> is <code>true</code>,</li>
+     *         <li><code>false</code> if both <code>b1</code> and <code>b2</code> are <code>false</code>,</li>
+     *         <li><code>null</code> otherwise.</li></ul>
      */
     private static Boolean or(Boolean b1, Boolean b2) {
         return Boolean.TRUE.equals(b1) || Boolean.TRUE.equals(b2)
                 ? Boolean.TRUE
                 : Boolean.FALSE.equals(b1) && Boolean.FALSE.equals(b2)
-                        ? Boolean.FALSE
-                        : null;
+                ? Boolean.FALSE
+                : null;
     }
 
     /**
-     * @return
-     *  <ul><li><code>false</code> if either of <code>b1</code> and <code>b2</code> is <code>false</code>,</li>
-     *      <li><code>true</code> if both <code>b1</code> and <code>b2</code> are <code>true</code>,</li>
-     *      <li><code>null</code> otherwise.</li></ul>
+     * @return <ul><li><code>false</code> if either of <code>b1</code> and <code>b2</code> is <code>false</code>,</li>
+     *         <li><code>true</code> if both <code>b1</code> and <code>b2</code> are <code>true</code>,</li>
+     *         <li><code>null</code> otherwise.</li></ul>
      */
     private static Boolean and(Boolean b1, Boolean b2) {
         return Boolean.FALSE.equals(b1) || Boolean.FALSE.equals(b2)
                 ? Boolean.FALSE
                 : Boolean.TRUE.equals(b1) && Boolean.TRUE.equals(b2)
-                        ? Boolean.TRUE
-                        : null;
+                ? Boolean.TRUE
+                : null;
     }
 
     private static class RelOpBuilder implements XPathBuilder {
@@ -413,14 +413,20 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
     private class FolderPredicateBuilder implements XPathBuilder {
         private final String folderId;
         private final boolean includeDescendants;
-        
+
         public FolderPredicateBuilder(String folderId, boolean includeDescendants) {
             this.folderId = stripQuotes(folderId);
             this.includeDescendants = includeDescendants;
         }
 
         public String xPath() {
-            return jcrPathFromId(folderId) + (includeDescendants ? "//" : "/");
+            String path;
+            if (folderId.startsWith("/")) {
+                path = jcrPathFromPath(folderId);
+            } else {
+                path = jcrPathFromId(folderId);
+            }
+            return path + (includeDescendants ? "//" : "/");
         }
 
         public Boolean eval(Boolean folderPredicateValuation) {
@@ -452,24 +458,22 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
     /**
      * Helper class, used to store all list values.
      * Does not used in building XPath query.
+     *
      * @see EvaluatorXPath#list
      */
-    private static class ListBuilder extends PrimitiveBuilder
-    {
+    private static class ListBuilder extends PrimitiveBuilder {
         List<XPathBuilder> list;
 
-        private ListBuilder(List<XPathBuilder> list)
-        {
+        private ListBuilder(List<XPathBuilder> list) {
             this.list = list;
         }
 
-        public String xPath()
-        {
+        public String xPath() {
             throw new UnsupportedOperationException("Unsupported behavior. ListBuilder is not designed to execute in XPath.");
         }
     }
 
-    private static class LiteralBuilder extends PrimitiveBuilder  {
+    private static class LiteralBuilder extends PrimitiveBuilder {
         private final String xPath;
 
         public LiteralBuilder(String value) {
@@ -497,7 +501,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         }
     }
 
-    private class ColRefBuilder extends PrimitiveBuilder  {
+    private class ColRefBuilder extends PrimitiveBuilder {
         private final String colRef;
 
         public ColRefBuilder(String colRef) {
@@ -505,7 +509,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         }
 
         public String xPath() {
-            return jcrPathFromCol(colRef);   
+            return jcrPathFromCol(colRef);
         }
 
     }
@@ -531,8 +535,8 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
         public String xPath() {
             return function == null
-                ? op1.xPath()
-                : function + "(" + op1.xPath() + (op2 == null ? "" : ", " + op2.xPath()) + ")";
+                    ? op1.xPath()
+                    : function + "(" + op1.xPath() + (op2 == null ? "" : ", " + op2.xPath()) + ")";
         }
     }
 
@@ -553,14 +557,14 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         private final String relOp;
 
         public TextOpBuilder(List<XPathBuilder> ops, String relOp) {
-            this.ops = ops;   
+            this.ops = ops;
             this.relOp = relOp;
         }
 
         public String xPath() {
             StringBuilder sb = new StringBuilder();
             String sep = "";
-            for (XPathBuilder op: ops) {
+            for (XPathBuilder op : ops) {
                 sb.append(sep).append(op.xPath());
                 sep = relOp;
             }
@@ -568,7 +572,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             return sb.toString();
         }
     }
-    
+
     private static class TextMinusBuilder extends PrimitiveBuilder {
         private final String text;
 
@@ -580,7 +584,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             return "-" + escape(text);
         }
     }
-    
+
     private static class TextWordBuilder extends PrimitiveBuilder {
         private final String word;
 

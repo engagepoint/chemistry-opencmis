@@ -55,8 +55,8 @@ public abstract class QueryTranslator {
 
             @Override
             protected String jcrPathFromId(String id) {
-                return QueryTranslator.this.jcrPathFromId(id);
-            }
+                    return QueryTranslator.this.jcrPathFromId(id);
+                }
 
             @Override
             protected String jcrPathFromCol(String name) {
