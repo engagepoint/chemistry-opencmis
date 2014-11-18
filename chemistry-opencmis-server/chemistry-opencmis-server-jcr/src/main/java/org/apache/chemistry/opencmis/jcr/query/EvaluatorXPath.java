@@ -336,11 +336,14 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         return id;
     }
 
-    private String jcrPathFromPath(String folderId) {
-        if(folderId.endsWith("/")&folderId.length()!=1){
-            throw new IllegalArgumentException(String.format("Wrong folder Id argument: %s. It can't be ended with '/'",folderId));
+    private String jcrPathFromPath(String path) {
+        if(path.endsWith(" ")){
+            path = path.replaceAll("\\s+$", "");
         }
-        return folderId;
+        if(path.endsWith("/") & path.length()!=1){
+            throw new IllegalArgumentException(String.format("Wrong folder path argument: %s. It can't be ended with '/'", path));
+        }
+        return path;
     }
     /**
      * Resolve from a column name in the query to the corresponding
