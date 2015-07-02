@@ -551,7 +551,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
         }
 
         public String xPath() {
-            return "jcr:contains(., '" + op.xPath() + "')";
+            return "jcr:contains(jcr:content, '" + op.xPath() + "')";
         }
     }
 

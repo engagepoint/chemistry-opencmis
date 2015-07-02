@@ -150,32 +150,32 @@ public class XPathBuilderTest {
                 null);
 
         check("select * from cmis:document where CONTAINS('foo')",
-                "jcr:contains(., 'foo')",
+                "jcr:contains(jcr:content, 'foo')",
                 list(),
                 null);
 
         check("select * from cmis:document where CONTAINS('foo AND bar')",
-                "jcr:contains(., 'foo bar')",
+                "jcr:contains(jcr:content, 'foo bar')",
                 list(),
                 null);
 
         check("select * from cmis:document where CONTAINS('foo OR bar')",
-                "jcr:contains(., 'foo OR bar')",
+                "jcr:contains(jcr:content, 'foo OR bar')",
                 list(),
                 null);
 
         check("select * from cmis:document where CONTAINS('foo -bar')",
-                "jcr:contains(., 'foo -bar')",
+                "jcr:contains(jcr:content, 'foo -bar')",
                 list(),
                 null);
 
         check("select * from cmis:document where CONTAINS('foo AND \"bar phrase\"')",
-                "jcr:contains(., 'foo \"bar phrase\"')",
+                "jcr:contains(jcr:content, 'foo \"bar phrase\"')",
                 list(),
                 null);
 
         check("select * from cmis:document where CONTAINS('foo AND -\"bar phrase\"')",
-                "jcr:contains(., 'foo -\"bar phrase\"')",
+                "jcr:contains(jcr:content, 'foo -\"bar phrase\"')",
                 list(),
                 null);
 
