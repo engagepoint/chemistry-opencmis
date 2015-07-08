@@ -34,15 +34,12 @@ import org.apache.chemistry.opencmis.jcr.type.JcrTypeHandlerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.jcr.Binary;
-import javax.jcr.Node;
-import javax.jcr.PathNotFoundException;
-import javax.jcr.Property;
-import javax.jcr.RepositoryException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Set;
+
+import javax.jcr.*;
 
 /**
  * Instances of this class represent a cmis:document backed by an underlying JCR <code>Node</code>.
@@ -51,6 +48,8 @@ public abstract class JcrDocument extends JcrNode {
     private static final Logger log = LoggerFactory.getLogger(JcrDocument.class);
     
     public static final String MIME_UNKNOWN = "application/octet-stream";
+    public static final String CONTENT_STREAM_MIXIN
+            = "{http://www.jcp.org/jcr/mix/1.0}contentStream";
 
     protected JcrDocument(Node node, JcrTypeManager typeManager, PathManager pathManager, JcrTypeHandlerManager typeHandlerManager) {
         super(node, typeManager, pathManager, typeHandlerManager);
@@ -82,7 +81,6 @@ public abstract class JcrDocument extends JcrNode {
 
             // compile data
             ContentStreamImpl result = new ContentStreamImpl();
-            result.setFileName(getFileName());
 
             long length;
             if (getNode().hasProperty(JCR_CONTENT_STREAM_LENGTH)) {
@@ -90,6 +88,8 @@ public abstract class JcrDocument extends JcrNode {
             } else {
                 length = data.getLength();
             }
+
+            result.setFileName(getPropertyOrElse(contentNode, JcrNode.JCR_CONTENT_STREAM_FILE_NAME, getNodeName()));
             result.setLength(BigInteger.valueOf(length));
             result.setMimeType(getPropertyOrElse(contentNode, Property.JCR_MIMETYPE, MIME_UNKNOWN));
             result.setStream(new BufferedInputStream(data.getBinary().getStream()));  // stream closed by consumer
@@ -112,7 +112,8 @@ public abstract class JcrDocument extends JcrNode {
      * @throws CmisStorageException
      */
     
-    public JcrNode setContentStream(ContentStream contentStream, boolean overwriteFlag) {
+    public JcrNode setContentStream(final ContentStream contentStream,
+                                    final boolean overwriteFlag) {
         Binary binary = null;
         try {
             // get content node. For version series this is *not* the same as the
@@ -137,10 +138,16 @@ public abstract class JcrDocument extends JcrNode {
             // write content, if available
             binary = getBinary(this, contentStream);
             contentNode.setProperty(Property.JCR_DATA, binary);
-            if (contentStream != null && contentStream.getMimeType() != null) {
-                contentNode.setProperty(Property.JCR_MIMETYPE, contentStream.getMimeType());
+
+            if (contentStream != null) {
+
+                if (contentStream.getMimeType() != null) {
+                    contentNode.setProperty(Property.JCR_MIMETYPE, contentStream.getMimeType());
+                }
+
+                addContentStreamFileNameMixin(contentNode, contentStream.getFileName());
             }
-            
+
             contentNode.getSession().save();
 
             if (autoCheckout) {
@@ -162,6 +169,23 @@ public abstract class JcrDocument extends JcrNode {
             disposeBinary(binary);
         }   
 
+    }
+
+    private void addContentStreamFileNameMixin(
+            final Node contentNode,
+            final String fileName
+    ) throws RepositoryException {
+
+        if (!contentNode.hasProperty(JcrNode.JCR_CONTENT_STREAM_FILE_NAME)
+                && contentNode.canAddMixin(CONTENT_STREAM_MIXIN)) {
+            contentNode.addMixin(CONTENT_STREAM_MIXIN);
+        }
+
+        if (fileName != null) {
+            contentNode.setProperty(JcrNode.JCR_CONTENT_STREAM_FILE_NAME, fileName);
+        } else {
+            contentNode.setProperty(JcrNode.JCR_CONTENT_STREAM_FILE_NAME, getNodeName());
+        }
     }
 
     //------------------------------------------< protected >---
@@ -315,8 +339,9 @@ public abstract class JcrDocument extends JcrNode {
     }
 
     protected String getFileName() throws RepositoryException {
-        if (getNode().hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
-            return getNode().getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
+        final Node contentNode = getNode().getNode(Node.JCR_CONTENT);
+        if (contentNode.hasProperty(JCR_CONTENT_STREAM_FILE_NAME)) {
+            return contentNode.getProperty(JCR_CONTENT_STREAM_FILE_NAME).getString();
         } else {
             return getNodeName();
         }
