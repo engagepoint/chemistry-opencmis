@@ -40,12 +40,7 @@ import org.apache.chemistry.opencmis.client.api.Relationship;
 import org.apache.chemistry.opencmis.client.api.Rendition;
 import org.apache.chemistry.opencmis.client.api.SecondaryType;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
-import org.apache.chemistry.opencmis.commons.data.Ace;
-import org.apache.chemistry.opencmis.commons.data.Acl;
-import org.apache.chemistry.opencmis.commons.data.AllowableActions;
-import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
-import org.apache.chemistry.opencmis.commons.data.ObjectData;
-import org.apache.chemistry.opencmis.commons.data.RenditionData;
+import org.apache.chemistry.opencmis.commons.data.*;
 import org.apache.chemistry.opencmis.commons.definitions.PropertyDefinition;
 import org.apache.chemistry.opencmis.commons.enums.AclPropagation;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
@@ -338,19 +333,25 @@ public abstract class AbstractCmisObject implements CmisObject, Serializable {
             if ((isCheckedOut != null) && isCheckedOut.booleanValue()) {
                 updatebility.add(Updatability.WHENCHECKEDOUT);
             }
+            Properties convertedProperties  = getObjectFactory()
+                    .convertProperties(properties, this.objectType, this.secondaryTypes, updatebility);
+              if (!convertedProperties.getPropertyList().isEmpty()) {
+                  // it's time to update
+                  getBinding().getObjectService().updateProperties(
+                          getRepositoryId(),
+                          objectIdHolder,
+                          changeTokenHolder,
+                          convertedProperties,
+                          null);
 
-            // it's time to update
-            getBinding().getObjectService().updateProperties(
-                    getRepositoryId(),
-                    objectIdHolder,
-                    changeTokenHolder,
-                    getObjectFactory()
-                            .convertProperties(properties, this.objectType, this.secondaryTypes, updatebility), null);
+                  newObjectId = objectIdHolder.getValue();
 
-            newObjectId = objectIdHolder.getValue();
-
-            // remove the object from the cache, it has been changed
-            getSession().removeObjectFromCache(objectId);
+                  // remove the object from the cache, it has been changed
+                  getSession().removeObjectFromCache(objectId);
+              } else {
+                  //object wasn't changed because there was no need for it.
+                  newObjectId = objectId;
+              }
         } finally {
             readUnlock();
         }
