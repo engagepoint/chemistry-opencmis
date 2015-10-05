@@ -726,7 +726,7 @@ public class JcrRepository {
         ObjectParentDataImpl result = new ObjectParentDataImpl();
         result.setObject(object);
         if (Boolean.TRUE.equals(includeRelativePathSegment)) {
-            result.setRelativePathSegment(parent.getName());
+            result.setRelativePathSegment(jcrNode.getName());
         }
 
         List<ObjectParentData> objectParents = Collections.singletonList((ObjectParentData) result);
