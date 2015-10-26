@@ -66,10 +66,14 @@
             <service-impl-bean>
                 <servlet-link>DiscoveryService</servlet-link>
             </service-impl-bean>
-            <handler>
-                <handler-name>WebSphere CMIS Authentication Handler</handler-name>
-                <handler-class>org.apache.chemistry.opencmis.server.impl.webservices.WebSphereAuthHandler</handler-class>
-            </handler>
+            <handler-chains>
+                <handler-chain>
+                    <handler>
+                        <handler-name>WebSphere CMIS Authentication Handler</handler-name>
+                        <handler-class>org.apache.chemistry.opencmis.server.impl.webservices.WebSphereAuthHandler</handler-class>
+                    </handler>
+                </handler-chain>
+            </handler-chains>
         </port-component>
         <port-component>
             <port-component-name>MultiFilingServicePort</port-component-name>
