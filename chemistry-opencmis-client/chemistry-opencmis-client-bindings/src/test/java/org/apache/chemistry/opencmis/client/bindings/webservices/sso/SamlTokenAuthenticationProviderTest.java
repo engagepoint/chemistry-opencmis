@@ -5,6 +5,7 @@ import org.apache.chemistry.opencmis.client.bindings.impl.SessionImpl;
 import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
 import org.apache.chemistry.opencmis.client.bindings.spi.webservices.sso.SamlTokenAuthenticationProvider;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
+import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.internal.util.reflection.Whitebox;
@@ -13,12 +14,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -121,18 +117,14 @@ public class SamlTokenAuthenticationProviderTest {
         return (Element) conditions.item(0);
     }
 
-    private Path getTestResourceURL(String resource) {
-        try {
-            URL url = Thread.currentThread().getContextClassLoader().getResource(resource);
-            assertNotNull(url);
-            return Paths.get(url.toURI());
-        } catch (URISyntaxException e) {
-            throw new IllegalStateException();
-        }
+    private URL getTestResourceURL(String resource) {
+        URL url = Thread.currentThread().getContextClassLoader().getResource(resource);
+        assertNotNull(url);
+        return url;
     }
 
     private String getSamlAssertion(String name) throws IOException {
-        List<String> lines = Files.readAllLines(getTestResourceURL(name), Charset.defaultCharset());
+        List<String> lines = IOUtils.readLines(getTestResourceURL(name).openStream());
         String xml = "";
         for (String line : lines) {
             xml += line;
