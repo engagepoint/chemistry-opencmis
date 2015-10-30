@@ -18,23 +18,14 @@
  */
 package org.apache.chemistry.opencmis.workbench;
 
-import java.awt.Container;
-import java.awt.Dimension;
-import java.util.Locale;
-import java.util.Map;
-
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JRadioButton;
-import javax.swing.JTextField;
-import javax.swing.SpringLayout;
-
+import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.workbench.model.ClientSession;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.Locale;
+import java.util.Map;
 
 public class BasicLoginTab extends AbstractSpringLoginTab {
 
@@ -57,6 +48,7 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
     private JPasswordField passwordField;
     private JRadioButton authenticationNoneButton;
     private JRadioButton authenticationStandardButton;
+    private JRadioButton authenticationSsoButton;
     private JRadioButton authenticationNTLMButton;
     private JRadioButton compressionOnButton;
     private JRadioButton compressionOffButton;
@@ -65,18 +57,19 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
     private JRadioButton cookiesOnButton;
     private JRadioButton cookiesOffButton;
 
-    public BasicLoginTab() {
+    public BasicLoginTab(Map<String, String> parameters) {
         super();
-        createGUI();
+        createGUI(parameters);
     }
 
-    private void createGUI() {
+    private void createGUI(Map<String, String> parameters) {
         setLayout(new SpringLayout());
 
         urlField = createTextField(this, "URL:");
-        urlField.setText(System.getProperty(SYSPROP_URL, ""));
+        String url = parameters.get(SessionParameter.BROWSER_URL);
+        urlField.setText(url != null ? url : System.getProperty(SYSPROP_URL, ""));
 
-        createBindingButtons(this);
+        createBindingButtons(this, parameters);
 
         usernameField = createTextField(this, "Username:");
         usernameField.setText(System.getProperty(SYSPROP_USER, ""));
@@ -84,21 +77,23 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         passwordField = createPasswordField(this, "Password:");
         passwordField.setText(System.getProperty(SYSPROP_PASSWORD, ""));
 
-        createAuthenticationButtons(this);
+        createAuthenticationButtons(this, parameters);
 
-        createCompressionButtons(this);
+        createCompressionButtons(this, parameters);
 
-        createClientCompressionButtons(this);
+        createClientCompressionButtons(this, parameters);
 
-        createCookieButtons(this);
+        createCookieButtons(this, parameters);
 
         makeCompactGrid(this, 8, 2, 5, 10, 5, 5);
     }
 
-    protected void createBindingButtons(Container pane) {
+    protected void createBindingButtons(Container pane, Map<String, String> parameters) {
         JPanel bindingContainer = new JPanel();
         bindingContainer.setLayout(new BoxLayout(bindingContainer, BoxLayout.LINE_AXIS));
-        char bc = System.getProperty(SYSPROP_BINDING, "atom").toLowerCase(Locale.ENGLISH).charAt(0);
+        String predefinedBinding = parameters.get(SessionParameter.BINDING_TYPE);
+        char bc = predefinedBinding != null ? predefinedBinding.charAt(0) :
+                System.getProperty(SYSPROP_BINDING, "atom").toLowerCase(Locale.ENGLISH).charAt(0);
         boolean atom = (bc == 'a');
         boolean ws = (bc == 'w');
         boolean browser = (bc == 'b');
@@ -120,35 +115,46 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         pane.add(bindingContainer);
     }
 
-    protected void createAuthenticationButtons(Container pane) {
+    protected void createAuthenticationButtons(Container pane, Map<String, String> parameters) {
         JPanel authenticationContainer = new JPanel();
         authenticationContainer.setLayout(new BoxLayout(authenticationContainer, BoxLayout.LINE_AXIS));
-        boolean standard = (System.getProperty(SYSPROP_AUTHENTICATION, "standard").toLowerCase(Locale.ENGLISH)
-                .equals("standard"));
-        boolean ntlm = (System.getProperty(SYSPROP_AUTHENTICATION, "").toLowerCase(Locale.ENGLISH).equals("ntlm"));
-        boolean none = !standard && !ntlm;
+        String predefinedBinding = parameters.get(BasicLoginTab.SYSPROP_AUTHENTICATION);
+        boolean standard = ("standard".equals(predefinedBinding != null ? predefinedBinding :
+                System.getProperty(SYSPROP_AUTHENTICATION, "standard").toLowerCase(Locale.ENGLISH)));
+        boolean ntlm = ("ntlm".equals(predefinedBinding != null ? predefinedBinding :
+                System.getProperty(SYSPROP_AUTHENTICATION, "").toLowerCase(Locale.ENGLISH)));
+        boolean sso = ("sso".equals(predefinedBinding != null ? predefinedBinding :
+                System.getProperty(SYSPROP_AUTHENTICATION, "").toLowerCase(Locale.ENGLISH)));
+        boolean none = !standard && !ntlm && !sso;
         authenticationNoneButton = new JRadioButton("None", none);
         authenticationStandardButton = new JRadioButton("Standard", standard);
         authenticationNTLMButton = new JRadioButton("NTLM", ntlm);
+        authenticationSsoButton = new JRadioButton("SSO", sso);
         ButtonGroup authenticationGroup = new ButtonGroup();
         authenticationGroup.add(authenticationNoneButton);
         authenticationGroup.add(authenticationStandardButton);
         authenticationGroup.add(authenticationNTLMButton);
+        authenticationGroup.add(authenticationSsoButton);
         authenticationContainer.add(authenticationNoneButton);
         authenticationContainer.add(Box.createRigidArea(new Dimension(10, 0)));
         authenticationContainer.add(authenticationStandardButton);
         authenticationContainer.add(Box.createRigidArea(new Dimension(10, 0)));
         authenticationContainer.add(authenticationNTLMButton);
+        authenticationContainer.add(Box.createRigidArea(new Dimension(10, 0)));
+        authenticationContainer.add(authenticationSsoButton);
         JLabel authenticatioLabel = new JLabel("Authentication:", JLabel.TRAILING);
 
         pane.add(authenticatioLabel);
         pane.add(authenticationContainer);
     }
 
-    protected void createCompressionButtons(Container pane) {
+    protected void createCompressionButtons(Container pane, Map<String, String> parameters) {
         JPanel compressionContainer = new JPanel();
         compressionContainer.setLayout(new BoxLayout(compressionContainer, BoxLayout.LINE_AXIS));
-        boolean compression = !(System.getProperty(SYSPROP_COMPRESSION, "on").equalsIgnoreCase("off"));
+        String predefinedBindingParam = parameters.get(SessionParameter.COMPRESSION);
+        String predefinedBinding = "true".equals(predefinedBindingParam) ? "on" : "off";
+        boolean compression = !("off".equalsIgnoreCase(predefinedBindingParam != null ? predefinedBinding :
+                System.getProperty(SYSPROP_COMPRESSION, "on")));
         compressionOnButton = new JRadioButton("On", compression);
         compressionOffButton = new JRadioButton("Off", !compression);
         ButtonGroup compressionGroup = new ButtonGroup();
@@ -163,10 +169,13 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         pane.add(compressionContainer);
     }
 
-    protected void createClientCompressionButtons(Container pane) {
+    protected void createClientCompressionButtons(Container pane, Map<String, String> parameters) {
         JPanel clientCompressionContainer = new JPanel();
         clientCompressionContainer.setLayout(new BoxLayout(clientCompressionContainer, BoxLayout.LINE_AXIS));
-        boolean clientCompression = (System.getProperty(SYSPROP_CLIENTCOMPRESSION, "off").equalsIgnoreCase("on"));
+        String predefinedBindingParam = parameters.get(SessionParameter.CLIENT_COMPRESSION);
+        String predefinedBinding = "true".equals(predefinedBindingParam) ? "on" : "off";
+        boolean clientCompression = ("on".equalsIgnoreCase(predefinedBindingParam != null ? predefinedBinding :
+                System.getProperty(SYSPROP_CLIENTCOMPRESSION, "off")));
         clientCompressionOnButton = new JRadioButton("On", clientCompression);
         clientCompressionOffButton = new JRadioButton("Off", !clientCompression);
         ButtonGroup clientCompressionGroup = new ButtonGroup();
@@ -181,10 +190,13 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         pane.add(clientCompressionContainer);
     }
 
-    protected void createCookieButtons(Container pane) {
+    protected void createCookieButtons(Container pane, Map<String, String> parameters) {
         JPanel cookiesContainer = new JPanel();
         cookiesContainer.setLayout(new BoxLayout(cookiesContainer, BoxLayout.LINE_AXIS));
-        boolean cookies = (System.getProperty(SYSPROP_COOKIES, "on").equalsIgnoreCase("on"));
+        String predefinedCookieParam = parameters.get(SessionParameter.COOKIES);
+        String predefinedCookie = "true".equals(predefinedCookieParam) ? "on" : "off";
+        boolean cookies = "on".equalsIgnoreCase(predefinedCookieParam != null ? predefinedCookie :
+                System.getProperty(SYSPROP_COOKIES, "on"));
         cookiesOnButton = new JRadioButton("On", cookies);
         cookiesOffButton = new JRadioButton("Off", !cookies);
         ButtonGroup cookiesGroup = new ButtonGroup();
@@ -218,15 +230,22 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
 
+        ClientSession.Authentication authentication = getAuthentication();
+
+        return ClientSession.createSessionParameters(url, binding, username, password, authentication,
+                compressionOnButton.isSelected(), clientCompressionOnButton.isSelected(), cookiesOnButton.isSelected());
+    }
+
+    private ClientSession.Authentication getAuthentication() {
         ClientSession.Authentication authentication = ClientSession.Authentication.NONE;
         if (authenticationStandardButton.isSelected()) {
             authentication = ClientSession.Authentication.STANDARD;
         } else if (authenticationNTLMButton.isSelected()) {
             authentication = ClientSession.Authentication.NTLM;
+        } else if (authenticationSsoButton.isSelected()) {
+            authentication = ClientSession.Authentication.SSO;
         }
-
-        return ClientSession.createSessionParameters(url, binding, username, password, authentication,
-                compressionOnButton.isSelected(), clientCompressionOnButton.isSelected(), cookiesOnButton.isSelected());
+        return authentication;
     }
 
     @Override

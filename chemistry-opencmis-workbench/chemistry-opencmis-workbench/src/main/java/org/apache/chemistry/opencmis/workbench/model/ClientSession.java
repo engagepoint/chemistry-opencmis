@@ -18,26 +18,7 @@
  */
 package org.apache.chemistry.opencmis.workbench.model;
 
-import java.net.Authenticator;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
-import org.apache.chemistry.opencmis.client.api.ObjectFactory;
-import org.apache.chemistry.opencmis.client.api.ObjectType;
-import org.apache.chemistry.opencmis.client.api.OperationContext;
-import org.apache.chemistry.opencmis.client.api.Repository;
-import org.apache.chemistry.opencmis.client.api.Session;
+import org.apache.chemistry.opencmis.client.api.*;
 import org.apache.chemistry.opencmis.client.bindings.CmisBindingFactory;
 import org.apache.chemistry.opencmis.client.runtime.SessionFactoryImpl;
 import org.apache.chemistry.opencmis.client.runtime.cache.Cache;
@@ -50,6 +31,17 @@ import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.commons.enums.CapabilityAcl;
 import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
+import org.apache.chemistry.opencmis.workbench.BasicLoginTab;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.Authenticator;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.security.cert.X509Certificate;
+import java.util.*;
 
 public class ClientSession {
 
@@ -59,11 +51,20 @@ public class ClientSession {
     public static final String VERSION_PREFIX = WORKBENCH_PREFIX + "version.";
     public static final String ACCEPT_SELF_SIGNED_CERTIFICATES = WORKBENCH_PREFIX + "acceptSelfSignedCertificates";
 
+    private static final String HTTPS = "https://";
+    private static final String DEFAULT_TOKEN_ISSUER_PATH = "/token/issue";
+    private static final String DEFAULT_CATCHER_PATH = "/engagepoint-authenticate-catcher";
+    private static final String DEFAULT_CATCHER_PORT = "9443";
+    private static final String DEFAULT_KEYSTORE_FILE = "keystore.jks";
+    private static final String DEAULT_KEYSTORE_TYPE = "JKS";
+
+
     public enum Authentication {
-        NONE, STANDARD, NTLM
+        NONE, STANDARD, NTLM, SSO
     }
 
     private static final Set<String> FOLDER_PROPERTY_SET = new HashSet<String>();
+
     static {
         FOLDER_PROPERTY_SET.add(PropertyIds.OBJECT_ID);
         FOLDER_PROPERTY_SET.add(PropertyIds.OBJECT_TYPE_ID);
@@ -80,6 +81,7 @@ public class ClientSession {
     }
 
     private static final Set<String> VERSION_PROPERTY_SET = new HashSet<String>();
+
     static {
         VERSION_PROPERTY_SET.add(PropertyIds.OBJECT_ID);
         VERSION_PROPERTY_SET.add(PropertyIds.OBJECT_TYPE_ID);
@@ -101,7 +103,7 @@ public class ClientSession {
     private OperationContext versionOperationContext;
 
     public ClientSession(Map<String, String> sessionParameters, ObjectFactory objectFactory,
-            AuthenticationProvider authenticationProvider, Cache cache) {
+                         AuthenticationProvider authenticationProvider, Cache cache) {
         if (sessionParameters == null) {
             throw new IllegalArgumentException("Parameters must not be null!");
         }
@@ -110,60 +112,72 @@ public class ClientSession {
     }
 
     public static Map<String, String> createSessionParameters(String url, BindingType binding, String username,
-            String password, Authentication authentication, boolean compression, boolean clientCompression,
-            boolean cookies) {
+                                                              String password, Authentication authentication, boolean compression, boolean clientCompression,
+                                                              boolean cookies) {
         Map<String, String> parameters = new LinkedHashMap<String, String>();
+        parameters.put(BasicLoginTab.SYSPROP_AUTHENTICATION, authentication.toString().toLowerCase());
+        parameters.put(SessionParameter.BROWSER_URL, url);
 
         switch (binding) {
-        case WEBSERVICES:
-            parameters.put(SessionParameter.BINDING_TYPE, BindingType.WEBSERVICES.value());
-            parameters.put(SessionParameter.WEBSERVICES_REPOSITORY_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_NAVIGATION_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_OBJECT_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_VERSIONING_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_DISCOVERY_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_MULTIFILING_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_RELATIONSHIP_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_ACL_SERVICE, url);
-            parameters.put(SessionParameter.WEBSERVICES_POLICY_SERVICE, url);
-            break;
-        case ATOMPUB:
-            parameters.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
-            parameters.put(SessionParameter.ATOMPUB_URL, url);
-            break;
-        case BROWSER:
-            parameters.put(SessionParameter.BINDING_TYPE, BindingType.BROWSER.value());
-            parameters.put(SessionParameter.BROWSER_URL, url);
-            break;
-        default:
-            parameters.put(SessionParameter.BINDING_TYPE, BindingType.CUSTOM.value());
+            case WEBSERVICES:
+                parameters.put(SessionParameter.BINDING_TYPE, BindingType.WEBSERVICES.value());
+                parameters.put(SessionParameter.WEBSERVICES_REPOSITORY_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_NAVIGATION_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_OBJECT_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_VERSIONING_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_DISCOVERY_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_MULTIFILING_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_RELATIONSHIP_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_ACL_SERVICE, url);
+                parameters.put(SessionParameter.WEBSERVICES_POLICY_SERVICE, url);
+                break;
+            case ATOMPUB:
+                parameters.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
+                parameters.put(SessionParameter.ATOMPUB_URL, url);
+                break;
+            case BROWSER:
+                parameters.put(SessionParameter.BINDING_TYPE, BindingType.BROWSER.value());
+                parameters.put(SessionParameter.BROWSER_URL, url);
+                break;
+            default:
+                parameters.put(SessionParameter.BINDING_TYPE, BindingType.CUSTOM.value());
         }
 
         switch (authentication) {
-        case STANDARD:
-            parameters.put(SessionParameter.USER, username);
-            parameters.put(SessionParameter.PASSWORD, password);
-            break;
-        case NTLM:
-            parameters.put(SessionParameter.USER, username);
-            parameters.put(SessionParameter.PASSWORD, password);
-            parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
-                    CmisBindingFactory.NTLM_AUTHENTICATION_PROVIDER);
-            break;
-        default:
+            case STANDARD:
+                parameters.put(SessionParameter.USER, username);
+                parameters.put(SessionParameter.PASSWORD, password);
+                break;
+            case NTLM:
+                parameters.put(SessionParameter.USER, username);
+                parameters.put(SessionParameter.PASSWORD, password);
+                parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
+                        CmisBindingFactory.NTLM_AUTHENTICATION_PROVIDER);
+                break;
+            case SSO:
+                parameters.put(SessionParameter.USER, username);
+                parameters.put(SessionParameter.PASSWORD, password);
+                parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
+                        CmisBindingFactory.SSO_AUTHENTICATION_PROVIDER);
+                parameters.put(SessionParameter.AUTH_SOAP_USERNAMETOKEN,
+                        Boolean.FALSE.toString());
+                parameters.put(SessionParameter.AUTH_SSO_AUTH_SOAP_SAMLTOKEN,
+                        Boolean.TRUE.toString());
+                parameters.put(SessionParameter.AUTH_SSO_HOK_SIGNATURE,
+                        Boolean.FALSE.toString());
+                setCatcherParameters(url, parameters);
+                parameters.put(SessionParameter.SECURITY_CRYPTO_FILE, DEFAULT_KEYSTORE_FILE);
+                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_TYPE, DEAULT_KEYSTORE_TYPE);
+                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_ALIAS, "");
+                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_PASSWORD, "");
+                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_PRIVATE_PASSWORD, "");
+            default:
         }
 
-        if (compression) {
-            parameters.put(SessionParameter.COMPRESSION, "true");
-        }
+        parameters.put(SessionParameter.COMPRESSION, String.valueOf(compression));
+        parameters.put(SessionParameter.CLIENT_COMPRESSION, String.valueOf(clientCompression));
+        parameters.put(SessionParameter.COOKIES, String.valueOf(cookies));
 
-        if (clientCompression) {
-            parameters.put(SessionParameter.CLIENT_COMPRESSION, "true");
-        }
-
-        if (cookies) {
-            parameters.put(SessionParameter.COOKIES, "true");
-        }
 
         // get additional workbench properties from system properties
         Properties sysProps = System.getProperties();
@@ -176,8 +190,30 @@ public class ClientSession {
         return parameters;
     }
 
+    private static void setCatcherParameters(String url, Map<String, String> parameters) {
+        String catcherHost = extractCatcherHost(url);
+        String tokenIssuerUrl = getCatcherLocation(catcherHost, DEFAULT_TOKEN_ISSUER_PATH);
+        String catcherUrl = getCatcherLocation(catcherHost, DEFAULT_CATCHER_PATH) ;
+        parameters.put(SessionParameter.AUTH_SSO_TOKEN_ISSUER_URL, tokenIssuerUrl);
+        parameters.put(SessionParameter.AUTH_SSO_CATCHER_URL, catcherUrl);
+    }
+
+    private static String getCatcherLocation(String catcherHost, String path) {
+        return catcherHost == null ? "" : HTTPS + catcherHost + ":"
+                            + DEFAULT_CATCHER_PORT + path;
+    }
+
+    private static String extractCatcherHost(String url)  {
+        try {
+            return new URI(url).getHost();
+        } catch (URISyntaxException e) {
+            return null;
+        }
+
+    }
+
     private void connect(Map<String, String> sessionParameters, ObjectFactory objectFactory,
-            AuthenticationProvider authenticationProvider, Cache cache) {
+                         AuthenticationProvider authenticationProvider, Cache cache) {
         this.sessionParameters = sessionParameters;
 
         // set a new dummy authenticator
@@ -321,7 +357,7 @@ public class ClientSession {
     }
 
     private void acceptSelfSignedCertificates() {
-        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+        TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
             public X509Certificate[] getAcceptedIssuers() {
                 return null;
             }
@@ -331,7 +367,7 @@ public class ClientSession {
 
             public void checkServerTrusted(X509Certificate[] certs, String authType) {
             }
-        } };
+        }};
 
         try {
             SSLContext sc = SSLContext.getInstance("SSL");

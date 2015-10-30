@@ -18,14 +18,14 @@
  */
 package org.apache.chemistry.opencmis.client.bindings;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.chemistry.opencmis.client.bindings.impl.CmisBindingImpl;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
 import org.apache.chemistry.opencmis.commons.spi.CmisBinding;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Default factory for a CMIS binding instance.
@@ -47,6 +47,8 @@ public class CmisBindingFactory {
     public static final String STANDARD_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.StandardAuthenticationProvider";
     /** NTLM authentication provider class */
     public static final String NTLM_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.NTLMAuthenticationProvider";
+
+    public static final String SSO_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.webservices.sso.SamlTokenAuthenticationProvider";
 
     private Map<String, String> defaults;
 

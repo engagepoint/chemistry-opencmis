@@ -606,4 +606,17 @@ public final class SessionParameter {
     public static final String CACHE_CLASS = "org.apache.chemistry.opencmis.cache.classname";
 
     public static final String REPOSITORY_ID = "org.apache.chemistry.opencmis.session.repository.id";
+
+    // -- Engagepoint
+    public static final String AUTH_SSO_TOKEN_ISSUER_URL = "com.engagepoint.sso.auth.token.issuer.url";
+    public static final String AUTH_SSO_CATCHER_URL = "com.engagepoint.sso.auth.catcher.url";
+    public static final String AUTH_SSO_HOK_SIGNATURE = "com.engagepoint.sso.auth.soap.signature";
+    public static final String AUTH_SSO_AUTH_SOAP_SAMLTOKEN = "com.engagepoint.sso.auth.soap.samltoken";
+    public static final String SECURITY_CRYPTO_PROVIDER = "org.apache.ws.security.crypto.provider";
+    public static final String SECURITY_CRYPTO_FILE = "org.apache.ws.security.crypto.merlin.file";
+    public static final String SECURITY_CRYPTO_KEYSTORE_TYPE = "org.apache.ws.security.crypto.merlin.keystore.type";
+    public static final String SECURITY_CRYPTO_KEYSTORE_PASSWORD = "org.apache.ws.security.crypto.merlin.keystore.password";
+    public static final String SECURITY_CRYPTO_KEYSTORE_PRIVATE_PASSWORD = "org.apache.ws.security.crypto.merlin.keystore.private.password";
+    public static final String SECURITY_CRYPTO_KEYSTORE_ALIAS = "org.apache.ws.security.crypto.merlin.keystore.alias";
+
 }

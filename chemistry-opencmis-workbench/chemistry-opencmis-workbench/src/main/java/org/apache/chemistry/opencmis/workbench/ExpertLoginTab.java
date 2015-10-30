@@ -18,23 +18,18 @@
  */
 package org.apache.chemistry.opencmis.workbench;
 
-import java.awt.BorderLayout;
-import java.awt.Font;
+import org.apache.chemistry.opencmis.workbench.ClientHelper.FileEntry;
+import org.apache.chemistry.opencmis.workbench.model.ClientSession;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.File;
 import java.net.URI;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.swing.BorderFactory;
-import javax.swing.JComboBox;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-
-import org.apache.chemistry.opencmis.workbench.ClientHelper.FileEntry;
-import org.apache.chemistry.opencmis.workbench.model.ClientSession;
 
 public class ExpertLoginTab extends AbstractLoginTab {
 
@@ -119,7 +114,7 @@ public class ExpertLoginTab extends AbstractLoginTab {
 
     @Override
     public Map<String, String> getSessionParameters() {
-        Map<String, String> result = new HashMap<String, String>();
+        Map<String, String> result = new LinkedHashMap<String, String>();
 
         for (String line : sessionParameterTextArea.getText().split("\n")) {
             line = line.trim();
