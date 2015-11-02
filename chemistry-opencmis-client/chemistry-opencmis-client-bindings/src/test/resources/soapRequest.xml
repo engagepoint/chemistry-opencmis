@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+    <S:Header>
+        <Security xmlns="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+            <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                            ID="Assertion-uuid8f1a571d-0150-1cb4-a844-dc52deeabf17" IssueInstant="2015-10-22T10:31:19Z"
+                            Version="2.0">
+                <saml:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">
+                    https://192.168.35.132:9443/sps/KAINARA/saml20
+                </saml:Issuer>
+                <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+                              Id="uuid8f1a571e-0150-197a-ab63-dc52deeabf17">
+                    <ds:SignedInfo>
+                        <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+                        <ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+                        <ds:Reference URI="#Assertion-uuid8f1a571d-0150-1cb4-a844-dc52deeabf17">
+                            <ds:Transforms>
+                                <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+                                <ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#">
+                                    <xc14n:InclusiveNamespaces xmlns:xc14n="http://www.w3.org/2001/10/xml-exc-c14n#"
+                                                               PrefixList="xs saml xsi"/>
+                                </ds:Transform>
+                            </ds:Transforms>
+                            <ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+                            <ds:DigestValue>3OQYy83A1fvIrQH1rruY8j/SJKY=</ds:DigestValue>
+                        </ds:Reference>
+                    </ds:SignedInfo>
+                    <ds:SignatureValue>
+                        b3vnzY0X2fAXMwGyWYhi2DvUJcGTUUiTIDm+1hdEsPMmQxOCts1/S517SyGntcV6U+z3gjKLPunCJA7IbI46rGd9WRimwJnvrTLSvtJaBg2VGNIdSc0ikw4LvOb3CpzHy4VUxks98t4+oWnZM+HvS4rfGfZuvdRvtnuMrcy2TgM=
+                    </ds:SignatureValue>
+                    <ds:KeyInfo>
+                        <ds:X509Data>
+                            <ds:X509Certificate>
+                                MIICBzCCAXCgAwIBAgIEQH26vjANBgkqhkiG9w0BAQQFADBIMQswCQYDVQQGEwJVUzEPMA0GA1UEChMGVGl2b2xpMQ4wDAYDVQQLEwVUQU1lQjEYMBYGA1UEAxMPZmltZGVtby5pYm0uY29tMB4XDTA0MDQxNDIyMjcxMFoXDTE3MTIyMjIyMjcxMFowSDELMAkGA1UEBhMCVVMxDzANBgNVBAoTBlRpdm9saTEOMAwGA1UECxMFVEFNZUIxGDAWBgNVBAMTD2ZpbWRlbW8uaWJtLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAiZ0D1X6rk8+ZwNBTVZt7C85m421a8A52Ksjw40t+jNvbLYDp/W66AMMYD7rB5qgniZ5K1p9W8ivM9WbPxc2u/60tFPg0e/Q/r/fxegW1K1umnay+5MaUvN3p4XUCRrfg79OvurvXQ7GZa1/wOp5vBIdXzg6i9CVAqL29JGi6GYUCAwEAATANBgkqhkiG9w0BAQQFAAOBgQBXiAhxm91I4m+g3YX+dyGc352TSKO8HvAIBkHHFFwIkzhNgO+zLhxg5UMkOg12X9ucW7leZ1IB0Z6+JXBrXIWmU3UPum+QxmlaE0OG9zhp9LEfzsE5+ff+7XpS0wpJklY6c+cqHj4aTGfOhSE6u7BLdI26cZNdzxdhikBMZPgdyQ==
+                            </ds:X509Certificate>
+                        </ds:X509Data>
+                    </ds:KeyInfo>
+                </ds:Signature>
+                <saml:Subject>
+                    <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">readwrite</saml:NameID>
+                    <saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+                        <saml:SubjectConfirmationData InResponseTo="a503156a37bgij1d2edagg78fd5e9hg"
+                                                      NotOnOrAfter="2015-10-22T10:32:19Z"
+                                                      Recipient="https://192.168.32.87:9443/engagepoint-authenticate-catcher/saml/SSO/alias/eef-lte-alias"/>
+                    </saml:SubjectConfirmation>
+                </saml:Subject>
+                <saml:Conditions NotBefore="2015-10-22T10:30:19Z" NotOnOrAfter="2015-10-22T10:32:19Z">
+                    <saml:AudienceRestriction>
+                        <saml:Audience>eef-lte</saml:Audience>
+                    </saml:AudienceRestriction>
+                </saml:Conditions>
+                <saml:AuthnStatement AuthnInstant="2015-10-22T10:31:19Z"
+                                     SessionIndex="uuid8f1a56b8-0150-1344-8382-dc52deeabf17"
+                                     SessionNotOnOrAfter="2015-10-22T11:31:19Z">
+                    <saml:AuthnContext>
+                        <saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:Password
+                        </saml:AuthnContextClassRef>
+                    </saml:AuthnContext>
+                </saml:AuthnStatement>
+                <saml:AttributeStatement>
+                    <saml:Attribute Name="email" NameFormat="http://example.com/federation/v1/email">
+                        <saml:AttributeValue xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                             xsi:type="xs:string"/>
+                    </saml:Attribute>
+                    <saml:Attribute Name="roles" NameFormat="http://example.com/federation/v1/role">
+                        <saml:AttributeValue xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">
+                            readwrite
+                        </saml:AttributeValue>
+                    </saml:Attribute>
+                    <saml:Attribute Name="ssn" NameFormat="http://example.com/federation/v1/ssn">
+                        <saml:AttributeValue xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                             xsi:type="xs:string"/>
+                    </saml:Attribute>
+                    <saml:Attribute Name="commonName" NameFormat="http://example.com/federation/v1/commonName">
+                        <saml:AttributeValue xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                             xsi:type="xs:string"/>
+                    </saml:Attribute>
+                </saml:AttributeStatement>
+            </saml:Assertion>
+        </Security>
+    </S:Header>
+    <S:Body>
+        <getRepositories xmlns="http://docs.oasis-open.org/ns/cmis/messaging/200908/"
+                         xmlns:ns2="http://docs.oasis-open.org/ns/cmis/core/200908/"/>
+    </S:Body>
+</S:Envelope>
