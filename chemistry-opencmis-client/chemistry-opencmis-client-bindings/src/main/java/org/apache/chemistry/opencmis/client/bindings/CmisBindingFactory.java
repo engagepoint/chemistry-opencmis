@@ -48,7 +48,9 @@ public class CmisBindingFactory {
     /** NTLM authentication provider class */
     public static final String NTLM_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.NTLMAuthenticationProvider";
 
-    public static final String SSO_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.webservices.sso.SamlTokenAuthenticationProvider";
+    public static final String SSO_SAML_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.SamlTokenAuthenticationProvider";
+
+    public static final String SSO_LTPA_AUTHENTICATION_PROVIDER = "org.apache.chemistry.opencmis.client.bindings.spi.LTPATokenAuthenticationProvider";
 
     private Map<String, String> defaults;
 

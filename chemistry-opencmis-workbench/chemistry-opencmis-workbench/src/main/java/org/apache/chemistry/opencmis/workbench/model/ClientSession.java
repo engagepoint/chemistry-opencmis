@@ -56,7 +56,8 @@ public class ClientSession {
     private static final String DEFAULT_CATCHER_PATH = "/engagepoint-authenticate-catcher";
     private static final String DEFAULT_CATCHER_PORT = "9443";
     private static final String DEFAULT_KEYSTORE_FILE = "keystore.jks";
-    private static final String DEAULT_KEYSTORE_TYPE = "JKS";
+    private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
+    private static final String DEFAULT_EXPIRED_TIME = "100";
 
 
     public enum Authentication {
@@ -157,8 +158,14 @@ public class ClientSession {
             case SSO:
                 parameters.put(SessionParameter.USER, username);
                 parameters.put(SessionParameter.PASSWORD, password);
-                parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
-                        CmisBindingFactory.SSO_AUTHENTICATION_PROVIDER);
+                if (binding == BindingType.ATOMPUB) {
+                    parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
+                            CmisBindingFactory.SSO_LTPA_AUTHENTICATION_PROVIDER);
+                    parameters.put(SessionParameter.AUTH_SSO_AUTH_ATOMPUB_EXPIRED_TIME, DEFAULT_EXPIRED_TIME);
+                } else if (binding == BindingType.WEBSERVICES){
+                    parameters.put(SessionParameter.AUTHENTICATION_PROVIDER_CLASS,
+                            CmisBindingFactory.SSO_SAML_AUTHENTICATION_PROVIDER);
+                }
                 parameters.put(SessionParameter.AUTH_SOAP_USERNAMETOKEN,
                         Boolean.FALSE.toString());
                 parameters.put(SessionParameter.AUTH_SSO_AUTH_SOAP_SAMLTOKEN,
@@ -167,7 +174,7 @@ public class ClientSession {
                         Boolean.FALSE.toString());
                 setCatcherParameters(url, parameters);
                 parameters.put(SessionParameter.SECURITY_CRYPTO_FILE, DEFAULT_KEYSTORE_FILE);
-                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_TYPE, DEAULT_KEYSTORE_TYPE);
+                parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_TYPE, DEFAULT_KEYSTORE_TYPE);
                 parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_ALIAS, "");
                 parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_PASSWORD, "");
                 parameters.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_PRIVATE_PASSWORD, "");

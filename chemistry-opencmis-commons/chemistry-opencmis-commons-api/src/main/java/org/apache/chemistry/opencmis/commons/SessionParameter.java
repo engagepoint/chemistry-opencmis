@@ -618,5 +618,6 @@ public final class SessionParameter {
     public static final String SECURITY_CRYPTO_KEYSTORE_PASSWORD = "org.apache.ws.security.crypto.merlin.keystore.password";
     public static final String SECURITY_CRYPTO_KEYSTORE_PRIVATE_PASSWORD = "org.apache.ws.security.crypto.merlin.keystore.private.password";
     public static final String SECURITY_CRYPTO_KEYSTORE_ALIAS = "org.apache.ws.security.crypto.merlin.keystore.alias";
+    public static final String AUTH_SSO_AUTH_ATOMPUB_EXPIRED_TIME = "com.engagepoint.sso.auth.atompub.token.expired.minutes";
 
 }
