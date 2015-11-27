@@ -244,7 +244,7 @@ public class RepositoryServiceImpl extends AbstractAtomPubService implements Rep
         final AtomEntryWriter entryWriter = new AtomEntryWriter(type, getCmisVersion(repositoryId));
 
         // post the new type definition
-        Response resp = post(new UrlBuilder(link), Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(new UrlBuilder(link), Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }

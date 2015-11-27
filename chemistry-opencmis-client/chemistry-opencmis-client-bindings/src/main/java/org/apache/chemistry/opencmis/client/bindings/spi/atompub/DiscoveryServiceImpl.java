@@ -142,7 +142,7 @@ public class DiscoveryServiceImpl extends AbstractAtomPubService implements Disc
         final CmisVersion cmisVersion = getCmisVersion(repositoryId);
 
         // post the query and parse results
-        Response resp = post(url, Constants.MEDIATYPE_QUERY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_QUERY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 XMLStreamWriter writer = XMLUtils.createWriter(out);
                 XMLUtils.startXmlDocument(writer);

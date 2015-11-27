@@ -63,7 +63,7 @@ public class PolicyServiceImpl extends AbstractAtomPubService implements PolicyS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId), getCmisVersion(repositoryId));
 
         // post applyPolicy request
-        post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }

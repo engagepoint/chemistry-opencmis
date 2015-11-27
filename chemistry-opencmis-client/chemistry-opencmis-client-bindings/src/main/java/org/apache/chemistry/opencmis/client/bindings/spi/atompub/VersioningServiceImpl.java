@@ -77,7 +77,7 @@ public class VersioningServiceImpl extends AbstractAtomPubService implements Ver
                 getCmisVersion(repositoryId));
 
         // post move request
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }

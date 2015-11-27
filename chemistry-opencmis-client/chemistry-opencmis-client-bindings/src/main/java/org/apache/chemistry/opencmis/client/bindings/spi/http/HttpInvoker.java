@@ -44,6 +44,8 @@ public interface HttpInvoker {
      */
     Response invokePOST(UrlBuilder url, String contentType, Output writer, BindingSession session);
 
+    Response invokePOST(UrlBuilder url, String contentType, Map<String, String> headers, Output writer, BindingSession session);
+
     /**
      * Executes a HTTP PUT request.
      */

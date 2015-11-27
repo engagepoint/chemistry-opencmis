@@ -620,9 +620,9 @@ public abstract class AbstractAtomPubService implements LinkAccess {
      * Performs a POST on an URL, checks the response code and returns the
      * result.
      */
-    protected Response post(UrlBuilder url, String contentType, Output writer) {
+    protected Response post(UrlBuilder url, String contentType, Map<String, String> headers, Output writer) {
         // make the call
-        Response resp = getHttpInvoker().invokePOST(url, contentType, writer, session);
+        Response resp = getHttpInvoker().invokePOST(url, contentType, headers, writer, session);
 
         // check response code
         if (resp.getResponseCode() != 201) {

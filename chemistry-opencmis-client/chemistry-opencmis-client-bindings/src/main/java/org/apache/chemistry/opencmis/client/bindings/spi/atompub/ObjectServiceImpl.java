@@ -83,37 +83,14 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
             ContentStream contentStream, VersioningState versioningState, List<String> policies, Acl addAces,
             Acl removeAces, ExtensionsData extension) {
         checkCreateProperties(properties);
-
-        // find the link
-        String link = null;
-
-        if (folderId == null) {
-            // Creation of unfiled objects via AtomPub is not defined in the
-            // CMIS 1.0 specification. This implementation follow the CMIS 1.1
-            // draft and POSTs the document to the Unfiled collection.
-
-            link = loadCollection(repositoryId, Constants.COLLECTION_UNFILED);
-
-            if (link == null) {
-                throw new CmisObjectNotFoundException("Unknown repository or unfiling not supported!");
-            }
-        } else {
-            link = loadLink(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
-
-            if (link == null) {
-                throwLinkException(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
-            }
-        }
-
-        UrlBuilder url = new UrlBuilder(link);
-        url.addParameter(Constants.PARAM_VERSIONIG_STATE, versioningState);
+        UrlBuilder url = urlForCreateDocument(repositoryId, folderId, versioningState, properties);
 
         // set up writer
         final AtomEntryWriter entryWriter = new AtomEntryWriter(createObject(properties, null, policies),
                 getCmisVersion(repositoryId), contentStream);
 
         // post the new folder object
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, contentTypeForCreateDocument(), headersForCreateDocument(properties), new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -152,7 +129,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
                 getCmisVersion(repositoryId));
 
         // post the new folder object
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -199,7 +176,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
                 getCmisVersion(repositoryId));
 
         // post the new folder object
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -242,7 +219,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
                 getCmisVersion(repositoryId));
 
         // post the new folder object
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -286,7 +263,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
                 getCmisVersion(repositoryId));
 
         // post the new folder object
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -397,7 +374,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         final AtomEntryWriter entryWriter = new AtomEntryWriter(bulkUpdate);
 
         // post the new folder object
-        Response resp = post(new UrlBuilder(link), Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(new UrlBuilder(link), Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -666,7 +643,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
                 getCmisVersion(repositoryId));
 
         // post move request
-        Response resp = post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        Response resp = post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -790,11 +767,7 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         // Content-Disposition header for the filename
         Map<String, String> headers = null;
         if (contentStream.getFileName() != null) {
-            headers = Collections
-                    .singletonMap(
-                            MimeHelper.CONTENT_DISPOSITION,
-                            MimeHelper.encodeContentDisposition(MimeHelper.DISPOSITION_ATTACHMENT,
-                                    contentStream.getFileName()));
+            headers =  headersForSetContentStream(contentStream.getFileName());
         }
 
         // send content
@@ -818,5 +791,54 @@ public class ObjectServiceImpl extends AbstractAtomPubService implements ObjectS
         if (changeToken != null) {
             changeToken.setValue(null);
         }
+    }
+
+    protected String contentTypeForCreateDocument() {
+        return Constants.MEDIATYPE_ENTRY;
+    }
+
+
+    protected Map<String, String> headersForSetContentStream(final String name) {
+        return Collections
+                .singletonMap(
+                        MimeHelper.CONTENT_DISPOSITION,
+                        MimeHelper.encodeContentDisposition(MimeHelper.DISPOSITION_ATTACHMENT,
+                                name));
+    }
+
+    protected Map<String, String> headersForCreateDocument(final Properties properties) {
+        return null;
+
+    }
+
+    protected UrlBuilder urlForCreateDocument(
+            final String repositoryId,
+            final String folderId,
+            final VersioningState versioningState,
+            final Properties properties){
+        // find the link
+        String link = null;
+
+        if (folderId == null) {
+            // Creation of unfiled objects via AtomPub is not defined in the
+            // CMIS 1.0 specification. This implementation follow the CMIS 1.1
+            // draft and POSTs the document to the Unfiled collection.
+
+            link = loadCollection(repositoryId, Constants.COLLECTION_UNFILED);
+
+            if (link == null) {
+                throw new CmisObjectNotFoundException("Unknown repository or unfiling not supported!");
+            }
+        } else {
+            link = loadLink(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
+
+            if (link == null) {
+                throwLinkException(repositoryId, folderId, Constants.REL_DOWN, Constants.MEDIATYPE_CHILDREN);
+            }
+        }
+
+        UrlBuilder url = new UrlBuilder(link);
+        url.addParameter(Constants.PARAM_VERSIONIG_STATE, versioningState);
+        return  url;
     }
 }
