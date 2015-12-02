@@ -91,11 +91,11 @@ public class QueryTranslatorTest {
                 queryTranslator.translateToXPath("select * from cmis:document where cmis:isLatestVersion='foo'"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:like(UPPER-CASE(@jcr:isLatestVersion), 'FOO')]",
+                "/jcr:root//element(*,jcr:document)[jcr:like(@jcr:isLatestVersion, 'foo')]",
                 queryTranslator.translateToXPath("select * from cmis:document where cmis:isLatestVersion LIKE 'foo'"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[not(jcr:like(UPPER-CASE(@jcr:isLatestVersion), 'FOO'))]",
+                "/jcr:root//element(*,jcr:document)[not(jcr:like(@jcr:isLatestVersion, 'foo'))]",
                 queryTranslator.translateToXPath(
                         "select * from cmis:document where cmis:isLatestVersion NOT LIKE 'foo'"));
 
@@ -220,7 +220,7 @@ public class QueryTranslatorTest {
                         "select * from cmis:document where cmis:isLatestVersion='foo' order by cmis:name desc"));
 
         assertEquals(
-                "/jcr:root//element(*,jcr:document)[jcr:like(UPPER-CASE(@jcr:isLatestVersion), 'FOO')]order by @jcr:name ascending," +
+                "/jcr:root//element(*,jcr:document)[jcr:like(@jcr:isLatestVersion, 'foo')]order by @jcr:name ascending," +
                         "@jcr:objectId descending",
                 queryTranslator.translateToXPath(
                         "select * from cmis:document where cmis:isLatestVersion LIKE 'foo' order by cmis:name asc, cmis:objectId desc"));

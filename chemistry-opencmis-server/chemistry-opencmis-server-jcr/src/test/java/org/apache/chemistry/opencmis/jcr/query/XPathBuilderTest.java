@@ -68,12 +68,12 @@ public class XPathBuilderTest {
                 null);
 
         check("select * from cmis:document where cmis:isLatestVersion LIKE 'foo'",
-                "jcr:like(UPPER-CASE(cmis:isLatestVersion), 'FOO')",
+                "jcr:like(cmis:isLatestVersion, 'foo')",
                 list(),
                 null);
 
         check("select * from cmis:document where cmis:isLatestVersion NOT LIKE 'foo'",
-                "not(jcr:like(UPPER-CASE(cmis:isLatestVersion), 'FOO'))",
+                "not(jcr:like(cmis:isLatestVersion, 'foo'))",
                 list(),
                 null);
 
@@ -134,7 +134,7 @@ public class XPathBuilderTest {
 
         GregorianCalendar date = new GregorianCalendar();
         check("select * from cmis:document where NOT(NOT IN_FOLDER('folderId') OR cmis:name = TIMESTAMP '" +
-                CalendarHelper.toString(date) + "')",
+                        CalendarHelper.toString(date) + "')",
                 "not(cmis:name = xs:dateTime('" + ISO8601.format(date) + "'))",
                 list("folderId/"),
                 false);
