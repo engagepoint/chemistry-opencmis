@@ -122,7 +122,10 @@ public class CmisBindingFactory {
             AuthenticationProvider authenticationProvider) {
         checkSessionParameters(sessionParameters, false);
 
-        sessionParameters.put(SessionParameter.BINDING_SPI_CLASS, BINDING_SPI_ATOMPUB);
+
+        if (!sessionParameters.containsKey(SessionParameter.BINDING_SPI_CLASS)) {
+            sessionParameters.put(SessionParameter.BINDING_SPI_CLASS, BINDING_SPI_ATOMPUB);
+        }
         if (!sessionParameters.containsKey(SessionParameter.HTTP_INVOKER_CLASS)) {
             sessionParameters.put(SessionParameter.HTTP_INVOKER_CLASS, DEFAULT_HTTP_INVOKER);
         }

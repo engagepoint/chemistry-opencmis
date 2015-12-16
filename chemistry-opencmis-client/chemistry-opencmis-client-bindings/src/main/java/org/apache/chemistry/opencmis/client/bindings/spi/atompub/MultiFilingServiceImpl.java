@@ -61,7 +61,7 @@ public class MultiFilingServiceImpl extends AbstractAtomPubService implements Mu
         final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId), getCmisVersion(repositoryId));
 
         // post addObjectToFolder request
-        post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }
@@ -87,7 +87,7 @@ public class MultiFilingServiceImpl extends AbstractAtomPubService implements Mu
         final AtomEntryWriter entryWriter = new AtomEntryWriter(createIdObject(objectId), getCmisVersion(repositoryId));
 
         // post removeObjectFromFolder request
-        post(url, Constants.MEDIATYPE_ENTRY, new Output() {
+        post(url, Constants.MEDIATYPE_ENTRY, null, new Output() {
             public void write(OutputStream out) throws Exception {
                 entryWriter.write(out);
             }

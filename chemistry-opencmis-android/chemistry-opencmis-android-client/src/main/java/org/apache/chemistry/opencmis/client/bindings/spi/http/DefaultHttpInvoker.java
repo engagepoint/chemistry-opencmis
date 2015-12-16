@@ -63,6 +63,10 @@ public class DefaultHttpInvoker implements HttpInvoker {
         return invoke(url, "POST", contentType, null, writer, session, null, null);
     }
 
+    public Response invokePOST(UrlBuilder url, String contentType, Map<String, String> headers, Output writer, BindingSession session) {
+        return invoke(url, "POST", contentType, headers, writer, session, null, null);
+    }
+
     public Response invokePUT(UrlBuilder url, String contentType, Map<String, String> headers, Output writer,
             BindingSession session) {
         return invoke(url, "PUT", contentType, headers, writer, session, null, null);
