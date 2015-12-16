@@ -468,8 +468,9 @@ public abstract class JcrNode {
             else {
                 Session session = getNode().getSession();
                 session.move(srcPath, destPath);
-                newNode = session.getNode(destPath);
                 session.save();
+                newNode = session.getNode(destPath);
+
             }
 
             return create(newNode);
