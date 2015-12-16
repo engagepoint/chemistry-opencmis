@@ -18,14 +18,6 @@
  */
 package org.apache.chemistry.opencmis.server.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-
 import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.PropertyString;
@@ -34,13 +26,18 @@ import org.apache.chemistry.opencmis.server.impl.atompub.AtomEntryParser;
 import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+
+import static org.junit.Assert.*;
+
 /**
  * AtomEntryParser test.
  */
 public class AtomEntryParserTest {
 
     private static final int THRESHOLD = 4 * 1024 * 1024;
-    private static final int MAX_SIZE = -1;
+    private static final int MAX_SIZE = 2 * 1024 * 1024;
 
     private static final String CMIS_ENTRY_CONTENT = "This is my content!";
     private static final String CMIS_ENTRY = "<?xml version='1.0' encoding='utf-8'?>"
