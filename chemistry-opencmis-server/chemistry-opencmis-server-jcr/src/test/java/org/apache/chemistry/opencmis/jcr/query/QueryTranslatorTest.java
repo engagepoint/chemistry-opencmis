@@ -21,7 +21,6 @@ package org.apache.chemistry.opencmis.jcr.query;
 
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
-import org.apache.chemistry.opencmis.commons.exceptions.CmisNotSupportedException;
 import org.apache.chemistry.opencmis.jcr.JcrTypeManager;
 import org.apache.chemistry.opencmis.jcr.PathManager;
 import org.apache.chemistry.opencmis.jcr.impl.DefaultDocumentTypeHandler;
@@ -150,7 +149,7 @@ public class QueryTranslatorTest {
                         "select * from cmis:document where IN_FOLDER('folderId') AND cmis:name <= 1"));
 
         assertEquals(
-                "/jcr:root/jcr:folderId//element(*,jcr:document)[@jcr:name >= 'name' and @jcr:name = true]",
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId/%') and @jcr:name >= 'name' and @jcr:name = true]",
                 queryTranslator.translateToXPath(
                         "select * from cmis:document where IN_TREE('folderId') AND cmis:name >= 'name' " +
                                 "AND cmis:name = TRUE"));
@@ -266,43 +265,43 @@ public class QueryTranslatorTest {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where NOT IN_FOLDER('folderId')");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
 
         try {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where NOT(NOT IN_FOLDER('folderId') AND cmis:name = 'name')");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
 
         try {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where IN_FOLDER('folderId') OR cmis:name = 'name'");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
 
         try {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where NOT(IN_FOLDER('folderId') AND cmis:name = 'name')");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
 
         try {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where IN_FOLDER('folder1Id') OR IN_TREE('folder2Id')");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
 
         try {
             queryTranslator.translateToXPath(
                     "select * from cmis:document where IN_FOLDER('folder1Id') AND NOT IN_TREE('folder2Id')");
             fail();
+        } catch (CmisInvalidArgumentException expected) {
         }
-        catch (CmisInvalidArgumentException expected) { }
     }
 
     @Test
@@ -332,4 +331,23 @@ public class QueryTranslatorTest {
         }
     }
 
+    @Test
+    public void testInTree() {
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') or jcr:like(@jcr:path, '/jcr:folderId2/%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE IN_TREE('folderId1') OR IN_TREE('folderId2')"));
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') or jcr:like(@jcr:name, 'Document%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE IN_TREE('folderId1') OR cmis:name LIKE 'Document%'"));
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') or jcr:like(@jcr:name, 'Document%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE cmis:name LIKE 'Document%' OR IN_TREE('folderId1')"));
+
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') and jcr:like(@jcr:name, 'Document%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE IN_TREE('folderId1') AND cmis:name LIKE 'Document%'"));
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') and jcr:like(@jcr:name, 'Document%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE cmis:name LIKE 'Document%' AND IN_TREE('folderId1')"));
+    }
 }
