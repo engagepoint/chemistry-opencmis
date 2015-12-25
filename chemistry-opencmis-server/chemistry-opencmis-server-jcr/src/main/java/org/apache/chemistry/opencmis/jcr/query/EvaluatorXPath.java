@@ -214,7 +214,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             op11 = new FunctionBuilder("UPPER-CASE", op1);
             op21 = new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2));
         }
-        return new FunctionBuilder("jcr:like", op1, op2);
+        return new FunctionBuilder("jcr:like", op11, op21);
     }
 
     @Override
@@ -225,7 +225,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
             op11 = new FunctionBuilder("UPPER-CASE", op1);
             op21 = new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2));
         }
-        return new FunctionBuilder("jcr:like", op1, op2) {
+        return new FunctionBuilder("jcr:like", op11, op21) {
             @Override
             public String xPath() {
                 return "not(" + super.xPath() + ")";
