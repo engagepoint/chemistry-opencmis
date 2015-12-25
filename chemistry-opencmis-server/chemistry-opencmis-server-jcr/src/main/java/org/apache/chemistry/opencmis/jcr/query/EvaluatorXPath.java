@@ -208,23 +208,23 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
     @Override
     public XPathBuilder like(XPathBuilder op1, XPathBuilder op2) {
-/*        XPathBuilder op11 = op1;
+        XPathBuilder op11 = op1;
         XPathBuilder op21 = op2;
         if (op2 != null && op2 instanceof LiteralBuilder) {
             op11 = new FunctionBuilder("UPPER-CASE", op1);
             op21 = new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2));
-        }*/
+        }
         return new FunctionBuilder("jcr:like", op1, op2);
     }
 
     @Override
     public XPathBuilder notLike(XPathBuilder op1, XPathBuilder op2) {
-/*        XPathBuilder op11 = op1;
+        XPathBuilder op11 = op1;
         XPathBuilder op21 = op2;
         if (op2 != null && op2 instanceof LiteralBuilder) {
             op11 = new FunctionBuilder("UPPER-CASE", op1);
             op21 = new LiteralBuilderForLikeWrapper(((LiteralBuilder) op2));
-        }*/
+        }
         return new FunctionBuilder("jcr:like", op1, op2) {
             @Override
             public String xPath() {
@@ -234,7 +234,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
     }
 
     // wrapper that makes text upper case for LIKE operation
-/*    private static class LiteralBuilderForLikeWrapper extends PrimitiveBuilder {
+    private static class LiteralBuilderForLikeWrapper extends PrimitiveBuilder {
 
         private LiteralBuilder delegate;
 
@@ -249,7 +249,7 @@ public class EvaluatorXPath extends EvaluatorBase<XPathBuilder> {
 
             return s;
         }
-    }*/
+    }
 
     @Override
     public XPathBuilder contains(XPathBuilder op1, XPathBuilder op2) {
