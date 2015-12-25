@@ -50,7 +50,7 @@ public abstract class QueryTranslator {
     private static final String IN_TREE_SQL_CLAUSE = "IN_TREE";
     private static final String OR_SQL_CLAUSE = "OR";
     private static final String AND_SQL_CLAUSE = "AND";
-    private static final Pattern IN_TREE_PATTERN = Pattern.compile("\\s?(OR|AND|or|and)?\\s?IN_TREE\\('\\w+'\\)\\s?(OR|AND|or|and)?");
+    private static final Pattern IN_TREE_PATTERN = Pattern.compile("\\s?(OR|AND|or|and)?\\s?IN_TREE\\('\\S+'\\)\\s?(OR|AND|or|and)?");
 
     /**
      * Create a new query translator which uses the provided <code>typeManager</code>

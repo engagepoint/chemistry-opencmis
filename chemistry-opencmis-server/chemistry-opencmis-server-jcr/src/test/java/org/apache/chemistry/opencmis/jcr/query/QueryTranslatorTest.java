@@ -349,5 +349,9 @@ public class QueryTranslatorTest {
         assertEquals(
                 "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:folderId1/%') and jcr:like(@jcr:name, 'Document%')]",
                 queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE cmis:name LIKE 'Document%' AND IN_TREE('folderId1')"));
+
+        assertEquals(
+                "//element(*,jcr:document)[jcr:like(@jcr:path, '/jcr:535f44aeaa9871idf_A11267E4-9382-4A1B-9C7F-51BB6FCFF14F/%') or jcr:like(@jcr:name, 'Document%')]",
+                queryTranslator.translateToXPath("SELECT * FROM cmis:document WHERE IN_TREE('535f44aeaa9871idf_A11267E4-9382-4A1B-9C7F-51BB6FCFF14F') OR cmis:name LIKE 'Document%'"));
     }
 }
