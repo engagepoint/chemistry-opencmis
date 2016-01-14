@@ -279,14 +279,14 @@ public class JcrFolder extends JcrNode {
 
                 // skip type id
                 if (propDef.getId().equals(PropertyIds.OBJECT_TYPE_ID)) {
-                    log.warn("Cannot set " + PropertyIds.OBJECT_TYPE_ID + ". Ignoring");
+                    log.debug("Cannot set " + PropertyIds.OBJECT_TYPE_ID + ". Ignoring");
                     addedProps.add(prop.getId());
                     continue;
                 }
 
                 // skip content stream file name
                 if (propDef.getId().equals(PropertyIds.CONTENT_STREAM_FILE_NAME)) {
-                    log.warn("Cannot set " + PropertyIds.CONTENT_STREAM_FILE_NAME + ". Ignoring");
+                    log.debug("Cannot set " + PropertyIds.CONTENT_STREAM_FILE_NAME + ". Ignoring");
                     addedProps.add(prop.getId());
                     continue;
                 }
