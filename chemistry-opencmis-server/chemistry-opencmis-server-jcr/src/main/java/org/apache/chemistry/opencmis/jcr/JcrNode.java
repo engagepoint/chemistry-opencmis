@@ -855,7 +855,7 @@ public abstract class JcrNode {
 
                 // default or value
                 PropertyData<?> newProp;
-                newProp = PropertyHelper.isPropertyEmpty(prop)
+                newProp = PropertyHelper.isPropertyEmpty(prop, propDef)
                         ? PropertyHelper.getDefaultValue(propDef)
                         : prop;
 

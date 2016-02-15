@@ -297,7 +297,7 @@ public class JcrFolder extends JcrNode {
                 }
 
                 // empty properties are invalid
-                if (PropertyHelper.isPropertyEmpty(prop)) {
+                if (PropertyHelper.isPropertyEmpty(prop, propDef)) {
                     throw new CmisConstraintException("Property '" + prop.getId() + "' must not be empty!");
                 }
 

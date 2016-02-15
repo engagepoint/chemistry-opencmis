@@ -86,8 +86,41 @@ public final class PropertyHelper {
      * @param prop
      * @return  <code>true</code> iff <code>prop</code> denotes an empty property data value
      */
-    public static boolean isPropertyEmpty(PropertyData<?> prop) {
-        return prop == null || prop.getValues() == null || prop.getValues().isEmpty();
+    public static boolean isPropertyEmpty(PropertyData<?> prop, PropertyDefinition<?> propDef) {
+        if (prop == null || prop.getValues() == null || prop.getValues().isEmpty()) {
+            return true;
+        }
+        if (propDef.isRequired()) {
+            switch (propDef.getPropertyType()) {
+                case BOOLEAN:
+                case DATETIME:
+                case DECIMAL:
+                case INTEGER:
+                    return isPropertyValueNull(prop);
+                case HTML:
+                case ID:
+                case STRING:
+                case URI:
+                    for (Object value : prop.getValues()) {
+                        if (value == null || ((String)value).isEmpty()) {
+                            return true;
+                        }
+                    }
+                    return false;
+                default:
+                    throw new CmisRuntimeException("Unknown data type: " + propDef.getPropertyType());
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPropertyValueNull(PropertyData<?> prop) {
+        for (Object value : prop.getValues()) {
+            if (value == null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
