@@ -263,7 +263,7 @@ public class JcrFolder extends JcrNode {
         return JcrTypeManager.FOLDER_TYPE_ID;
     }
 
-    private static boolean isJcrNodeAlreadyHasValue(Node node, Cardinality cardinality, String id) throws RepositoryException {
+    private static boolean isJcrNodeAlreadyHasValue(Node node, Cardinality cardinality, String id) {
         try{
             Property jcrProp = node.getProperty(id);
             if (cardinality == Cardinality.MULTI) {
@@ -277,7 +277,7 @@ public class JcrFolder extends JcrNode {
                     return true;
                 }
             }
-        } catch (PathNotFoundException e) {
+        } catch (RepositoryException e) {
             //ignore
         }
         return false;
