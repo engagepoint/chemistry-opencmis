@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Set;
 
 import javax.jcr.Node;
+import javax.jcr.PathNotFoundException;
+import javax.jcr.Property;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.query.Query;
@@ -43,6 +45,7 @@ import org.apache.chemistry.opencmis.commons.definitions.TypeDefinition;
 import org.apache.chemistry.opencmis.commons.definitions.TypeDefinitionContainer;
 import org.apache.chemistry.opencmis.commons.enums.Action;
 import org.apache.chemistry.opencmis.commons.enums.BaseTypeId;
+import org.apache.chemistry.opencmis.commons.enums.Cardinality;
 import org.apache.chemistry.opencmis.commons.enums.Updatability;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
@@ -260,6 +263,25 @@ public class JcrFolder extends JcrNode {
         return JcrTypeManager.FOLDER_TYPE_ID;
     }
 
+    private static boolean isJcrNodeAlreadyHasValue(Node node, Cardinality cardinality, String id) throws RepositoryException {
+        try{
+            Property jcrProp = node.getProperty(id);
+            if (cardinality == Cardinality.MULTI) {
+
+                if (jcrProp.getValues() != null &&
+                        jcrProp.getValues().length>0) {
+                    return true;
+                }
+            } else  {
+                if (jcrProp.getValue() != null) {
+                    return true;
+                }
+            }
+        } catch (PathNotFoundException e) {
+            //ignore
+        }
+        return false;
+    }
     public static void setProperties(Node node, TypeDefinition type, Properties properties) {
         if (properties == null || properties.getProperties() == null) {
             throw new CmisConstraintException("No properties!");
@@ -271,6 +293,10 @@ public class JcrFolder extends JcrNode {
             // check if all required properties are there
             for (PropertyData<?> prop : properties.getProperties().values()) {
                 PropertyDefinition<?> propDef = type.getPropertyDefinitions().get(prop.getId());
+                if (isJcrNodeAlreadyHasValue(node, propDef.getCardinality(), prop.getId())) {
+                    continue;
+                }
+
 
                 // do we know that property?
                 if (propDef == null) {
@@ -310,6 +336,9 @@ public class JcrFolder extends JcrNode {
             for (PropertyDefinition<?> propDef : type.getPropertyDefinitions().values()) {
                 if (!addedProps.contains(propDef.getId()) && propDef.getUpdatability() != Updatability.READONLY) {
                     PropertyData<?> prop = PropertyHelper.getDefaultValue(propDef);
+                    if (isJcrNodeAlreadyHasValue(node, propDef.getCardinality(), propDef.getId())) {
+                        continue;
+                    }
                     if (prop == null && propDef.isRequired()) {
                         throw new CmisConstraintException("Property '" + propDef.getId() + "' is required!");
                     }
