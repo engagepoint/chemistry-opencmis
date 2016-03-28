@@ -15,7 +15,7 @@
 	<parent>
 		<groupId>org.apache.chemistry.opencmis</groupId>
 		<artifactId>chemistry-opencmis</artifactId>
-		<version>0.11.0.17-EP-SNAPSHOT</version>
+		<version>0.11.0.17-EP</version>
 		<relativePath>../../pom.xml</relativePath>
 	</parent>
 
