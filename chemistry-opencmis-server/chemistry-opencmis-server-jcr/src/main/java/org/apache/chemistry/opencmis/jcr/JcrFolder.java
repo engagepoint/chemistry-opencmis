@@ -263,21 +263,37 @@ public class JcrFolder extends JcrNode {
         return JcrTypeManager.FOLDER_TYPE_ID;
     }
 
+
     private static boolean isJcrNodeAlreadyHasValue(Node node, Cardinality cardinality, String id) {
         try{
-            Property jcrProp = node.getProperty(id);
-            if (cardinality == Cardinality.MULTI) {
-
-                if (jcrProp.getValues() != null &&
-                        jcrProp.getValues().length>0) {
-                    return true;
-                }
-            } else  {
-                if (jcrProp.getValue() != null) {
-                    return true;
+            if (id.contains(":")) {
+                String namespacePrefix = id.split(":")[0];
+                String namespaceUri =
+                        node
+                            .getSession()
+                                .getWorkspace()
+                                .getNamespaceRegistry()
+                                .getURI(namespacePrefix);
+                if (null == namespaceUri) {
+                    //Namespace is not registered
+                    return false;
                 }
             }
-        } catch (RepositoryException e) {
+            if (node.hasProperty(id)) {
+                Property jcrProp = node.getProperty(id);
+                if (cardinality == Cardinality.MULTI) {
+
+                    if (jcrProp.getValues() != null &&
+                            jcrProp.getValues().length>0) {
+                        return true;
+                    }
+                } else  {
+                    if (jcrProp.getValue() != null) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
             //ignore
         }
         return false;
