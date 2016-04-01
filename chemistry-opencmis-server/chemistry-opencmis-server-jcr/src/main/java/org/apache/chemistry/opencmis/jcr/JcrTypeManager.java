@@ -411,7 +411,8 @@ public class JcrTypeManager implements TypeManager {
         result.setUpdatability(updateability);
         result.setIsInherited(inherited);
         result.setIsRequired(required);
-        result.setIsQueryable(false);
+        result.setIsQueryable(true);
+        result.setIsOrderable(true);
         result.setQueryName(id);
 
         return result;
