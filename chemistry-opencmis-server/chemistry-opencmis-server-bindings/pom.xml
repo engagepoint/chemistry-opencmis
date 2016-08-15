@@ -126,7 +126,6 @@
                         <configuration>
                             <classifier>jboss</classifier>
                             <excludes>
-                                <exclude>org/apache/chemistry/opencmis/server/impl/browser/**/*</exclude>
                                 <exclude>**/webservices/*Service10*</exclude>
                             </excludes>
                         </configuration>
