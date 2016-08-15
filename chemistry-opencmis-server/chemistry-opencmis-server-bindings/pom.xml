@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.apache.chemistry.opencmis</groupId>
         <artifactId>chemistry-opencmis</artifactId>
-        <version>0.13.0</version>
+        <version>0.13.0-HF1-EP-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -53,7 +53,7 @@
             <groupId>org.jvnet.mimepull</groupId>
             <artifactId>mimepull</artifactId>
             <version>${mimepull.version}</version>
-        </dependency> 
+        </dependency>
         <dependency>
             <groupId>com.sun.xml.ws</groupId>
             <artifactId>jaxws-rt</artifactId>
@@ -67,18 +67,18 @@
                     <groupId>stax</groupId>
                     <artifactId>stax-api</artifactId>
                 </exclusion>
-                <exclusion>	 
-                    <groupId>org.codehaus.woodstox</groupId>	 
-                    <artifactId>wstx-asl</artifactId>	 
-                </exclusion>	 
-                <exclusion>	 
-                    <groupId>junit</groupId>	 
-                    <artifactId>junit</artifactId>	 
-                </exclusion>	 
-                <exclusion>	 
-                    <groupId>org.jvnet</groupId>	 
-                    <artifactId>mimepull</artifactId>	 
-                </exclusion>	 
+                <exclusion>
+                    <groupId>org.codehaus.woodstox</groupId>
+                    <artifactId>wstx-asl</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jvnet</groupId>
+                    <artifactId>mimepull</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <!-- server-support is not a *runtime* dependency but it's added for commodity in the WAR -->
@@ -105,4 +105,36 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>jboss</classifier>
+                            <excludes>
+                                <exclude>org/apache/chemistry/opencmis/server/impl/browser/**/*</exclude>
+                                <exclude>**/webservices/*Service10*</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
 </project>
