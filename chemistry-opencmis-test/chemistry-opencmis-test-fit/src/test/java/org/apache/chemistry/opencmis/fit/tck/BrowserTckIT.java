@@ -25,7 +25,7 @@ import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
 import org.junit.Ignore;
 
-// TODO: EngagePoint Content Veracode security violation fix for unused functionality
+// TODO: HHS Tech Group Content Veracode security violation fix for unused functionality
 @Ignore
 public class BrowserTckIT extends AbstractTckIT {
 

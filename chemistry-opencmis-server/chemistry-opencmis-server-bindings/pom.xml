@@ -89,7 +89,7 @@
     <build>
         <plugins>
             <plugin>
-                <!-- TODO: EngagePoint Content Veracode security violation fix for unused functionality -->
+                <!-- TODO: HHS Tech Group Content Veracode security violation fix for unused functionality -->
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>

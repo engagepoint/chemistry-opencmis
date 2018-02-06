@@ -20,7 +20,7 @@
     <groupId>org.apache.chemistry.opencmis</groupId>
     <artifactId>chemistry-opencmis</artifactId>
     <name>Apache Chemistry OpenCMIS</name>
-    <version>0.11.0.15-EP</version>
+    <version>0.11.0.15-HHSTECHGROUP</version>
     <packaging>pom</packaging>
 
 	
@@ -49,10 +49,10 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git@github.com:engagepoint/chemistry-opencmis.git</connection>
-        <developerConnection>scm:git:git@github.com:engagepoint/chemistry-opencmis.git</developerConnection>
-        <url>http://github.com/engagepoint/chemistry-opencmis</url>
-      <tag>0.11.0.15-EP</tag>
+        <connection>scm:git:git@github.com:hhstechgroup/chemistry-opencmis.git</connection>
+        <developerConnection>scm:git:git@github.com:hhstechgroup/chemistry-opencmis.git</developerConnection>
+        <url>https://github.com/hhstechgroup/chemistry-opencmis</url>
+      <tag>HEAD</tag>
   </scm>
 
     <distributionManagement>

@@ -47,7 +47,7 @@
 		<load-on-startup>2</load-on-startup>
 	</servlet>
 
-    <!-- TODO: EngagePoint Content Veracode security violation fix for unused functionality -->
+    <!-- TODO: HHS Tech Group Content Veracode security violation fix for unused functionality -->
 	<!--<servlet>-->
 		<!--<servlet-name>cmisbrowser</servlet-name>-->
 		<!--<servlet-class>org.apache.chemistry.opencmis.server.impl.browser.CmisBrowserBindingServlet</servlet-class>-->
@@ -68,7 +68,7 @@
 		<url-pattern>/atom/*</url-pattern>
 	</servlet-mapping>
 
-    <!-- TODO: EngagePoint Content Veracode security violation fix for unused functionality -->
+    <!-- TODO: HHS Tech Group Content Veracode security violation fix for unused functionality -->
 	<!--<servlet-mapping>-->
 		<!--<servlet-name>cmisbrowser</servlet-name>-->
 		<!--<url-pattern>/browser/*</url-pattern>-->

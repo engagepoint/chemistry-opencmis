@@ -78,7 +78,7 @@ public class JsonPrettyPrinter  {
             sb.append(indentStr);
         }
     }
-    // TODO: EngagePoint Content Veracode security violation fix for unused functionality
+    // TODO: HHS Tech Group Content Veracode security violation fix for unused functionality
     public static void main1(String[] args) {
         args = new String[2];
         args[0] = "[0,{\"1\":{\"2\":{\"3\":{\"4\":[5,{\"6\":7}]}}}}]";
