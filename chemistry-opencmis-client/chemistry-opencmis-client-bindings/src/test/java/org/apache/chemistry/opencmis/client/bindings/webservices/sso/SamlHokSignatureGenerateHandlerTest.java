@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 
 public class SamlHokSignatureGenerateHandlerTest {
 
-    private static final String KEY_STORE_FILE = "key.jks";
+    private static final String KEY_STORE_PATH = "src\\test\\resources\\key.jks";
     private static final String TEST_SOAP_REQUEST_XML = "soapRequest.xml";
     private static final String CALCULATED_DIGEST_VALUE = "Bkr2HD7bmNYYw4lJa6FJyE/sBYc=";
     private static final int SIGNED_NODE_INDEX = 1;
@@ -93,7 +93,7 @@ public class SamlHokSignatureGenerateHandlerTest {
 
     private BindingSession initSession() {
         BindingSession session = new SessionImpl();
-        session.put(SessionParameter.SECURITY_CRYPTO_FILE, getTestResourceURL(KEY_STORE_FILE).getPath());
+        session.put(SessionParameter.SECURITY_CRYPTO_FILE, KEY_STORE_PATH);
         session.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_TYPE, "JKS");
         session.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_PASSWORD, "12345");
         session.put(SessionParameter.SECURITY_CRYPTO_KEYSTORE_ALIAS, "default");
