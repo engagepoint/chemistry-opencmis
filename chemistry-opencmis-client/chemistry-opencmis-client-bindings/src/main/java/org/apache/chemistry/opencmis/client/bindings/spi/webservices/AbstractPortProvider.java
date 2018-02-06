@@ -18,34 +18,6 @@
  */
 package org.apache.chemistry.opencmis.client.bindings.spi.webservices;
 
-import org.apache.chemistry.opencmis.client.bindings.impl.ClientVersion;
-import org.apache.chemistry.opencmis.client.bindings.impl.CmisBindingsHelper;
-import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
-import org.apache.chemistry.opencmis.client.bindings.spi.http.HttpInvoker;
-import org.apache.chemistry.opencmis.client.bindings.spi.http.Response;
-import org.apache.chemistry.opencmis.client.bindings.spi.webservices.sso.SamlHokSignatureGenerateHandler;
-import org.apache.chemistry.opencmis.commons.SessionParameter;
-import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
-import org.apache.chemistry.opencmis.commons.exceptions.*;
-import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
-import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
-import org.apache.chemistry.opencmis.commons.impl.jaxb.*;
-import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
-import javax.xml.namespace.QName;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.ws.BindingProvider;
-import javax.xml.ws.Service;
-import javax.xml.ws.WebServiceFeature;
-import javax.xml.ws.handler.Handler;
-import javax.xml.ws.handler.MessageContext;
-import javax.xml.ws.http.HTTPException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,8 +26,62 @@ import java.lang.reflect.Constructor;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+
+import javax.xml.namespace.QName;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.ws.BindingProvider;
+import javax.xml.ws.Service;
+import javax.xml.ws.WebServiceFeature;
+import javax.xml.ws.handler.MessageContext;
+import javax.xml.ws.http.HTTPException;
+
+import org.apache.chemistry.opencmis.client.bindings.impl.ClientVersion;
+import org.apache.chemistry.opencmis.client.bindings.impl.CmisBindingsHelper;
+import org.apache.chemistry.opencmis.client.bindings.spi.BindingSession;
+import org.apache.chemistry.opencmis.client.bindings.spi.http.HttpInvoker;
+import org.apache.chemistry.opencmis.client.bindings.spi.http.Response;
+import org.apache.chemistry.opencmis.commons.SessionParameter;
+import org.apache.chemistry.opencmis.commons.enums.CmisVersion;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisBaseException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisConnectionException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisProxyAuthenticationException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisUnauthorizedException;
+import org.apache.chemistry.opencmis.commons.impl.UrlBuilder;
+import org.apache.chemistry.opencmis.commons.impl.XMLUtils;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.ACLService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.ACLServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.DiscoveryService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.DiscoveryServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.MultiFilingService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.MultiFilingServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.NavigationService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.NavigationServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.ObjectService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.ObjectServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.PolicyService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.PolicyServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.RelationshipService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.RelationshipServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.RepositoryService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.RepositoryServicePort;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.VersioningService;
+import org.apache.chemistry.opencmis.commons.impl.jaxb.VersioningServicePort;
+import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 public abstract class AbstractPortProvider {
 
@@ -401,13 +427,7 @@ public abstract class AbstractPortProvider {
                 serviceMap.put(service, serviceholder);
 
                 // create port object
-                BindingProvider portObject = createPortObject(serviceholder);
-
-                if (isSamlTokenProfile() && useHokProfileSignature()) {
-                    addSamlHokSignatureGenerateHandler(portObject);
-                }
-
-                return portObject;
+                return createPortObject(serviceholder);
             } finally {
                 session.writeUnlock();
             }
@@ -426,33 +446,13 @@ public abstract class AbstractPortProvider {
                 CmisServiceHolder serviceholder = initServiceObject(service);
                 serviceMap.put(service, serviceholder);
 
-                BindingProvider portObject = createPortObject(serviceholder);
-
-                if (isSamlTokenProfile() && useHokProfileSignature()) {
-                    addSamlHokSignatureGenerateHandler(portObject);
-                }
-                return portObject;
+                return createPortObject(serviceholder);
             } finally {
                 session.writeUnlock();
             }
         }
+
         return createPortObject(serviceMap.get(service));
-    }
-
-    private void addSamlHokSignatureGenerateHandler(BindingProvider portObject) {
-        List<Handler> handlerChain = portObject.getBinding().getHandlerChain();
-        handlerChain.add(new SamlHokSignatureGenerateHandler(session));
-        portObject.getBinding().setHandlerChain(handlerChain);
-    }
-
-    private boolean isSamlTokenProfile() {
-        return getSession().getKeys().contains(SessionParameter.AUTH_SSO_AUTH_SOAP_SAMLTOKEN) &&
-                Boolean.parseBoolean(getSession().get(SessionParameter.AUTH_SSO_AUTH_SOAP_SAMLTOKEN).toString());
-    }
-
-    private boolean useHokProfileSignature() {
-        return getSession().getKeys().contains(SessionParameter.AUTH_SSO_HOK_SIGNATURE) &&
-                Boolean.parseBoolean(getSession().get(SessionParameter.AUTH_SSO_HOK_SIGNATURE).toString());
     }
 
     /**

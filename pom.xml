@@ -230,13 +230,7 @@
         <junit.version>4.11</junit.version>        
         <slf4j.version>1.7.5</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
-        <apacheclient.version>4.5.1</apacheclient.version>
-        <apacheclient.core.version>4.3.1</apacheclient.core.version>
-        <cxf.version>2.7.5</cxf.version>
-        <axis2.version>1.6.2</axis2.version>
-        <version.mockito>1.9.5</version.mockito>
-        <wss4j.version>1.5.11</wss4j.version>
-        <catcher-idp-client.version>3.2-M1-SNAPSHOT</catcher-idp-client.version>
+        <cxf.version>2.7.4</cxf.version>
     </properties>
 
     <build>
@@ -433,16 +427,6 @@
             <name>Java.net Repository for Maven 2</name>
             <url>http://download.java.net/maven/2/</url>
         </repository>
-        <repository>
-            <snapshots>
-            <enabled>true</enabled>
-            <!--<updatePolicy>never</updatePolicy> -->
-            <checksumPolicy>ignore</checksumPolicy>
-            </snapshots>
-            <id>snapshots</id>
-            <name>libs-snapshots</name>
-            <url>http://artifactory.engagepoint.ua:8081/artifactory/repo</url>
-         </repository>
     </repositories>
 
     <pluginRepositories>

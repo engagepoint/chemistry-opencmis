@@ -18,33 +18,47 @@
  */
 package org.apache.chemistry.opencmis.workbench;
 
-import org.apache.chemistry.opencmis.client.api.Repository;
-import org.apache.chemistry.opencmis.commons.SessionParameter;
-import org.apache.chemistry.opencmis.workbench.model.ClientSession;
-
-import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.ServiceLoader;
+
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
+import javax.swing.ListCellRenderer;
+import javax.swing.UIManager;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+import org.apache.chemistry.opencmis.client.api.Repository;
+import org.apache.chemistry.opencmis.workbench.model.ClientSession;
 
 public class LoginDialog extends JDialog {
-
-    private static final String PREDEFINED_PROPERTIES_FILE = "predefined.properties";
-    private static final String WORKBENCH_USER_HOME_FOLDER = ".workbench";
 
     private static final long serialVersionUID = 1L;
 
     public static final String SYSPROP_LOGIN_TAB = ClientSession.WORKBENCH_PREFIX + "logintab";
 
     private static ServiceLoader<AbstractLoginTab> TAB_SERVICE_LOADER = ServiceLoader.load(AbstractLoginTab.class);
-
 
     private JTabbedPane loginTabs;
     private BasicLoginTab basicLoginTab;
@@ -56,12 +70,10 @@ public class LoginDialog extends JDialog {
 
     private boolean canceled = true;
 
-    private PredefinedParameters predefinedParameters;
     private ClientSession clientSession;
 
     public LoginDialog(Frame owner) {
         super(owner, "Login", true);
-        loadLastPropertiesSnapshot();
         createGUI();
     }
 
@@ -164,8 +176,6 @@ public class LoginDialog extends JDialog {
 
                     canceled = false;
                     hideDialog();
-
-                    storeLastPropertiesSnapshot();
                 } catch (Exception ex) {
                     repositoryBox.setEnabled(false);
                     loginButton.setEnabled(false);
@@ -187,26 +197,29 @@ public class LoginDialog extends JDialog {
         setLocationRelativeTo(null);
     }
 
-
     protected void addLoginTabs(final JTabbedPane loginTabs) {
 
         for (AbstractLoginTab tab : TAB_SERVICE_LOADER) {
             loginTabs.add(tab.getTabTitle(), tab);
         }
 
-        Map<String, String> predefinedSessionParams = getPredefinedSessionParams();
-
-        basicLoginTab = new BasicLoginTab(predefinedSessionParams);
+        basicLoginTab = new BasicLoginTab();
         loginTabs.addTab(basicLoginTab.getTabTitle(), basicLoginTab);
 
         expertLoginTab = new ExpertLoginTab();
         loginTabs.addTab(expertLoginTab.getTabTitle(), expertLoginTab);
 
-        setLoginTabsSelectIndexProperties(loginTabs);
+        loginTabs.setSelectedIndex(0);
 
-        setLoginTabsSelectIndexFromSysProperties(loginTabs);
-
-        expertLoginTab.setSessionParameters(predefinedSessionParams);
+        String startTab = System.getProperty(SYSPROP_LOGIN_TAB, "0");
+        try {
+            int tab = Integer.parseInt(startTab);
+            if (tab >= 0 && tab < loginTabs.getTabCount()) {
+                loginTabs.setSelectedIndex(tab);
+            }
+        } catch (NumberFormatException nfe) {
+            // do nothing
+        }
 
         currentTab = (AbstractLoginTab) loginTabs.getSelectedComponent();
 
@@ -214,45 +227,13 @@ public class LoginDialog extends JDialog {
             public void stateChanged(ChangeEvent e) {
                 if (loginTabs.getSelectedComponent() == expertLoginTab) {
                     if (currentTab.transferSessionParametersToExpertTab()) {
-                        Map<String, String> sessionParameters = currentTab.getSessionParameters();
-                        expertLoginTab.setSessionParameters(sessionParameters);
+                        expertLoginTab.setSessionParameters(currentTab.getSessionParameters());
                     }
                 }
 
                 currentTab = (AbstractLoginTab) loginTabs.getSelectedComponent();
             }
         });
-    }
-
-    private Map<String, String> getPredefinedSessionParams() {
-        Map<String, String> predefinedSessionParams = new LinkedHashMap<String, String>();
-        for (Map.Entry<String, String> entry : predefinedParameters.propertiesSet()) {
-            if (getLoadFilterExpression(entry.getKey())) {
-                predefinedSessionParams.put(entry.getKey(), entry.getValue());
-            }
-        }
-        return predefinedSessionParams;
-    }
-
-
-    private void setLoginTabsSelectIndexProperties(JTabbedPane loginTabs) {
-        String selectedIndexParam = predefinedParameters.get(SYSPROP_LOGIN_TAB);
-        int selectedIndex = selectedIndexParam != null ? Integer.parseInt(selectedIndexParam) : 0;
-        loginTabs.setSelectedIndex(selectedIndex);
-    }
-
-    private void setLoginTabsSelectIndexFromSysProperties(JTabbedPane loginTabs) {
-        String startTab = System.getProperty(SYSPROP_LOGIN_TAB);
-        if (startTab != null) {
-            try {
-                int tab = Integer.parseInt(startTab);
-                if (tab >= 0 && tab < loginTabs.getTabCount()) {
-                    loginTabs.setSelectedIndex(tab);
-                }
-            } catch (NumberFormatException nfe) {
-                // do nothing
-            }
-        }
     }
 
     protected JTextField createTextField(Container pane, String label) {
@@ -357,7 +338,7 @@ public class LoginDialog extends JDialog {
 
         @Override
         public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
-                                                      boolean cellHasFocus) {
+                boolean cellHasFocus) {
             Repository repository = (Repository) value;
 
             if (isSelected) {
@@ -381,56 +362,4 @@ public class LoginDialog extends JDialog {
             return this;
         }
     }
-
-    private void loadLastPropertiesSnapshot() {
-        try {
-            predefinedParameters = new PredefinedParameters();
-            predefinedParameters.load(getPredefinedParametersFilePath());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void storeLastPropertiesSnapshot() {
-        boolean created = true;
-        File file = new File(getPredefinedParametersFilePath());
-        if (!file.exists()) {
-            created = file.getParentFile().mkdirs();
-        }
-        if (created) {
-            PredefinedParameters predefineParameters = buildPredefineParameters(currentTab.getSessionParameters());
-            try {
-                predefineParameters.store(getPredefinedParametersFilePath());
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private PredefinedParameters buildPredefineParameters(Map<String, String> sessionParameters) {
-        PredefinedParameters predefineParams = new PredefinedParameters();
-        for (Map.Entry<String, String> entry : sessionParameters.entrySet()) {
-            String value = getStoredFilterExpression(entry) ? entry.getValue() : "";
-            predefineParams.put(entry.getKey(), value);
-        }
-        predefineParams.put(SYSPROP_LOGIN_TAB, String.valueOf(loginTabs.getSelectedIndex()));
-        return predefineParams;
-    }
-
-    private String getPredefinedParametersFilePath() {
-        String separator = File.separator;
-        return System.getProperty("user.home")
-                + separator + WORKBENCH_USER_HOME_FOLDER
-                + separator + PREDEFINED_PROPERTIES_FILE;
-    }
-
-    private boolean getStoredFilterExpression(Map.Entry<String, String> entry) {
-        return !entry.getKey().equals(SessionParameter.USER) &&
-                !entry.getKey().equals(SessionParameter.PASSWORD);
-    }
-
-    private boolean getLoadFilterExpression(String name) {
-        return !name.contains(ClientSession.WORKBENCH_PREFIX);
-    }
-
 }
