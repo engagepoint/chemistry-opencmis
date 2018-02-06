@@ -85,9 +85,7 @@
 									<fileset dir="${client-bindings}/${sourcefiles}">
 										<include name="**/*.java" />
 										<exclude name="**/spi/StandardAuthenticationProvider.*" />
-										<exclude name="**/spi/SamlTokenAuthenticationProvider.*" />
-										<exclude name="**/spi/LTPATokenAuthenticationProvider.*" />
-										<exclude name="**/spi/AbstractSSOAuthenticationProvider.*" />
+										<exclude name="**/spi/SamlTokenAuthenticationProvider.sso.*" />
 										<exclude name="**/spi/local/**" />
 										<exclude name="**/spi/http/DefaultHttpInvoker.*" />
 										<exclude name="**/spi/webservices/**" />
