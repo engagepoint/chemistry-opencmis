@@ -33,7 +33,10 @@ import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.spi.AuthenticationProvider;
 import org.apache.chemistry.opencmis.workbench.BasicLoginTab;
 
-import javax.net.ssl.*;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -41,8 +44,6 @@ import java.security.cert.X509Certificate;
 import java.util.*;
 
 public class ClientSession {
-
-    private static final SSLSocketFactory DEFAULT_SSL_SOCKET_FACTORY = HttpsURLConnection.getDefaultSSLSocketFactory();
 
     public static final String WORKBENCH_PREFIX = "cmis.workbench.";
     public static final String OBJECT_PREFIX = WORKBENCH_PREFIX + "object.";
@@ -113,7 +114,7 @@ public class ClientSession {
 
     public static Map<String, String> createSessionParameters(String url, BindingType binding, String username,
                                                               String password, Authentication authentication, boolean compression, boolean clientCompression,
-                                                              boolean cookies, boolean sslCheck) {
+                                                              boolean cookies) {
         Map<String, String> parameters = new LinkedHashMap<String, String>();
         parameters.put(BasicLoginTab.SYSPROP_AUTHENTICATION, authentication.toString().toLowerCase());
         parameters.put(SessionParameter.BROWSER_URL, url);
@@ -183,7 +184,6 @@ public class ClientSession {
         parameters.put(SessionParameter.COMPRESSION, String.valueOf(compression));
         parameters.put(SessionParameter.CLIENT_COMPRESSION, String.valueOf(clientCompression));
         parameters.put(SessionParameter.COOKIES, String.valueOf(cookies));
-        parameters.put(ClientSession.ACCEPT_SELF_SIGNED_CERTIFICATES, String.valueOf(!sslCheck));
 
 
         // get additional workbench properties from system properties
@@ -230,8 +230,6 @@ public class ClientSession {
 
         if (Boolean.parseBoolean(sessionParameters.get(ACCEPT_SELF_SIGNED_CERTIFICATES))) {
             acceptSelfSignedCertificates();
-        } else {
-            HttpsURLConnection.setDefaultSSLSocketFactory(DEFAULT_SSL_SOCKET_FACTORY);
         }
 
         repositories = SessionFactoryImpl.newInstance().getRepositories(sessionParameters, objectFactory,

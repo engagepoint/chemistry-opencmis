@@ -41,8 +41,7 @@ public class LoginDialog extends JDialog {
 
     private static final long serialVersionUID = 1L;
 
-    public static final String CONFIG_PREFIX = "config.";
-    public static final String SYSPROP_LOGIN_TAB = CONFIG_PREFIX + "logintab";
+    public static final String SYSPROP_LOGIN_TAB = ClientSession.WORKBENCH_PREFIX + "logintab";
 
     private static ServiceLoader<AbstractLoginTab> TAB_SERVICE_LOADER = ServiceLoader.load(AbstractLoginTab.class);
 
@@ -431,7 +430,7 @@ public class LoginDialog extends JDialog {
     }
 
     private boolean getLoadFilterExpression(String name) {
-        return !name.contains(CONFIG_PREFIX);
+        return !name.contains(ClientSession.WORKBENCH_PREFIX);
     }
 
 }

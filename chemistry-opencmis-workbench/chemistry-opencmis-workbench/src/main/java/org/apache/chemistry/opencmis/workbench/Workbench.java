@@ -18,10 +18,14 @@
  */
 package org.apache.chemistry.opencmis.workbench;
 
-import javax.swing.*;
-import javax.swing.UIManager.LookAndFeelInfo;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator;
+
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 
 public class Workbench {
 

@@ -56,8 +56,6 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
     private JRadioButton clientCompressionOffButton;
     private JRadioButton cookiesOnButton;
     private JRadioButton cookiesOffButton;
-    private JRadioButton sslCheckOnButton;
-    private JRadioButton sslCheckOffButton;
 
     public BasicLoginTab(Map<String, String> parameters) {
         super();
@@ -87,9 +85,7 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
 
         createCookieButtons(this, parameters);
 
-        createSslCheckButtons(this, parameters);
-
-        makeCompactGrid(this, 9, 2, 5, 10, 5, 5);
+        makeCompactGrid(this, 8, 2, 5, 10, 5, 5);
     }
 
     protected void createBindingButtons(Container pane, Map<String, String> parameters) {
@@ -215,27 +211,6 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         pane.add(cookiesContainer);
     }
 
-    protected void createSslCheckButtons(Container pane, Map<String, String> parameters) {
-        JPanel sslCheckContainer = new JPanel();
-        sslCheckContainer.setLayout(new BoxLayout(sslCheckContainer, BoxLayout.LINE_AXIS));
-        String predefinedAcceptSelfSignedCertParam = parameters.get(ClientSession.ACCEPT_SELF_SIGNED_CERTIFICATES);
-        String predefinedAcceptSelfSignedCert = "true".equals(predefinedAcceptSelfSignedCertParam) ? "on" : "off";
-        boolean sslCheck = !"on".equalsIgnoreCase(predefinedAcceptSelfSignedCertParam != null ? predefinedAcceptSelfSignedCert :
-                System.getProperty(ClientSession.ACCEPT_SELF_SIGNED_CERTIFICATES, "on"));
-        sslCheckOnButton = new JRadioButton("On", sslCheck);
-        sslCheckOffButton = new JRadioButton("Off", !sslCheck);
-        ButtonGroup sslCheckGroup = new ButtonGroup();
-        sslCheckGroup.add(sslCheckOnButton);
-        sslCheckGroup.add(sslCheckOffButton);
-        sslCheckContainer.add(sslCheckOnButton);
-        sslCheckContainer.add(Box.createRigidArea(new Dimension(10, 0)));
-        sslCheckContainer.add(sslCheckOffButton);
-        JLabel sslCheckLabel = new JLabel("SSL certificate check:", JLabel.TRAILING);
-
-        pane.add(sslCheckLabel);
-        pane.add(sslCheckContainer);
-    }
-
     @Override
     public String getTabTitle() {
         return "Basic";
@@ -258,8 +233,7 @@ public class BasicLoginTab extends AbstractSpringLoginTab {
         ClientSession.Authentication authentication = getAuthentication();
 
         return ClientSession.createSessionParameters(url, binding, username, password, authentication,
-                compressionOnButton.isSelected(), clientCompressionOnButton.isSelected(), cookiesOnButton.isSelected(),
-                sslCheckOnButton.isSelected());
+                compressionOnButton.isSelected(), clientCompressionOnButton.isSelected(), cookiesOnButton.isSelected());
     }
 
     private ClientSession.Authentication getAuthentication() {
