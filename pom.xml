@@ -20,7 +20,7 @@
     <groupId>org.apache.chemistry.opencmis</groupId>
     <artifactId>chemistry-opencmis</artifactId>
     <name>Apache Chemistry OpenCMIS</name>
-    <version>0.11.0.16-HHSTECHGROUP-SNAPSHOT</version>
+    <version>0.11.0.15-HHSTECHGROUP</version>
     <packaging>pom</packaging>
 
 	
@@ -52,7 +52,7 @@
         <connection>scm:git:git@github.com:hhstechgroup/chemistry-opencmis.git</connection>
         <developerConnection>scm:git:git@github.com:hhstechgroup/chemistry-opencmis.git</developerConnection>
         <url>https://github.com/hhstechgroup/chemistry-opencmis</url>
-      <tag>HEAD</tag>
+      <tag>0.11.0.15-HHSTECHGROUP</tag>
   </scm>
 
     <distributionManagement>
